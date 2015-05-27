@@ -51,7 +51,9 @@ module Data.Vector.Shaped.Mutable
 
   ) where
 
+import           Control.Monad                 (liftM)
 import           Control.Monad.Primitive
+import           Data.Foldable                 as F
 import           Data.Typeable
 import qualified Data.Vector                   as B
 import           Data.Vector.Generic.Mutable   (MVector)
@@ -76,20 +78,20 @@ type PMArray = MArray P.MVector
 
 -- | New mutable array with shape @l@.
 new :: (PrimMonad m, Shape l, MVector v a) => l Int -> m (MArray v l (PrimState m) a)
-new l = MArray l <$> GM.new (product l)
+new l = MArray l `liftM` GM.new (F.product l)
 
 -- | New mutable array with shape @l@ filled with element @a@.
 replicate :: (PrimMonad m, Shape l, MVector v a) => l Int -> a -> m (MArray v l (PrimState m) a)
-replicate l a = MArray l <$> GM.replicate (product l) a
+replicate l a = MArray l `liftM` GM.replicate (F.product l) a
 
 -- | New mutable array with shape @l@ filled with result of monadic
 --   action @a@.
 replicateM :: (PrimMonad m, Shape l, MVector v a) => l Int -> m a -> m (MArray v l (PrimState m) a)
-replicateM l a = MArray l <$> GM.replicateM (product l) a
+replicateM l a = MArray l `liftM` GM.replicateM (F.product l) a
 
 -- | Clone a mutable array, making a new, separate mutable array.
 clone :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> m (MArray v l (PrimState m) a)
-clone (MArray l v) = MArray l <$> GM.clone v
+clone (MArray l v) = MArray l `liftM` GM.clone v
 
 -- Individual elements -------------------------------------------------
 
@@ -187,6 +189,10 @@ instance (MVector v a, l ~ V1) => MVector (MArray v l) a where
   basicLength (MArray (V1 n) _) = n
   basicUnsafeSlice i n (MArray _ v) = MArray (V1 n) $ GM.basicUnsafeSlice i n v
   basicOverlaps (MArray _ v) (MArray _ w) = GM.basicOverlaps v w
-  basicUnsafeNew n = MArray (V1 n) <$> GM.basicUnsafeNew n
+  basicUnsafeNew n = MArray (V1 n) `liftM` GM.basicUnsafeNew n
   basicUnsafeRead (MArray _ v) i = GM.basicUnsafeRead v i
   basicUnsafeWrite (MArray _ v) i a = GM.basicUnsafeWrite v i a
+
+-- for_ :: MArray v l (PrimState m) a -> (a -> m ()) -> m ()
+
+-- ifor_ :: MArray v l (PrimState m) a -> (l Int -> a -> m ()) -> m ()

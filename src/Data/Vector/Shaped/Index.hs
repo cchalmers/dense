@@ -5,8 +5,10 @@
 
 module Data.Vector.Shaped.Index where
 
+import           Control.Applicative
 import           Control.Lens
 import           Control.Lens.Internal.Getter
+import           Data.Foldable                as F
 import           Data.Functor.Classes
 import           Data.Traversable
 import           Linear
@@ -21,7 +23,7 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   -- | @toIndex l x@ returns the linear index @i@ of the shaped index @x@
   --   for array layout @l@.
   toIndex :: f Int -> f Int -> Int
-  toIndex l x = foldl (\k (e, a) -> k * e + a) 0 (liftI2 (,) l x)
+  toIndex l x = F.foldl (\k (e, a) -> k * e + a) 0 (liftI2 (,) l x)
   {-# INLINE toIndex #-}
 
   -- | @toIndex l i@ returns the shaped index @x@ of the linear index @i@
@@ -40,7 +42,7 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
 
   -- | @inRange ex i@ checks @i < ex@ for every coodinate of @f@.
   inRange :: Ord a => f a -> f a -> Bool
-  inRange v w = and $ liftI2 (<) v w
+  inRange v w = F.and $ liftI2 (<) v w
 
   -- slicing :: Lens' l1 l2 -> (l2 -> l2) -> l1 -> Array v l1 a -> Array v l2 a
   -- slicing ls f l arr =
@@ -48,14 +50,14 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   rangeBetween :: f Int -> f Int -> IndexedFold Int (f Int) (f Int)
   rangeBetween x1 x2 = l -- conjoined l (indexing l)
    -- horribly inefficient
-    where f x = and (liftI2 (<=) x1 x) && and (liftI2 (>) x x2)
+    where f x = F.and (liftI2 (<=) x1 x) && F.and (liftI2 (>) x x2)
           l = enumShape . filtered f
   {-# INLINE rangeBetween #-}
 
   enumShape :: IndexedFold Int (f Int) (f Int)
   enumShape f l = go 0 where
     -- What about negative indices?
-    n = product l
+    n = F.product l
     go i | i == n    = noEffect
          | otherwise = indexed f i (fromIndex l i) *> go (i + 1)
   {-# INLINE enumShape #-}

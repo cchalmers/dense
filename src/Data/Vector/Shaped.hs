@@ -77,13 +77,16 @@ module Data.Vector.Shaped
   ) where
 
 
+import           Control.Applicative             (pure)
 import           Control.DeepSeq
 import           Control.Lens
+import           Control.Monad                   (liftM)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
 import           Data.Binary                     as Binary
 import           Data.Bytes.Serial
 import           Data.Data
+import           Data.Foldable                   (Foldable)
 import qualified Data.Foldable                   as F
 import           Data.Functor.Classes
 import           Data.Hashable
@@ -188,7 +191,7 @@ fromListInto l as
   | G.length v == n = Just $ Array l v
   | otherwise       = Nothing
   where v = G.fromListN n as
-        n = product l
+        n = F.product l
 {-# INLINE fromListInto #-}
 
 -- | The empty 'Array' with a 'zeroDim' shape.
@@ -198,7 +201,7 @@ empty = Array zero G.empty
 
 -- | Test is if the array is 'empty'.
 null :: Foldable l => Array v l a -> Bool
-null (Array l _) = all (==0) l
+null (Array l _) = F.all (==0) l
 {-# INLINE null #-}
 
 -- Initialisation ------------------------------------------------------
@@ -214,7 +217,7 @@ replicate :: (Shape l, Vector v a) => l Int -> a -> Array v l a
 replicate l a
   | n > 0     = Array l $ G.replicate n a
   | otherwise = empty
-  where n = product l
+  where n = F.product l
 {-# INLINE replicate #-}
 
 -- | O(n) Construct an array of the given shape by applying the
@@ -223,7 +226,7 @@ generate :: (Shape l, Vector v a) => l Int -> (l Int -> a) -> Array v l a
 generate l f
   | n > 0     = Array l $ G.generate n (f . fromIndex l)
   | otherwise = empty
-  where n = product l
+  where n = F.product l
 {-# INLINE generate #-}
 
 -- Monadic initialisation ----------------------------------------------
@@ -232,18 +235,18 @@ generate l f
 --   with the monadic value.
 replicateM :: (Monad m, Shape l, Vector v a) => l Int -> m a -> m (Array v l a)
 replicateM l a
-  | n > 0     = Array l <$> G.replicateM n a
+  | n > 0     = Array l `liftM` G.replicateM n a
   | otherwise = return empty
-  where n = product l
+  where n = F.product l
 {-# INLINE replicateM #-}
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
 generateM :: (Monad m, Shape l, Vector v a) => l Int -> (l Int -> m a) -> m (Array v l a)
 generateM l f
-  | n > 0     = Array l <$> G.generateM n (f . fromIndex l)
+  | n > 0     = Array l `liftM` G.generateM n (f . fromIndex l)
   | otherwise = return empty
-  where n = product l
+  where n = F.product l
 {-# INLINE generateM #-}
 
 -- Mutable conversion --------------------------------------------------
@@ -251,24 +254,24 @@ generateM l f
 -- | O(n) Yield a mutable copy of the immutable vector.
 freeze :: (PrimMonad m, Shape l, Vector v a)
        => MArray (G.Mutable v) l (PrimState m) a -> m (Array v l a)
-freeze (MArray l mv) = Array l <$> G.freeze mv
+freeze (MArray l mv) = Array l `liftM` G.freeze mv
 
 -- | O(n) Yield an immutable copy of the mutable array.
 thaw :: (PrimMonad m, Shape l, Vector v a)
      => Array v l a -> m (MArray (G.Mutable v) l (PrimState m) a)
-thaw (Array l v) = MArray l <$> G.thaw v
+thaw (Array l v) = MArray l `liftM` G.thaw v
 
 -- | O(1) Unsafe convert a mutable array to an immutable one without
 -- copying. The mutable array may not be used after this operation.
 unsafeFreeze :: (PrimMonad m, Shape l, Vector v a)
              => MArray (G.Mutable v) l (PrimState m) a -> m (Array v l a)
-unsafeFreeze (MArray l mv) = Array l <$> G.unsafeFreeze mv
+unsafeFreeze (MArray l mv) = Array l `liftM` G.unsafeFreeze mv
 
 -- | O(1) Unsafely convert an immutable array to a mutable one without
 --   copying. The immutable array may not be used after this operation.
 unsafeThaw :: (PrimMonad m, Shape l, Vector v a)
            => Array v l a -> m (MArray (G.Mutable v) l (PrimState m) a)
-unsafeThaw (Array l v) = MArray l <$> G.unsafeThaw v
+unsafeThaw (Array l v) = MArray l `liftM` G.unsafeThaw v
 
 -- Zipping -------------------------------------------------------------
 
@@ -321,6 +324,13 @@ izipWith3 f (Array l1 v1) (Array l2 v2) (Array l3 v3)
 
 -- -- XXX Needs to be checked
 
+-- Index starts at l1.
+-- slicedValues :: l Int -> l Int -> IndexedTraversal (l Int) (Array v l a) a
+-- sliced
+
+-- Index starts at 0
+-- dicedValues :: l Int -> l Int -> IndexedTraversal (l Int) (Array v l a) a
+
 -- slice :: (Vector v a, Vector w a, Shape l1, Shape l2)
 --       => Getting (l2 Int) (l1 Int) (l2 Int)
 --       -> (l2 Int -> l1 Int)
@@ -362,7 +372,7 @@ instance (Shape l, Vector v a) => Ixed (Array v l a) where
   ix x f (Array l v)
     | inRange l x = f (G.unsafeIndex v i) <&>
         \a -> Array l (G.modify (\mv -> GM.unsafeWrite mv i a) v)
-      where i  = toIndex l x
+      where i = toIndex l x
   ix _ _ arr = pure arr
   {-# INLINE ix #-}
 
@@ -379,7 +389,7 @@ instance (Vector v a, Read1 l, Read a) => Read (Array v l a) where
     Read.Ident "Array" <- Read.lexP
     l <- readS_to_Prec readsPrec1
     v <- G.readPrec
-    pure $ Array l v
+    return $ Array l v
 
 instance (NFData (l Int), NFData (v a)) => NFData (Array v l a) where
   rnf (Array l v) = rnf l `seq` rnf v
@@ -389,8 +399,9 @@ instance (NFData (l Int), NFData (v a)) => NFData (Array v l a) where
 instance v ~ B.Vector => Functor (Array v l) where
   fmap = over linear . fmap
 
-instance v ~ B.Vector => Foldable (Array v l) where
-  foldMap f = foldMap f . view linear
+instance v ~ B.Vector => F.Foldable (Array v l) where
+  foldMap f = F.foldMap f . view linear
+  -- foldr f = foldr f . view linear
 
 instance v ~ B.Vector => Traversable (Array v l) where
   traverse = each
@@ -465,9 +476,9 @@ instance (Vector v a, Foldable l, Serialize (l Int), Serialize a) => Serialize (
 genGet :: Monad m => (Vector v a, Foldable l) => m (l Int) -> m a -> m (Array v l a)
 genGet getL getA = do
   l <- getL
-  let n       = product l
+  let n       = F.product l
       nv0     = New.create (GM.new n)
-      f acc i = getA <&> \a -> New.modify (\mv -> GM.write mv i a) acc
+      f acc i = (\a -> New.modify (\mv -> GM.write mv i a) acc) `liftM` getA
   nv <- F.foldlM f nv0 [0 .. n - 1]
   return $! Array l (G.new nv)
 {-# INLINE genGet #-}
