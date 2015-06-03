@@ -117,11 +117,22 @@ enumV4 f l@(V4 x y z w) = go zero where
 --
 -- >>> catching _IndexOutOfBounds (boundsCheck (V1 2) (V1 2) (putStrLn "in range")) print
 -- "(V1 2, V1 2)"
+--
+-- The output format is suitable to be read using the '_Show' prism:
+--
+-- >>> trying (_IndexOutOfBounds . _Show) (boundsCheck (V1 2) (V1 20) (putStrLn "in range")) :: IO (Either (V1 Int, V1 Int) ())
+-- Left (V1 2,V1 2)
 boundsCheck :: Shape l => l Int -> l Int -> a -> a
 boundsCheck i l
   | inRange i l = id
   | otherwise   = throwing _IndexOutOfBounds $ "(" ++ showShape i ++ ", " ++ showShape l ++ ")"
 {-# INLINE boundsCheck #-}
+
+-- _Show1 :: (Read1 f, Show1 f, Read a, Show a) => Prism' String (f a)
+-- _Show1 = prism (\a -> showsPrec1 0 a "") $ \s -> case readsPrec1 0 s of
+--   [(a,"")] -> Right a
+--   _        -> Left s
+-- {-# INLINE _Show1 #-}
 
 showShape :: Shape l => l Int -> String
 showShape l = "V" ++ show (length l) ++ " " ++ unwords (show <$> F.toList l)
