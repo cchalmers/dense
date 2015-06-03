@@ -102,20 +102,20 @@ clear (MArray _ v) = GM.clear v
 
 -- | Read a mutable array at element @l@.
 read :: (PrimMonad m, Shape l, MVector v a) => MArray v l (PrimState m) a -> l Int -> m a
-read (MArray l v) s = GM.read v (toIndex l s)
+read (MArray l v) s = boundsCheck l s $ GM.unsafeRead v (toIndex l s)
 
 -- | Write a mutable array at element @l@.
 write :: (PrimMonad m, Shape l, MVector v a) => MArray v l (PrimState m) a -> l Int -> a -> m ()
-write (MArray l v) s a = GM.write v (toIndex l s) a
+write (MArray l v) s a = boundsCheck l s $ GM.unsafeWrite v (toIndex l s) a
 
 -- | Modify a mutable array at element @l@ by applying a function.
 modify :: (PrimMonad m, Shape l, MVector v a) => MArray v l (PrimState m) a -> l Int -> (a -> a) -> m ()
-modify (MArray l v) s f = GM.read v i >>= GM.unsafeWrite v i . f
+modify (MArray l v) s f = boundsCheck l s $ GM.unsafeRead v i >>= GM.unsafeWrite v i . f
   where i = toIndex l s
 
 -- | Swap two elements in a mutable array.
 swap :: (PrimMonad m, Shape l, MVector v a) => MArray v l (PrimState m) a -> l Int -> l Int -> m ()
-swap (MArray l v) i j = GM.swap v (toIndex l i) (toIndex l j)
+swap (MArray l v) i j = boundsCheck l i boundsCheck l j $ GM.unsafeSwap v (toIndex l i) (toIndex l j)
 
 -- | Read a mutable array at element @i@ by indexing the internal
 --   vector.
@@ -182,7 +182,7 @@ copy (MArray _ v) (MArray _ u) = GM.copy v u
 
 -- V1 instances --------------------------------------------------------
 
--- Array v V1 a is essentially v a with a wrapper. Instance are provided
+-- Array v V1 a is essentially v a with a wrapper. Instance is provided
 -- for convience.
 
 instance (MVector v a, l ~ V1) => MVector (MArray v l) a where

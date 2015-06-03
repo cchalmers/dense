@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP     #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE Rank2Types           #-}
@@ -5,10 +6,14 @@
 
 module Data.Vector.Shaped.Index where
 
+#if __GLASGOW_HASKELL__ <= 708
 import           Control.Applicative
+#endif
 import           Control.Lens
 import           Control.Lens.Internal.Getter
 import           Data.Foldable                as F
+import Control.Exception.Lens
+
 import           Data.Functor.Classes
 import           Data.Traversable
 import           Linear
@@ -41,8 +46,8 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   indexFor l = iso (toIndex l) (fromIndex l)
 
   -- | @inRange ex i@ checks @i < ex@ for every coodinate of @f@.
-  inRange :: Ord a => f a -> f a -> Bool
-  inRange v w = F.and $ liftI2 (<) v w
+  inRange :: (Num a, Ord a) => f a -> f a -> Bool
+  inRange l i = F.and $ liftI2 (\ii li -> ii >= 0 && ii < li) i l
 
   -- slicing :: Lens' l1 l2 -> (l2 -> l2) -> l1 -> Array v l1 a -> Array v l2 a
   -- slicing ls f l arr =
@@ -99,4 +104,25 @@ enumV4 f l@(V4 x y z w) = go zero where
     | k >= z    = go $ V4    i  (j+1)    0  0
     | m >= w    = go $ V4    i  (j+1) (k+1) 0
     | otherwise = indexed f (toIndex l q) q *> go (V4 i j k (m+1))
+
+-- | Perform a bounds check for index @i@ and layout @l@. Throws an
+--   'IndexOutOfBounds' exception when out of range. This can be caught
+--   with the '_IndexOutOfBounds' prism.
+--
+-- >>> boundsCheck (V2 3 5) (V2 1 4) "in range"
+-- "in range"
+--
+-- >>> boundsCheck (V3 10 20) (V2 10 5) "in bounds"
+-- *** Exception: array index out of range: (V2 10 20, V2 10 5)
+--
+-- >>> catching _IndexOutOfBounds (boundsCheck (V1 2) (V1 2) (putStrLn "in range")) print
+-- "(V1 2, V1 2)"
+boundsCheck :: Shape l => l Int -> l Int -> a -> a
+boundsCheck i l
+  | inRange i l = id
+  | otherwise   = throwing _IndexOutOfBounds $ "(" ++ showShape i ++ ", " ++ showShape l ++ ")"
+{-# INLINE boundsCheck #-}
+
+showShape :: Shape l => l Int -> String
+showShape l = "V" ++ show (length l) ++ " " ++ unwords (show <$> F.toList l)
 
