@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP    #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -51,16 +52,10 @@ module Data.Vector.Shaped
   , replicateM
   , generateM
 
-  -- ** Mutable
-  , MArray (..)
-  , M.BMArray
-  , M.UMArray
-  , M.SMArray
-  , M.PMArray
-  , thaw
-  , freeze
-  , unsafeThaw
-  , unsafeFreeze
+  -- * Functions on arrays
+
+  -- ** Modifying arrays
+  , (//)
 
   -- ** Zipping
   , zipWith
@@ -68,25 +63,49 @@ module Data.Vector.Shaped
   , izipWith
   , izipWith3
 
+  -- ** Slices
+
+  -- , slice
+  , line
+  , unsafeOrdinals
+  , plane
+
+  -- * Mutable
+  , MArray (..)
+  , M.BMArray
+  , M.UMArray
+  , M.SMArray
+  , M.PMArray
+
+  , thaw
+  , freeze
+  , unsafeThaw
+  , unsafeFreeze
+
   -- * Common layouts
   , V1 (..)
   , V2 (..)
   , V3 (..)
   , V4 (..)
+  , _x, _y, _z
 
   ) where
 
 
-import           Control.Applicative             (pure)
+#if __GLASGOW_HASKELL__ <= 708
+import           Data.Foldable                   (Foldable)
+import           Control.Applicative (pure)
+#endif
+
 import           Control.DeepSeq
 import           Control.Lens
+import Data.Vector.Generic.Lens (vectorTraverse)
 import           Control.Monad                   (liftM)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
 import           Data.Binary                     as Binary
 import           Data.Bytes.Serial
 import           Data.Data
-import           Data.Foldable                   (Foldable)
 import qualified Data.Foldable                   as F
 import           Data.Functor.Classes
 import           Data.Hashable
@@ -138,7 +157,7 @@ extent (Array l _) = l
 --   current position in the array.
 values :: (Shape l, Vector v a, Vector w b)
        => IndexedTraversal (l Int) (Array v l a) (Array w l b) a b
-values f arr = reindexed (fromIndex $ extent arr) (linear . vectorValues) f arr
+values f arr = reindexed (fromIndex $ extent arr) (linear . vectorTraverse) f arr
 {-# INLINE values #-}
 
 -- | Same as 'values' but restrictive in the vector type.
@@ -147,10 +166,10 @@ values' :: (Shape l, Vector v a, Vector v b)
 values' = values
 {-# INLINE values' #-}
 
-vectorValues :: (Vector v a, Vector w b) => IndexedTraversal Int (v a) (w b) a b
-vectorValues = conjoined l (indexing l)
-  where l f v = traverse f (G.toList v) <&> G.fromListN (G.length v)
-{-# INLINE vectorValues #-}
+-- vectorTraverse :: (Vector v a, Vector w b) => IndexedTraversal Int (v a) (w b) a b
+-- vectorTraverse = conjoined l (indexing l)
+--   where l f v = traverse f (G.toList v) <&> G.fromListN (G.length v)
+-- {-# INLINE vectorTraverse #-}
 
 -- | Lens onto the shape of the vector. The total size of the layout
 --   _must_ remain the same (this is not checked).
@@ -249,29 +268,38 @@ generateM l f
   where n = F.product l
 {-# INLINE generateM #-}
 
+-- | For each pair (i,a) from the list, replace the vector element at
+--   position i by a.
+(//) :: (G.Vector v a, Shape l) => Array v l a -> [(l Int, a)] -> Array v l a
+Array l v // xs = Array l $ v G.// over (each . _1) (toIndex l) xs
+
 -- Mutable conversion --------------------------------------------------
 
 -- | O(n) Yield a mutable copy of the immutable vector.
 freeze :: (PrimMonad m, Shape l, Vector v a)
        => MArray (G.Mutable v) l (PrimState m) a -> m (Array v l a)
 freeze (MArray l mv) = Array l `liftM` G.freeze mv
+{-# INLINE freeze #-}
 
 -- | O(n) Yield an immutable copy of the mutable array.
 thaw :: (PrimMonad m, Shape l, Vector v a)
      => Array v l a -> m (MArray (G.Mutable v) l (PrimState m) a)
 thaw (Array l v) = MArray l `liftM` G.thaw v
+{-# INLINE thaw #-}
 
 -- | O(1) Unsafe convert a mutable array to an immutable one without
 -- copying. The mutable array may not be used after this operation.
 unsafeFreeze :: (PrimMonad m, Shape l, Vector v a)
              => MArray (G.Mutable v) l (PrimState m) a -> m (Array v l a)
 unsafeFreeze (MArray l mv) = Array l `liftM` G.unsafeFreeze mv
+{-# INLINE unsafeFreeze #-}
 
 -- | O(1) Unsafely convert an immutable array to a mutable one without
 --   copying. The immutable array may not be used after this operation.
 unsafeThaw :: (PrimMonad m, Shape l, Vector v a)
            => Array v l a -> m (MArray (G.Mutable v) l (PrimState m) a)
 unsafeThaw (Array l v) = MArray l `liftM` G.unsafeThaw v
+{-# INLINE unsafeThaw #-}
 
 -- Zipping -------------------------------------------------------------
 
@@ -331,28 +359,102 @@ izipWith3 f (Array l1 v1) (Array l2 v2) (Array l3 v3)
 -- Index starts at 0
 -- dicedValues :: l Int -> l Int -> IndexedTraversal (l Int) (Array v l a) a
 
--- slice :: (Vector v a, Vector w a, Shape l1, Shape l2)
---       => Getting (l2 Int) (l1 Int) (l2 Int)
---       -> (l2 Int -> l1 Int)
---       -> Array v l1 a
---       -> Array w l2 a
--- slice l f arr@(Array l1 _) = generate l2 $ \x -> arr ^?! ix (f x)
---   where l2 = l1 ^. l
+sliced :: (Vector v a, Shape l1, Shape l2)
+      => Getting (l2 Int) (l1 Int) (l2 Int)
+      -> (l2 Int -> l1 Int)
+      -> Lens' (Array v l1 a) (Array v l2 a)
+sliced = undefined
+
+sliced'
+  :: (Vector v a, Shape l1, Shape l2)
+  => (l1 Int -> l2 Int)
+  -> (l2 Int -> l1 Int)
+  -> Lens' (Array v l1 a) (Array v l2 a)
+sliced' f12 f21 f arr@(Array l1 _) =
+  f a <&> \arr' -> arr // (arr' ^@.. reindexed f21 values)
+  where a  = generate (f12 l1) $ \x -> arr ^?! ix (f21 x)
+
+slice :: (Vector v a, Vector w a, Shape l1, Shape l2)
+      => Getting (l2 Int) (l1 Int) (l2 Int)
+      -> (l2 Int -> l1 Int)
+      -> Array v l1 a
+      -> Array w l2 a
+slice l f arr@(Array l1 _) = generate l2 $ \x -> arr ^?! ix (f x) where l2 = l1 ^. l
 
 -- column :: Vector v a => Int -> Array v V2 a -> Array v V1 a
 -- column y = slice (_x . to V1) (\(V1 x) -> V2 x y)
 
--- row :: Vector v a => Int -> Array v V2 a -> Array v V1 a
--- row x = slice (_y . to V1) (\(V1 y) -> V2 x y)
+-- | 'row' :: Lens' (l Int) Int -> l Int -> Array v l a -> Array v V1 a
+--
+--
+-- row :: Vector v a => Getting (l Int) Int (l Int) -> l Int -> Lens' (Array v l a) (Array v V1 a)
+-- row g l0 f arr@(Array l _) = f v1 <&> \v1' -> --
+--   where
+--     v1 = generate (l ^. g) $ \x -> arr ^?! ix (x ^.)
+line :: (Vector v a, Shape l)
+     => Lens' (l Int) Int -- ^ Lens onto target line
+     -> l Int             -- ^ Some point on the line
+     -> Lens' (Array v l a) (Array v V1 a) -- Lens onto the line
+line l = line' l l
+{-# INLINE line #-}
+
+line' :: (Vector v a, Shape l)
+      => Getting (V1 Int) (l Int) Int
+      -> ASetter' (l Int) Int
+      -> l Int
+      -> Lens' (Array v l a) (Array v V1 a)
+line' g s l = sliced' (view (g . to V1)) (\(V1 x) -> l & s .~ x)
+{-# INLINE line' #-}
+
+-- line :: (Vector v a, Shape l) => Lens' (l Int) Int -> l Int -> IndexedTraversal' (l Int) (Array v l a) a
+
+-- planes :: (Vector v a, Shape l) => Lens' (l Int) Int -> l Int -> IndexedTraversal' Int (Array v V3 a) (Array v V2 a)
+
+-- row :: (Vector v a, Shape l) => ALens' (l Int) Int -> Int -> Lens' (Array v l a) (Array v V1 a)
+-- row l x = sliced (cloneLens l . to V1) (\(V1 x) -> xx & l #~ x)
+--   where xx = x <$ zero
+
+plane :: (Vector v a, Vector w a)
+      => ALens' (V3 Int) (V2 Int) -- Lens onto plane
+      -> Int -- number of plane
+      -> Array v V3 a
+      -> Array w V2 a -- Lens' (V3 Int) (V2 Int) =>
+plane l n = slice getter (\xx -> x & l #~ xx)
+  where x      = n <$ (zero :: Additive f => f Int)
+        getter = cloneLens l
 
 -- plane :: (Vector v a, Vector w a)
---       => ALens' (V3 Int) (V2 Int)
---       -> Int
+--       => Lens' (V3 Int) (V2 Int) -- Lens onto plane
+--       -> Int -- number of plane
 --       -> Array v V3 a
 --       -> Array w V2 a -- Lens' (V3 Int) (V2 Int) =>
 -- plane l n = slice getter (\xx -> x & l #~ xx)
 --   where x      = n <$ (zero :: Additive f => f Int)
 --         getter = cloneLens l
+
+
+-- | This 'Traversal' will ignore any duplicates in the supplied list
+-- of indices.
+--
+-- >>> toListOf (ordinals [1,3,2,5,9,10]) $ Vector.fromList [2,4..40]
+-- [4,8,6,12,20,22]
+unsafeOrdinals :: (Vector v a, Shape l) => [l Int] -> IndexedTraversal' (l Int) (Array v l a) a
+unsafeOrdinals is f (Array l v) = Array l . (v G.//) <$> traverse g is
+  where g x = let i = toIndex l x in (,) i <$> indexed f x (G.unsafeIndex v i)
+{-# INLINE [0] unsafeOrdinals #-}
+
+setOrdinals :: (Indexable (l Int) p, Vector v a, Shape l) => [l Int] -> p a a -> Array v l a -> Array v l a
+setOrdinals is f (Array l v) = Array l $ G.unsafeUpd v (map g is)
+  where g x = let i = toIndex l x in (,) i $ indexed f x (G.unsafeIndex v i)
+
+{-# RULES
+-- "unsafeOrdinals/setOrdinals"
+--   unsafeOrdinals = (\is -> sets (setOrdinals is))
+--     :: (Vector v a, Shape l) => [l Int] -> ASetter' (Array v l a) a;
+-- "unsafeOrdinalts/isetOrdintals"
+--   unsafeOrdinals = (\is -> sets (setOrdinals is))
+--     :: (Vector v a, Shape l) => [l Int] -> AnIndexedSetter' (l Int) (Array v l a) a
+ #-}
 
 ------------------------------------------------------------------------
 -- Instances
@@ -360,6 +462,7 @@ izipWith3 f (Array l1 v1) (Array l2 v2) (Array l3 v3)
 
 instance (Vector v a, Eq1 l, Eq a) => Eq (Array v l a) where
   Array l1 v1 == Array l2 v2 = eq1 l1 l2 && G.eq v1 v2
+  {-# INLINE (==) #-}
 
 instance (Vector v a, Show1 l, Show a) => Show (Array v l a) where
   showsPrec p (Array l v2) = showParen (p > 10) $
@@ -377,7 +480,7 @@ instance (Shape l, Vector v a) => Ixed (Array v l a) where
   {-# INLINE ix #-}
 
 instance (Vector v a, Vector v b) => Each (Array v l a) (Array v l b) a b where
-  each = linear . vectorValues
+  each = linear . vectorTraverse
   {-# INLINE each #-}
 
 instance (Shape l, Vector v a) => AsEmpty (Array v l a) where
@@ -393,6 +496,7 @@ instance (Vector v a, Read1 l, Read a) => Read (Array v l a) where
 
 instance (NFData (l Int), NFData (v a)) => NFData (Array v l a) where
   rnf (Array l v) = rnf l `seq` rnf v
+  {-# INLINE rnf #-}
 
 -- Boxed instances -----------------------------------------------------
 
@@ -401,7 +505,6 @@ instance v ~ B.Vector => Functor (Array v l) where
 
 instance v ~ B.Vector => F.Foldable (Array v l) where
   foldMap f = F.foldMap f . view linear
-  -- foldr f = foldr f . view linear
 
 instance v ~ B.Vector => Traversable (Array v l) where
   traverse = each
@@ -423,7 +526,7 @@ instance (v ~ B.Vector, Shape l) => TraversableWithIndex (l Int) (Array v l) whe
 instance (v ~ B.Vector, Foldable l, Serial1 l) => Serial1 (Array v l) where
   serializeWith putF (Array l v) = do
     serializeWith serialize l
-    traverseOf_ vectorValues putF v
+    traverseOf_ vectorTraverse putF v
   deserializeWith = genGet (deserializeWith deserialize)
 
 deriving instance (Generic1 v, Generic1 l) => Generic1 (Array v l)
@@ -441,6 +544,11 @@ type instance G.Mutable (Array v l) = MArray (G.Mutable v) l
 
 -- | 1D Arrays can be used as a generic 'Vector'.
 instance (Vector v a, l ~ V1) => Vector (Array v l) a where
+  {-# INLINE basicUnsafeFreeze #-}
+  {-# INLINE basicUnsafeThaw   #-}
+  {-# INLINE basicLength       #-}
+  {-# INLINE basicUnsafeSlice  #-}
+  {-# INLINE basicUnsafeIndexM #-}
   basicUnsafeFreeze                = unsafeFreeze
   basicUnsafeThaw                  = unsafeThaw
   basicLength (Array (V1 n) _)     = n
@@ -452,7 +560,7 @@ instance (Vector v a, l ~ V1) => Vector (Array v l) a where
 instance (Vector v a, Foldable l, Serial1 l, Serial a) => Serial (Array v l a) where
   serialize (Array l v) = do
     serializeWith serialize l
-    traverseOf_ vectorValues serialize v
+    traverseOf_ vectorTraverse serialize v
   {-# INLINE serialize #-}
   deserialize = genGet (deserializeWith deserialize) deserialize
   {-# INLINE deserialize #-}
@@ -460,7 +568,7 @@ instance (Vector v a, Foldable l, Serial1 l, Serial a) => Serial (Array v l a) w
 instance (Vector v a, Foldable l, Binary (l Int), Binary a) => Binary (Array v l a) where
   put (Array l v) = do
     Binary.put l
-    traverseOf_ vectorValues Binary.put v
+    traverseOf_ vectorTraverse Binary.put v
   {-# INLINE put #-}
   get = genGet Binary.get Binary.get
   {-# INLINE get #-}
@@ -468,7 +576,7 @@ instance (Vector v a, Foldable l, Binary (l Int), Binary a) => Binary (Array v l
 instance (Vector v a, Foldable l, Serialize (l Int), Serialize a) => Serialize (Array v l a) where
   put (Array l v) = do
     Cereal.put l
-    traverseOf_ vectorValues Cereal.put v
+    traverseOf_ vectorTraverse Cereal.put v
   {-# INLINE put #-}
   get = genGet Cereal.get Cereal.get
   {-# INLINE get #-}
