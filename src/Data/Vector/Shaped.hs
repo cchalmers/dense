@@ -1,3 +1,9 @@
+{-# LANGUAGE BangPatterns          #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE CPP    #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveGeneric         #-}
@@ -89,6 +95,14 @@ module Data.Vector.Shaped
   , V4 (..)
   , _x, _y, _z
 
+  -- * Delayed
+
+  , Delayed (..)
+  , delayed
+  , delay
+  , manifest
+  , manifestS
+  , genDelayed
   ) where
 
 
@@ -97,9 +111,10 @@ import           Data.Foldable                   (Foldable)
 import           Control.Applicative (pure)
 #endif
 
+import           Data.Traversable (for)
 import           Control.DeepSeq
 import           Control.Lens
-import Data.Vector.Generic.Lens (vectorTraverse)
+import Data.Vector.Generic.Lens (toVectorOf, vectorTraverse)
 import           Control.Monad                   (liftM)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
@@ -126,6 +141,10 @@ import qualified Text.Read                       as Read
 import           Data.Vector.Shaped.Index
 import           Data.Vector.Shaped.Mutable      (MArray (..))
 import qualified Data.Vector.Shaped.Mutable      as M
+
+import           Control.Concurrent          (forkOn, getNumCapabilities,
+                                              newEmptyMVar, putMVar, takeMVar)
+import           System.IO.Unsafe            (unsafePerformIO)
 
 import           Prelude                         hiding (null, replicate,
                                                   zipWith, zipWith3)
@@ -601,4 +620,132 @@ instance (Vector v a, Foldable l, Hashable a) => Hashable (Array v l a) where
 
 deriving instance (Generic (v a), Generic1 l) => Generic (Array v l a)
 deriving instance (Typeable l, Typeable v, Typeable a, Data (l Int), Data (v a)) => Data (Array v l a)
+
+
+-- | A delayed representation of an array. This is primevally used for
+--   mapping over an array in parallel.
+data Delayed l a = Delayed !(l Int) (Int -> a)
+  deriving (Functor)
+
+-- | 'foldMap' in parallel.
+instance Shape l => Foldable (Delayed l) where
+  foldr f b (Delayed l ixF) = go 0 where
+    go i
+      | i >= n     = b
+      | otherwise = f (ixF i) (go (i+1))
+    n = product l
+  {-# INLINE foldr #-}
+
+  foldMap f (Delayed l ixF) = unsafePerformIO $ do
+    childs <- for [0 .. threads - 1] $ \c -> do
+      child <- newEmptyMVar
+      _ <- forkOn c $ do
+        let k | c == threads - 1 = q + r
+              | otherwise        = q
+            x = c * q
+            m = x + k
+            go i !acc
+              | i >= m    = acc
+              | otherwise = go (i+1) (acc `mappend` f (ixF i))
+        putMVar child $! go x mempty
+      return child
+    F.fold <$> for childs takeMVar
+    where
+    !n       = product l
+    !(q, r)  = n `quotRem` threads
+    !threads = unsafePerformIO getNumCapabilities
+  {-# INLINE foldMap #-}
+
+instance (Shape l, Show1 l, Show a) => Show (Delayed l a) where
+  showsPrec p arr@(Delayed l _) = showParen (p > 10) $
+    showString "Delayed " . showsPrec1 11 l . showChar ' ' . showsPrec 11 (F.toList arr)
+
+instance (Shape l, Show1 l) => Show1 (Delayed l) where
+  showsPrec1 = showsPrec
+
+instance Shape l => Traversable (Delayed l) where
+  traverse f arr = delay <$> traversed f (manifest arr)
+
+instance Shape l => FunctorWithIndex (l Int) (Delayed l) where
+  imap f (Delayed l ixF) = Delayed l $ \i -> f (fromIndex l i) (ixF i)
+  {-# INLINE imap #-}
+
+instance Shape l => FoldableWithIndex (l Int) (Delayed l) where
+  ifoldr f b (Delayed l ixF) = ifoldrOf enumShape (\i x -> f x (ixF i)) b l
+  {-# INLINE ifoldr #-}
+
+  ifolded = ifoldring ifoldr
+  {-# INLINE ifolded #-}
+
+  ifoldMap = ifoldMapOf ifolded
+  {-# INLINE ifoldMap #-}
+
+instance Shape l => TraversableWithIndex (l Int) (Delayed l) where
+  itraverse f arr = delay <$> itraverse f (manifest arr)
+  {-# INLINE itraverse #-}
+
+instance Shape l => Each (Delayed l a) (Delayed l b) a b where
+  each = traversed
+  {-# INLINE each #-}
+
+instance Shape l => AsEmpty (Delayed l a) where
+  _Empty = nearly (Delayed zero (error "empty delayed array"))
+                  (\(Delayed l _) -> all (==0) l)
+  {-# INLINE _Empty #-}
+
+type instance Index (Delayed l a) = l Int
+type instance IxValue (Delayed l a) = a
+instance Shape l => Ixed (Delayed l a) where
+  ix x f arr@(Delayed l ixF)
+    | inRange l x = f (ixF i) <&> \a ->
+      let g j | j == i    = a
+              | otherwise = ixF j
+      in  Delayed l g
+    | otherwise   = pure arr
+    where i = toIndex l x
+  {-# INLINE ix #-}
+
+-- | Isomorphism between an array and it's delayed representation.
+--   Conversion to the array is done in parallel.
+delayed :: (Vector v a, Vector w b, Shape l, Shape k)
+        => Iso (Array v l a) (Array w k b) (Delayed l a) (Delayed k b)
+delayed = iso delay manifest
+{-# INLINE delayed #-}
+
+-- | Turn a material array into a delayed one with the same shape.
+delay :: (Vector v a, Shape l) => Array v l a -> Delayed l a
+delay (Array l v) = Delayed l (G.unsafeIndex v)
+{-# INLINE delay #-}
+
+-- | Parallel manifestation a delayed array into a material one.
+manifest :: (Vector v a, Shape l) => Delayed l a -> Array v l a
+manifest !(Delayed l ixF) = Array l v
+  where
+    !v = unsafePerformIO $! do
+      mv <- GM.new n
+      childs <- for [0 .. threads - 1] $ \c -> do
+        child <- newEmptyMVar
+        _ <- forkOn c $ do
+          let k | c == 0    = q + r
+                | otherwise = q
+              x = c * q
+          F.for_ [x .. x + k - 1] $ \i -> GM.unsafeWrite mv i $! ixF i
+          putMVar child ()
+        return child
+      F.for_ childs takeMVar
+      G.unsafeFreeze mv
+    !n       = product l
+    !(q, r)  = n `quotRem` threads
+    !threads = unsafePerformIO getNumCapabilities
+{-# INLINE manifest #-}
+
+-- | Sequential manifestation of a delayed array.
+manifestS :: (Vector v a , Shape l) => Delayed l a -> Array v l a
+manifestS arr@(Delayed l _) = Array l (toVectorOf folded arr)
+{-# INLINE manifestS #-}
+
+genDelayed :: Shape l => l Int -> (l Int -> a) -> Delayed l a
+genDelayed l f = Delayed l (f . fromIndex l)
+{-# INLINE genDelayed #-}
+
 
