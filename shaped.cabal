@@ -1,4 +1,4 @@
-name:                shaped-vector
+name:                shaped
 version:             0.1.0.0
 synopsis:            Mutable and immutable arrays with multi-dimensional indexing
 description:
@@ -20,9 +20,9 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-    Data.Vector.Shaped
-    Data.Vector.Shaped.Mutable
-    Data.Vector.Shaped.Index
+    Data.Shaped
+    Data.Shaped.Mutable
+    Data.Shaped.Index
   -- other-modules:       
   other-extensions:    FlexibleInstances, UndecidableInstances, DeriveFunctor, DeriveDataTypeable
   build-depends:

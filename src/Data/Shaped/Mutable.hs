@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies          #-}
-module Data.Vector.Shaped.Mutable
+module Data.Shaped.Mutable
   (
     -- * Mutable array
     MArray (..)
@@ -63,7 +63,7 @@ import qualified Data.Vector.Storable.Mutable  as S
 import qualified Data.Vector.Unboxed.Mutable   as U
 import           Linear.V1
 
-import           Data.Vector.Shaped.Index
+import           Data.Shaped.Index
 
 import           Prelude                       hiding (read, replicate)
 

@@ -1,18 +1,18 @@
-{-# LANGUAGE CPP     #-}
+{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE Rank2Types           #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Data.Vector.Shaped.Index where
+module Data.Shaped.Index where
 
 #if __GLASGOW_HASKELL__ <= 708
 import           Control.Applicative
 #endif
+import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Lens.Internal.Getter
 import           Data.Foldable                as F
-import Control.Exception.Lens
 
 import           Data.Functor.Classes
 import           Data.Traversable

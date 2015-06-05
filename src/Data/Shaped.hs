@@ -1,11 +1,7 @@
 {-# LANGUAGE BangPatterns          #-}
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE CPP    #-}
-{-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -28,7 +24,7 @@
 -- appear missing can be used with the 'values' traversal with the
 -- functions in the lens library.
 -----------------------------------------------------------------------------
-module Data.Vector.Shaped
+module Data.Shaped
   (
     -- * Array types
     Array (..)
@@ -107,14 +103,12 @@ module Data.Vector.Shaped
 
 
 #if __GLASGOW_HASKELL__ <= 708
+import           Control.Applicative             (pure)
 import           Data.Foldable                   (Foldable)
-import           Control.Applicative (pure)
 #endif
 
-import           Data.Traversable (for)
 import           Control.DeepSeq
 import           Control.Lens
-import Data.Vector.Generic.Lens (toVectorOf, vectorTraverse)
 import           Control.Monad                   (liftM)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
@@ -125,9 +119,11 @@ import qualified Data.Foldable                   as F
 import           Data.Functor.Classes
 import           Data.Hashable
 import           Data.Serialize                  as Cereal
+import           Data.Traversable                (for)
 import qualified Data.Vector                     as B
 import           Data.Vector.Generic             (Vector)
 import qualified Data.Vector.Generic             as G
+import           Data.Vector.Generic.Lens        (toVectorOf, vectorTraverse)
 import qualified Data.Vector.Generic.Mutable     as GM
 import qualified Data.Vector.Generic.New         as New
 import qualified Data.Vector.Primitive           as P
@@ -138,13 +134,14 @@ import           Linear
 import           Text.ParserCombinators.ReadPrec (readS_to_Prec)
 import qualified Text.Read                       as Read
 
-import           Data.Vector.Shaped.Index
-import           Data.Vector.Shaped.Mutable      (MArray (..))
-import qualified Data.Vector.Shaped.Mutable      as M
+import           Data.Shaped.Index
+import           Data.Shaped.Mutable      (MArray (..))
+import qualified Data.Shaped.Mutable      as M
 
-import           Control.Concurrent          (forkOn, getNumCapabilities,
-                                              newEmptyMVar, putMVar, takeMVar)
-import           System.IO.Unsafe            (unsafePerformIO)
+import           Control.Concurrent              (forkOn, getNumCapabilities,
+                                                  newEmptyMVar, putMVar,
+                                                  takeMVar)
+import           System.IO.Unsafe                (unsafePerformIO)
 
 import           Prelude                         hiding (null, replicate,
                                                   zipWith, zipWith3)
@@ -621,6 +618,9 @@ instance (Vector v a, Foldable l, Hashable a) => Hashable (Array v l a) where
 deriving instance (Generic (v a), Generic1 l) => Generic (Array v l a)
 deriving instance (Typeable l, Typeable v, Typeable a, Data (l Int), Data (v a)) => Data (Array v l a)
 
+------------------------------------------------------------------------
+-- Delayed
+------------------------------------------------------------------------
 
 -- | A delayed representation of an array. This is primevally used for
 --   mapping over an array in parallel.
@@ -719,7 +719,7 @@ delay (Array l v) = Delayed l (G.unsafeIndex v)
 
 -- | Parallel manifestation a delayed array into a material one.
 manifest :: (Vector v a, Shape l) => Delayed l a -> Array v l a
-manifest !(Delayed l ixF) = Array l v
+manifest (Delayed l ixF) = Array l v
   where
     !v = unsafePerformIO $! do
       mv <- GM.new n
