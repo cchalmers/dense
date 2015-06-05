@@ -7,6 +7,7 @@ module Data.Shaped.Mutable
   (
     -- * Mutable array
     MArray (..)
+  , Shape (..)
   , UMArray
   , SMArray
   , BMArray
@@ -222,6 +223,3 @@ instance (MVector v a, l ~ V1) => MVector (MArray v l) a where
   basicUnsafeRead (MArray _ v) i = GM.basicUnsafeRead v i
   basicUnsafeWrite (MArray _ v) i a = GM.basicUnsafeWrite v i a
 
--- for_ :: MArray v l (PrimState m) a -> (a -> m ()) -> m ()
-
--- ifor_ :: MArray v l (PrimState m) a -> (l Int -> a -> m ()) -> m ()

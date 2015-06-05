@@ -28,6 +28,7 @@ module Data.Shaped
   (
     -- * Array types
     Array (..)
+  , Shape (..)
   , BArray
   , UArray
   , SArray
@@ -135,8 +136,8 @@ import           Text.ParserCombinators.ReadPrec (readS_to_Prec)
 import qualified Text.Read                       as Read
 
 import           Data.Shaped.Index
-import           Data.Shaped.Mutable      (MArray (..))
-import qualified Data.Shaped.Mutable      as M
+import           Data.Shaped.Mutable             (MArray (..))
+import qualified Data.Shaped.Mutable             as M
 
 import           Control.Concurrent              (forkOn, getNumCapabilities,
                                                   newEmptyMVar, putMVar,
@@ -747,5 +748,4 @@ manifestS arr@(Delayed l _) = Array l (toVectorOf folded arr)
 genDelayed :: Shape l => l Int -> (l Int -> a) -> Delayed l a
 genDelayed l f = Delayed l (f . fromIndex l)
 {-# INLINE genDelayed #-}
-
 
