@@ -465,12 +465,12 @@ setOrdinals is f (Array l v) = Array l $ G.unsafeUpd v (map g is)
   where g x = let i = toIndex l x in (,) i $ indexed f x (G.unsafeIndex v i)
 
 {-# RULES
--- "unsafeOrdinals/setOrdinals"
---   unsafeOrdinals = (\is -> sets (setOrdinals is))
---     :: (Vector v a, Shape l) => [l Int] -> ASetter' (Array v l a) a;
--- "unsafeOrdinalts/isetOrdintals"
---   unsafeOrdinals = (\is -> sets (setOrdinals is))
---     :: (Vector v a, Shape l) => [l Int] -> AnIndexedSetter' (l Int) (Array v l a) a
+"unsafeOrdinals/setOrdinals" forall (is :: [l Int]).
+  unsafeOrdinals is = sets (setOrdinals is)
+    :: (Vector v a, Shape l) => ASetter' (Array v l a) a;
+"unsafeOrdinalts/isetOrdintals" forall (is :: [l Int]).
+  unsafeOrdinals is = sets (setOrdinals is)
+    :: (Vector v a, Shape l) => AnIndexedSetter' (l Int) (Array v l a) a
  #-}
 
 ------------------------------------------------------------------------
