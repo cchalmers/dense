@@ -185,11 +185,6 @@ values' :: (Shape l, Vector v a, Vector v b)
 values' = values
 {-# INLINE values' #-}
 
--- vectorTraverse :: (Vector v a, Vector w b) => IndexedTraversal Int (v a) (w b) a b
--- vectorTraverse = conjoined l (indexing l)
---   where l f v = traverse f (G.toList v) <&> G.fromListN (G.length v)
--- {-# INLINE vectorTraverse #-}
-
 -- | Lens onto the shape of the vector. The total size of the layout
 --   _must_ remain the same (this is not checked).
 layout :: Lens (Array v l a) (Array v t a) (l Int) (t Int)
@@ -465,6 +460,7 @@ unsafeOrdinals is f (Array l v) = Array l . (v G.//) <$> traverse g is
 setOrdinals :: (Indexable (l Int) p, Vector v a, Shape l) => [l Int] -> p a a -> Array v l a -> Array v l a
 setOrdinals is f (Array l v) = Array l $ G.unsafeUpd v (map g is)
   where g x = let i = toIndex l x in (,) i $ indexed f x (G.unsafeIndex v i)
+{-# INLINE setOrdinals #-}
 
 {-# RULES
 "unsafeOrdinals/setOrdinals" forall (is :: [l Int]).
@@ -625,7 +621,7 @@ deriving instance (Typeable l, Typeable v, Typeable a, Data (l Int), Data (v a))
 -- Delayed
 ------------------------------------------------------------------------
 
--- | A delayed representation of an array. This is primevally used for
+-- | A delayed representation of an array. This is primarily used for
 --   mapping over an array in parallel.
 data Delayed l a = Delayed !(l Int) (Int -> a)
   deriving (Functor)
@@ -737,7 +733,7 @@ delay :: (Vector v a, Shape l) => Array v l a -> Delayed l a
 delay (Array l v) = Delayed l (G.unsafeIndex v)
 {-# INLINE delay #-}
 
--- | Parallel manifestation a delayed array into a material one.
+-- | Parallel manifestation of a delayed array into a material one.
 manifest :: (Vector v a, Shape l) => Delayed l a -> Array v l a
 manifest (Delayed l ixF) = Array l v
   where
