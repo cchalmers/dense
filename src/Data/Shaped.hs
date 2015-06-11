@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns          #-}
+{-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveFunctor         #-}
@@ -108,6 +109,7 @@ import           Control.Applicative             (pure)
 import           Data.Foldable                   (Foldable)
 #endif
 
+import           Control.Applicative             (liftA2)
 import           Control.DeepSeq
 import           Control.Lens
 import           Control.Monad                   (liftM)
@@ -666,6 +668,23 @@ instance (Shape l, Show1 l) => Show1 (Delayed l) where
 
 instance Shape l => Traversable (Delayed l) where
   traverse f arr = delay <$> traversed f (manifest arr)
+
+instance Shape l => Additive (Delayed l) where
+  zero = _Empty # ()
+  {-# INLINE zero #-}
+
+  liftU2 f (Delayed l ixF) (Delayed k ixG)
+    | l `eq1` k = Delayed l (liftA2 f ixF ixG)
+    | otherwise = Delayed (liftU2 max l k) $ \i ->
+        let x = fromIndex q i
+        in if | inRange q x -> liftA2 f ixF ixG i
+              | inRange l x -> ixF i
+              | otherwise   -> ixG i
+    where q = intersectShape l k
+  {-# INLINE liftU2 #-}
+
+  liftI2 f (Delayed l ixF) (Delayed k ixG) = Delayed (intersectShape l k) $ liftA2 f ixF ixG
+  {-# INLINE liftI2 #-}
 
 instance Shape l => FunctorWithIndex (l Int) (Delayed l) where
   imap f (Delayed l ixF) = Delayed l $ \i -> f (fromIndex l i) (ixF i)
