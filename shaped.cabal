@@ -35,6 +35,7 @@ library
     lens,
     cereal,
     bytes,
+    comonad,
     binary,
     transformers
   hs-source-dirs:      src

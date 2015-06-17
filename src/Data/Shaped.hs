@@ -101,6 +101,16 @@ module Data.Shaped
   , manifest
   , manifestS
   , genDelayed
+  , indexDelayed
+
+  -- * Focused
+
+  , Focused (..)
+  , focusOn
+  , focusedIx
+  , unfocused
+  , shiftFocus
+
   ) where
 
 
@@ -110,6 +120,8 @@ import           Data.Foldable                   (Foldable)
 #endif
 
 import           Control.Applicative             (liftA2)
+import           Control.Comonad
+import           Control.Comonad.Store
 import           Control.DeepSeq
 import           Control.Lens
 import           Control.Monad                   (liftM)
@@ -624,7 +636,7 @@ deriving instance (Typeable l, Typeable v, Typeable a, Data (l Int), Data (v a))
 -- | A delayed representation of an array. This is primarily used for
 --   mapping over an array in parallel.
 data Delayed l a = Delayed !(l Int) (Int -> a)
-  deriving (Functor)
+  deriving Functor
 
 -- | 'foldMap' in parallel.
 instance Shape l => Foldable (Delayed l) where
@@ -721,6 +733,13 @@ instance Shape l => Ixed (Delayed l a) where
     where i = toIndex l x
   {-# INLINE ix #-}
 
+-- | Index a delayed array, returning a 'IndexOutOfBounds' exception if
+--   the index is out of range.
+indexDelayed :: Shape l => l Int -> Delayed l a -> a
+indexDelayed x (Delayed l ixF) =
+  boundsCheck x l $ ixF (toIndex l x)
+{-# INLINE indexDelayed #-}
+
 -- | Isomorphism between an array and it's delayed representation.
 --   Conversion to the array is done in parallel.
 delayed :: (Vector v a, Vector w b, Shape l, Shape k)
@@ -763,4 +782,81 @@ manifestS arr@(Delayed l _) = Array l (toVectorOf folded arr)
 genDelayed :: Shape l => l Int -> (l Int -> a) -> Delayed l a
 genDelayed l f = Delayed l (f . fromIndex l)
 {-# INLINE genDelayed #-}
+
+------------------------------------------------------------------------
+-- Focused
+------------------------------------------------------------------------
+
+-- | A delayed representation of an array with a focus on a single
+--   element. This element is the target of 'extract'.
+data Focused l a = Focused !(l Int) !(Delayed l a)
+  deriving Functor
+
+instance Shape l => Comonad (Focused l) where
+  {-# INLINE extract #-}
+  {-# INLINE extend  #-}
+  extract (Focused x d) = d ^?! ix x
+  extend f (Focused x d@(Delayed l _)) =
+    Focused x (genDelayed l $ \i -> f (Focused i d))
+
+instance Shape l => ComonadStore (l Int) (Focused l) where
+  {-# INLINE pos   #-}
+  {-# INLINE peek  #-}
+  {-# INLINE peeks #-}
+  {-# INLINE seek  #-}
+  {-# INLINE seeks #-}
+  pos     (Focused x _) = x
+  peek  x (Focused _ d) = indexDelayed x d
+  peeks f (Focused x d) = indexDelayed (f x) d
+  seek  x (Focused _ d) = Focused x d
+  seeks f (Focused x d) = Focused (f x) d
+
+instance (Shape l, Show1 l, Show a) => Show (Focused l a) where
+  showsPrec p (Focused l d) = showParen (p > 10) $
+    showString "Focused " . showsPrec1 11 l . showsPrec 11 d
+
+instance (Shape l, Show1 l) => Show1 (Focused l) where
+  showsPrec1 = showsPrec
+
+-- | Focus on a particular element of a delayed array.
+focusOn :: l Int -> Delayed l a -> Focused l a
+focusOn = Focused -- XXX do range checking
+{-# INLINE focusOn #-}
+
+-- | Lens onto the focus element index.
+focusedIx :: Lens' (Focused l a) (l Int)
+focusedIx f (Focused x d) = f x <&> \x' -> Focused x' d
+{-# INLINE focusedIx #-}
+
+-- | Indexed lens onto the delayed array.
+unfocused :: IndexedLens (l Int) (Focused l a) (Focused l b) (Delayed l a) (Delayed l b)
+unfocused f (Focused x d) = Focused x <$> indexed f x d
+{-# INLINE unfocused #-}
+
+-- | Focus on a neighbouring element, relative to the
+shiftFocus :: Applicative l => l Int -> Focused l a -> Focused l a
+shiftFocus dx (Focused x d@(Delayed l _)) = Focused x' d
+  where
+    x' = f <$> l <*> x <*> dx
+    f k i di
+      | i' < 0    = k + i'
+      | i' >= k   = i' - k
+      | otherwise = i'
+      where i' = i + di
+
+type instance Index (Focused l a) = l Int
+type instance IxValue (Focused l a) = a
+
+instance Shape l => Foldable (Focused l) where
+  foldr f b (Focused _ d) = foldr f b d
+  {-# INLINE foldr #-}
+
+instance Shape l => Traversable (Focused l) where
+  traverse f (Focused u d) = Focused u <$> traverse f d
+  {-# INLINE traverse #-}
+
+-- | Relative to focus.
+instance Shape l => Ixed (Focused l a) where
+  ix i f (Focused u d) = Focused u <$> ix (i ^+^ u) f d
+  {-# INLINE ix #-}
 
