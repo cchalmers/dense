@@ -107,7 +107,6 @@ module Data.Shaped
 
   , Focused (..)
   , focusOn
-  , focusedIx
   , unfocused
   , shiftFocus
 
@@ -688,11 +687,13 @@ instance Shape l => Additive (Delayed l) where
         in if | inRange q x -> liftA2 f ixF ixG i
               | inRange l x -> ixF i
               | otherwise   -> ixG i
-    where q = intersectShape l k
+    where !q = intersectShape l k
   {-# INLINE liftU2 #-}
 
   liftI2 f (Delayed l ixF) (Delayed k ixG) = Delayed (intersectShape l k) $ liftA2 f ixF ixG
   {-# INLINE liftI2 #-}
+
+instance Shape l => Metric (Delayed l)
 
 instance Shape l => FunctorWithIndex (l Int) (Delayed l) where
   imap f (Delayed l ixF) = Delayed l $ \i -> f (fromIndex l i) (ixF i)
@@ -823,10 +824,14 @@ focusOn :: l Int -> Delayed l a -> Focused l a
 focusOn = Focused -- XXX do range checking
 {-# INLINE focusOn #-}
 
--- | Lens onto the focus element index.
-focusedIx :: Lens' (Focused l a) (l Int)
-focusedIx f (Focused x d) = f x <&> \x' -> Focused x' d
-{-# INLINE focusedIx #-}
+-- | Lens onto the position of store.
+--
+-- @
+-- 'locale' :: 'Lens'' ('Focused' l a) (l 'Int')
+-- @
+locale :: ComonadStore s w => Lens' (w a) s
+locale f w = (`seek` w) <$> f (pos w)
+{-# INLINE locale #-}
 
 -- | Indexed lens onto the delayed array.
 unfocused :: IndexedLens (l Int) (Focused l a) (Focused l b) (Delayed l a) (Delayed l b)
