@@ -67,6 +67,7 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
          | otherwise = indexed f i (fromIndex l i) *> go (i + 1)
   {-# INLINE enumShape #-}
 
+instance Shape Identity
 instance Shape V0
 instance Shape V1
 instance Shape V2
