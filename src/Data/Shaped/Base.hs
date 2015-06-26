@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE MultiWayIf            #-}
+{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveFunctor         #-}
@@ -29,6 +30,7 @@ module Data.Shaped.Base
   (
     -- * Array types
     Array (..)
+  , Boxed
 
     -- * Lenses
   , layout
@@ -203,35 +205,38 @@ instance (NFData (l Int), NFData (v a)) => NFData (Array v l a) where
 
 -- Boxed instances -----------------------------------------------------
 
-instance v ~ B.Vector => Functor (Array v l) where
+-- | A the vector is the boxed vector.
+type Boxed v = v ~ B.Vector
+
+instance Boxed v => Functor (Array v l) where
   fmap = over linear . fmap
   {-# INLINE fmap #-}
 
-instance v ~ B.Vector => F.Foldable (Array v l) where
+instance Boxed v => F.Foldable (Array v l) where
   foldMap f = F.foldMap f . view linear
   {-# INLINE foldMap #-}
 
-instance v ~ B.Vector => Traversable (Array v l) where
+instance Boxed v => Traversable (Array v l) where
   traverse = each
   {-# INLINE traverse #-}
 
-instance (v ~ B.Vector, Eq1 l) => Eq1 (Array v l) where
+instance (Boxed v, Eq1 l) => Eq1 (Array v l) where
   eq1 = (==)
   {-# INLINE eq1 #-}
 
-instance (v ~ B.Vector, Read1 l) => Read1 (Array v l) where
+instance (Boxed v, Read1 l) => Read1 (Array v l) where
   readsPrec1 = readsPrec
   {-# INLINE readsPrec1 #-}
 
-instance (v ~ B.Vector, Shape l) => FunctorWithIndex (l Int) (Array v l)
-instance (v ~ B.Vector, Shape l) => FoldableWithIndex (l Int) (Array v l)
-instance (v ~ B.Vector, Shape l) => TraversableWithIndex (l Int) (Array v l) where
+instance (Boxed v, Shape l) => FunctorWithIndex (l Int) (Array v l)
+instance (Boxed v, Shape l) => FoldableWithIndex (l Int) (Array v l)
+instance (Boxed v, Shape l) => TraversableWithIndex (l Int) (Array v l) where
   itraverse = itraverseOf values
   {-# INLINE itraverse #-}
   itraversed = values
   {-# INLINE itraversed #-}
 
-instance (v ~ B.Vector, Foldable l, Serial1 l) => Serial1 (Array v l) where
+instance (Boxed v, Foldable l, Serial1 l) => Serial1 (Array v l) where
   serializeWith putF (Array l v) = do
     serializeWith serialize l
     traverseOf_ vectorTraverse putF v
@@ -308,7 +313,22 @@ instance (Vector v a, Foldable l, Hashable a) => Hashable (Array v l a) where
   {-# INLINE hashWithSalt #-}
 
 deriving instance (Generic (v a), Generic1 l) => Generic (Array v l a)
-deriving instance (Typeable l, Typeable v, Typeable a, Data (l Int), Data (v a)) => Data (Array v l a)
+-- deriving instance (Typeable l, Typeable v, Typeable a, Data (l Int), Data (v a)) => Data (Array v l a)
+
+
+instance (Vector v a, Typeable v, Typeable l, Shape l, Data a) => Data (Array v l a) where
+  gfoldl f z (Array l a) =
+    z (\l' a' -> Array (l & partsOf traverse .~ l') (G.fromList a')) `f` F.toList l `f` G.toList a
+  gunfold k z _ = k (k (z (\l a -> Array (zero & partsOf traverse .~ l) (G.fromList a))))
+  toConstr _ = con
+  dataTypeOf _ = ty
+  dataCast1 = gcast1
+
+ty :: DataType
+ty = mkDataType "Array" [con]
+
+con :: Constr
+con = mkConstr ty "Array" [] Prefix
 
 ------------------------------------------------------------------------
 -- Delayed
