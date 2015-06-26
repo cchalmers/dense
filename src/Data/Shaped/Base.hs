@@ -337,7 +337,7 @@ con = mkConstr ty "Array" [] Prefix
 -- | A delayed representation of an array. This useful for mapping over
 --   an array in parallel.
 data Delayed l a = Delayed !(l Int) (Int -> a)
-  deriving Functor
+  deriving (Typeable, Functor)
 
 -- | Turn a material array into a delayed one with the same shape.
 delay :: (Vector v a, Shape l) => Array v l a -> Delayed l a
@@ -479,7 +479,7 @@ genDelayed l f = Delayed l (f . fromIndex l)
 -- | A delayed representation of an array with a focus on a single
 --   element. This element is the target of 'extract'.
 data Focused l a = Focused !(l Int) !(Delayed l a)
-  deriving Functor
+  deriving (Typeable, Functor)
 
 instance Shape l => Comonad (Focused l) where
   {-# INLINE extract #-}
