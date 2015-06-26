@@ -107,6 +107,7 @@ data Array v l a = Array !(l Int) !(v a)
 -- | Get the shape of an array.
 extent :: Array v f a -> f Int
 extent (Array l _) = l
+{-# INLINE extent #-}
 
 -- Lenses --------------------------------------------------------------
 
@@ -114,7 +115,7 @@ extent (Array l _) = l
 --   current position in the array.
 values :: (Shape l, Vector v a, Vector w b)
        => IndexedTraversal (l Int) (Array v l a) (Array w l b) a b
-values f arr = reindexed (fromIndex $ extent arr) (linear . vectorTraverse) f arr
+values = \f arr -> reindexed (fromIndex $ extent arr) (linear . vectorTraverse) f arr
 {-# INLINE values #-}
 
 -- | Lens onto the shape of the vector. The total size of the layout
@@ -204,18 +205,23 @@ instance (NFData (l Int), NFData (v a)) => NFData (Array v l a) where
 
 instance v ~ B.Vector => Functor (Array v l) where
   fmap = over linear . fmap
+  {-# INLINE fmap #-}
 
 instance v ~ B.Vector => F.Foldable (Array v l) where
   foldMap f = F.foldMap f . view linear
+  {-# INLINE foldMap #-}
 
 instance v ~ B.Vector => Traversable (Array v l) where
   traverse = each
+  {-# INLINE traverse #-}
 
 instance (v ~ B.Vector, Eq1 l) => Eq1 (Array v l) where
   eq1 = (==)
+  {-# INLINE eq1 #-}
 
 instance (v ~ B.Vector, Read1 l) => Read1 (Array v l) where
   readsPrec1 = readsPrec
+  {-# INLINE readsPrec1 #-}
 
 instance (v ~ B.Vector, Shape l) => FunctorWithIndex (l Int) (Array v l)
 instance (v ~ B.Vector, Shape l) => FoldableWithIndex (l Int) (Array v l)
