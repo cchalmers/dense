@@ -21,6 +21,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:
     Data.Shaped
+    Data.Shaped.Base
     Data.Shaped.Mutable
     Data.Shaped.Index
   -- other-modules:       
