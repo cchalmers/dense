@@ -135,5 +135,5 @@ boundsCheck i l
 -- {-# INLINE _Show1 #-}
 
 showShape :: Shape l => l Int -> String
-showShape l = "V" ++ show (length l) ++ " " ++ unwords (show <$> F.toList l)
+showShape l = "V" ++ show (lengthOf folded l) ++ " " ++ unwords (show <$> F.toList l)
 

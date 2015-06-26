@@ -114,7 +114,8 @@ module Data.Shaped
 
 
 #if __GLASGOW_HASKELL__ <= 708
-import           Control.Applicative             (pure)
+import           Control.Applicative             (Applicative, pure, (<*>))
+import           Data.Monoid                     (mappend, mempty)
 import           Data.Foldable                   (Foldable)
 #endif
 
@@ -643,7 +644,7 @@ instance Shape l => Foldable (Delayed l) where
     go i
       | i >= n     = b
       | otherwise = f (ixF i) (go (i+1))
-    n = product l
+    n = F.product l
   {-# INLINE foldr #-}
 
   foldMap f (Delayed l ixF) = unsafePerformIO $ do
@@ -661,7 +662,7 @@ instance Shape l => Foldable (Delayed l) where
       return child
     F.fold <$> for childs takeMVar
     where
-    !n       = product l
+    !n       = F.product l
     !(q, r)  = n `quotRem` threads
     !threads = unsafePerformIO getNumCapabilities
   {-# INLINE foldMap #-}
@@ -719,7 +720,7 @@ instance Shape l => Each (Delayed l a) (Delayed l b) a b where
 
 instance Shape l => AsEmpty (Delayed l a) where
   _Empty = nearly (Delayed zero (error "empty delayed array"))
-                  (\(Delayed l _) -> all (==0) l)
+                  (\(Delayed l _) -> F.all (==0) l)
   {-# INLINE _Empty #-}
 
 type instance Index (Delayed l a) = l Int
@@ -770,7 +771,7 @@ manifest (Delayed l ixF) = Array l v
         return child
       F.for_ childs takeMVar
       G.unsafeFreeze mv
-    !n       = product l
+    !n       = F.product l
     !(q, r)  = n `quotRem` threads
     !threads = unsafePerformIO getNumCapabilities
 {-# INLINE manifest #-}
@@ -853,7 +854,7 @@ type instance Index (Focused l a) = l Int
 type instance IxValue (Focused l a) = a
 
 instance Shape l => Foldable (Focused l) where
-  foldr f b (Focused _ d) = foldr f b d
+  foldr f b (Focused _ d) = F.foldr f b d
   {-# INLINE foldr #-}
 
 instance Shape l => Traversable (Focused l) where
