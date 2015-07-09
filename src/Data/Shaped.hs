@@ -134,9 +134,8 @@ module Data.Shaped
 
 
 #if __GLASGOW_HASKELL__ <= 708
-import           Control.Applicative      (Applicative, pure, (<*>))
+import           Control.Applicative      (Applicative, (<*>))
 import           Data.Foldable            (Foldable)
-import           Data.Monoid              (mappend, mempty)
 #endif
 
 import           Control.Comonad

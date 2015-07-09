@@ -37,7 +37,7 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   fromIndex l i = snd $ mapAccumR quotRem i l
   {-# INLINE fromIndex #-}
 
-  intersectShape :: Ord a => f a -> f a -> f a
+  intersectShape :: f Int -> f Int -> f Int
   intersectShape = liftU2 min
   {-# INLINE intersectShape #-}
 
@@ -137,4 +137,51 @@ boundsCheck i l
 
 showShape :: Shape l => l Int -> String
 showShape l = "V" ++ show (lengthOf folded l) ++ " " ++ unwords (show <$> F.toList l)
+
+-- newtype Inverted l a = Inverted (l a)
+--   deriving (Show, Traversable, Foldable, Additive)
+
+-- instance (Show1 l, Show a) => Show (Inverted l a) where
+--   showsPrec p (Inverted l) = showsParen (l > 10) $
+--     showString "Inverted " . showsPrec 11 l
+
+-- instance (Eq1 l, Eq a) => Eq (Inverted l a) where
+--   Inverted l1 == Inverted l2 = eq1 l1 l2
+--   {-# INLINE (==) #-}
+
+-- instance (Eq1 l, Eq a) => Eq1 (Inverted l) where
+--   eq1 = (==)
+--   {-# INLINE eq1 #-}
+
+-- instance Shape l => Shape (Inverted l) where
+--   toIndex (Inverted l) x = n - toIndex l x
+--     where !n = product l
+--   {-# INLINE toIndex #-}
+
+--   fromIndex (Inverted l) i = fromIndex l (n - i)
+--     where !n = product l
+--   {-# INLINE fromIndex #-}
+
+--   intersectShape :: Ord a => f a -> f a -> f a
+--   intersectShape = liftU2 min
+--   {-# INLINE intersectShape #-}
+
+--   -- | @inRange ex i@ checks @i < ex@ for every coodinate of @f@.
+--   inRange :: (Num a, Ord a) => f a -> f a -> Bool
+--   inRange (Inverted l) i = inRange l i
+
+--   -- slicing :: Lens' l1 l2 -> (l2 -> l2) -> l1 -> Array v l1 a -> Array v l2 a
+--   -- slicing ls f l arr =
+
+--   rangeBetween :: f Int -> f Int -> IndexedFold Int (f Int) (f Int)
+--   rangeBetween x1 x2 = l -- conjoined l (indexing l)
+--    -- horribly inefficient
+--     where f x = F.and (liftI2 (<=) x1 x) && F.and (liftI2 (>) x x2)
+--           l = enumShape . filtered f
+--   {-# INLINE rangeBetween #-}
+
+--   enumShape :: IndexedFold Int (f Int) (f Int)
+--   enumShape l f = \l f -> to Inverted .> enumShape <. to (Inverted . (^-^ l))
+--   {-# INLINE enumShape #-}
+
 
