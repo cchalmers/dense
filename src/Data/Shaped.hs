@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Vector.Shaped
+-- Module      :  Data.Shaped
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -19,10 +19,8 @@
 -- Stability   :  provisional
 -- Portability :  non-portable
 --
--- Simple wrapper over a generic vector, giving the vector a 'Shape'.
--- Currently the api is a bit sparse but many standard functions that
--- appear missing can be used with the 'values' traversal with the
--- functions in the lens library.
+-- This module provides generic functions over shaped vectors. This is
+-- equivilant to "vector"'s 'Data.Vector.Generic' module.
 -----------------------------------------------------------------------------
 module Data.Shaped
   (
@@ -416,7 +414,7 @@ plane l n = slice getter (\xx -> x & l #~ xx)
 
 
 -- | This 'Traversal' will ignore any duplicates in the supplied list
--- of indices.
+--   of indices.
 --
 -- >>> toListOf (ordinals [1,3,2,5,9,10]) $ Vector.fromList [2,4..40]
 -- [4,8,6,12,20,22]
@@ -455,10 +453,6 @@ manifestS :: (Vector v a , Shape l) => Delayed l a -> Array v l a
 manifestS arr@(Delayed l _) = Array l (toVectorOf folded arr)
 {-# INLINE manifestS #-}
 
--- genDelayed :: Shape l => l Int -> (l Int -> a) -> Delayed l a
--- genDelayed l f = Delayed l (f . fromIndex l)
--- {-# INLINE genDelayed #-}
-
 ------------------------------------------------------------------------
 -- Focused
 ------------------------------------------------------------------------
@@ -487,7 +481,7 @@ locale :: ComonadStore s w => Lens' (w a) s
 locale f w = (`seek` w) <$> f (pos w)
 {-# INLINE locale #-}
 
--- | Focus on a neighbouring element, relative to the
+-- | Focus on a neighbouring element, relative to the current focus.
 shiftFocus :: Applicative l => l Int -> Focused l a -> Focused l a
 shiftFocus dx (Focused x d@(Delayed l _)) = Focused x' d
   where

@@ -21,10 +21,8 @@
 -- Stability   :  provisional
 -- Portability :  non-portable
 --
--- Simple wrapper over a generic vector, giving the vector a 'Shape'.
--- Currently the api is a bit sparse but many standard functions that
--- appear missing can be used with the 'values' traversal with the
--- functions in the lens library.
+-- Base module for shaped vectors. This module exports the constructors
+-- for the 'Shaped' data type.
 -----------------------------------------------------------------------------
 module Data.Shaped.Base
   (
@@ -102,8 +100,7 @@ import           System.IO.Unsafe                (unsafePerformIO)
 import           Prelude                         hiding (null, replicate,
                                                   zipWith, zipWith3)
 
--- | Generic vector with a shape. The constructor is exported but it is
---   not safe use. Use 'fromListInto' or 'vector'.
+-- | An 'Array' is a generic vector with a shape.
 data Array v l a = Array !(l Int) !(v a)
   deriving Typeable
 

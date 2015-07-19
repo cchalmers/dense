@@ -24,7 +24,6 @@ module Data.Shaped.Mutable
   , read
   , linearRead
   , unsafeRead
-
   , unsafeLinearRead
 
     -- ** Writing
