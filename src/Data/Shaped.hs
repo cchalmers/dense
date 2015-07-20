@@ -63,6 +63,14 @@ module Data.Shaped
   , empty
   , null
 
+  -- ** Indexing
+
+  , (!)
+  , (!?)
+  , unsafeIndex
+  , linearIndex
+  , unsafeLinearIndex
+
   -- ** Modifying arrays
   , (//)
 
@@ -221,7 +229,7 @@ fromListInto_ l as = fromMaybe err $ fromListInto l as
     err = error $ "fromListInto_: shape " ++ showShape l ++ " is too large for list"
 {-# INLINE fromListInto_ #-}
 
--- | The empty 'Array' with a 'zeroDim' shape.
+-- | The empty 'Array' with a 'zero' shape.
 empty :: (Vector v a, Additive l) => Array v l a
 empty = Array zero G.empty
 {-# INLINE empty #-}
@@ -230,6 +238,37 @@ empty = Array zero G.empty
 null :: Foldable l => Array v l a -> Bool
 null (Array l _) = F.all (==0) l
 {-# INLINE null #-}
+
+-- Indexing ------------------------------------------------------------
+
+-- | Index an element of an array. Throws 'IndexOutOfBounds' if the
+--   index is out of bounds.
+(!) :: (Shape l, Vector v a) => Array v l a -> l Int -> a
+Array l v ! i = boundsCheck i l $ G.unsafeIndex v (toIndex l i)
+{-# INLINE (!) #-}
+
+-- | Safe index of an element.
+(!?) :: (Shape l, Vector v a) => Array v l a -> l Int -> Maybe a
+Array l v !? i
+  | inRange l i = Just $! G.unsafeIndex v (toIndex l i)
+  | otherwise   = Nothing
+{-# INLINE (!?) #-}
+
+-- | Index an element of an array without bounds checking.
+unsafeIndex :: (Shape l, Vector v a) => l Int -> Array v l a -> a
+unsafeIndex i (Array l v) = G.unsafeIndex v (toIndex l i)
+{-# INLINE unsafeIndex #-}
+
+-- | Index an element of an array while ignoring its shape.
+linearIndex :: Vector v a => Int -> Array v l a -> a
+linearIndex i (Array _ v) = v G.! i
+{-# INLINE linearIndex #-}
+
+-- | Index an element of an array while ignoring its shape, without
+--   bounds checking.
+unsafeLinearIndex :: Vector v a => Int -> Array v l a -> a
+unsafeLinearIndex i (Array _ v) = G.unsafeIndex v i
+{-# INLINE unsafeLinearIndex #-}
 
 -- Initialisation ------------------------------------------------------
 

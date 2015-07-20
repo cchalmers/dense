@@ -302,9 +302,6 @@ genGet getL getA = do
   return $! Array l (G.new nv)
 {-# INLINE genGet #-}
 
--- instance (Vector v a, Shape l, Unboxed a) => Unboxed (Array v l a) where
--- instance (Vector v a, Shape l, Storable a) => Storable (Array v l a) where
-
 instance (Vector v a, Foldable l, Hashable a) => Hashable (Array v l a) where
   hashWithSalt s (Array l v) = G.foldl' hashWithSalt s' v
     where s' = F.foldl' hashWithSalt s l
