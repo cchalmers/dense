@@ -51,11 +51,12 @@ module Data.Shaped
   -- ** Initialisation
   , replicate
   , generate
+  , linearGenerate
 
   -- ** Monadic initialisation
   , create
   , replicateM
-  , generateM
+  , linearGenerateM
 
   -- * Functions on arrays
 
@@ -288,6 +289,15 @@ replicate l a
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
+linearGenerate :: (Shape l, Vector v a) => l Int -> (Int -> a) -> Array v l a
+linearGenerate l f
+  | n > 0     = Array l $ G.generate n f
+  | otherwise = empty
+  where n = F.product l
+{-# INLINE linearGenerate #-}
+
+-- | O(n) Construct an array of the given shape by applying the
+--   function to each index.
 generate :: (Shape l, Vector v a) => l Int -> (l Int -> a) -> Array v l a
 generate l f
   | n > 0     = Array l $ G.generate n (f . fromIndex l)
@@ -314,6 +324,15 @@ generateM l f
   | otherwise = return empty
   where n = F.product l
 {-# INLINE generateM #-}
+
+-- | O(n) Construct an array of the given shape by applying the monadic
+--   function to each index.
+linearGenerateM :: (Monad m, Shape l, Vector v a) => l Int -> (Int -> m a) -> m (Array v l a)
+linearGenerateM l f
+  | n > 0     = Array l `liftM` G.generateM n f
+  | otherwise = return empty
+  where n = F.product l
+{-# INLINE linearGenerateM #-}
 
 -- | For each pair (i,a) from the list, replace the vector element at
 --   position i by a.
