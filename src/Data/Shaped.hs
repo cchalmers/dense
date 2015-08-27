@@ -245,7 +245,7 @@ null (Array l _) = F.all (==0) l
 -- | Index an element of an array. Throws 'IndexOutOfBounds' if the
 --   index is out of bounds.
 (!) :: (Shape l, Vector v a) => Array v l a -> l Int -> a
-Array l v ! i = boundsCheck i l $ G.unsafeIndex v (toIndex l i)
+Array l v ! i = boundsCheck l i $ G.unsafeIndex v (toIndex l i)
 {-# INLINE (!) #-}
 
 -- | Safe index of an element.

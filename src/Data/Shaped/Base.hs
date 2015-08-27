@@ -438,7 +438,7 @@ instance Shape l => Ixed (Delayed l a) where
 --   the index is out of range.
 indexDelayed :: Shape l => l Int -> Delayed l a -> a
 indexDelayed x (Delayed l ixF) =
-  boundsCheck x l $ ixF (toIndex l x)
+  boundsCheck l x $ ixF (toIndex l x)
 {-# INLINE indexDelayed #-}
 
 -- | Parallel manifestation of a delayed array into a material one.

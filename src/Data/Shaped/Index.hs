@@ -124,8 +124,8 @@ enumV4 f l@(V4 x y z w) = go zero where
 -- >>> trying (_IndexOutOfBounds . _Show) (boundsCheck (V1 2) (V1 20) (putStrLn "in range")) :: IO (Either (V1 Int, V1 Int) ())
 -- Left (V1 2,V1 2)
 boundsCheck :: Shape l => l Int -> l Int -> a -> a
-boundsCheck i l
-  | inRange i l = id
+boundsCheck l i
+  | inRange l i = id
   | otherwise   = throwing _IndexOutOfBounds $ "(" ++ showShape i ++ ", " ++ showShape l ++ ")"
 {-# INLINE boundsCheck #-}
 
