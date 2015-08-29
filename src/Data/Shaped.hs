@@ -83,6 +83,12 @@ module Data.Shaped
 
   -- ** Slices
 
+  -- *** Matrix
+  , ixRow
+  , rows
+  , ixColumn -- Frustrating clash with linear.
+  , columns
+
   -- , slice
   , sliced
   , line
@@ -386,16 +392,80 @@ izipWith3 f (Array l1 v1) (Array l2 v2) (Array l3 v3)
   | otherwise = error "izipWith3 not yet implimented for different shaped arrays"
 {-# INLINE izipWith3 #-}
 
--- Slices --------------------------------------------------------------
+------------------------------------------------------------------------
+-- Slices
+------------------------------------------------------------------------
 
--- -- XXX Needs to be checked
+-- >> let m = generate (V2 3 5) id :: BArray V2 (V2 Int)
 
--- Index starts at l1.
--- slicedValues :: l Int -> l Int -> IndexedTraversal (l Int) (Array v l a) a
--- sliced
+-- >>> prettyMatrix m
+-- [V2 0 0,V2 0 1,V2 0 2]
+-- [V2 1 0,V2 1 1,V2 1 2]
+-- [V2 2 0,V2 2 1,V2 2 2]
+--
+-- prettyMatrix :: (Vector v a, Show a) => Array v V2 a -> IO ()
+-- prettyMatrix = traverseOf_ rows print
 
--- Index starts at 0
--- dicedValues :: l Int -> l Int -> IndexedTraversal (l Int) (Array v l a) a
+-- | Affine traversal over a single row in a matrix.
+--
+-- >> prettyMatrix $ m & ixRow 1 . mapped . _y .~ 0
+-- [V2 0 0,V2 0 1,V2 0 2,V2 0 3,V2 0 4]
+-- [V2 1 0,V2 1 10,V2 1 20,V2 1 30,V2 1 40]
+-- [V2 2 0,V2 2 1,V2 2 2,V2 2 3,V2 2 4]
+ixRow :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
+ixRow i f m@(Array (l@(V2 x y)) v)
+  | i < x     = Array l . G.unsafeUpd v . zip [a..] . G.toList <$> indexed f i (G.slice a y v)
+  | otherwise = pure m
+  where a  = i * y
+
+-- | Indexed traversal over the rows of a matrix. Each row is an
+--   efficent 'Data.Vector.Generic.slice' of the original vector.
+--
+-- >>> traverseOf_ rows print m
+-- [V2 0 0,V2 0 1,V2 0 2]
+-- [V2 1 0,V2 1 1,V2 1 2]
+-- [V2 2 0,V2 2 1,V2 2 2]
+--
+rows :: (Vector v a, Vector w b)
+     => IndexedTraversal Int (Array v V2 a) (Array w V2 b) (v a) (w b)
+rows f (Array l@(V2 x y) v) = Array l . G.concat <$> go 0 0 where
+  go i a | i >= x    = pure []
+         | otherwise = (:) <$> indexed f i (G.slice a y v) <*> go (i+1) (a+y)
+{-# INLINE rows #-}
+
+-- | Affine traversal over a single column in a matrix.
+--
+-- >>> prettyMatrix $ m & ixColumn 3 . each +~ 100
+-- [V2 0 0,V2 0 1,V2 0 2,V2 100 103,V2 0 4]
+-- [V2 1 0,V2 1 1,V2 1 2,V2 101 103,V2 1 4]
+-- [V2 2 0,V2 2 1,V2 2 2,V2 102 103,V2 2 4]
+ixColumn :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
+ixColumn j f m@(Array (l@(V2 _ y)) v)
+  | j < y && j >= 0 = Array l . G.unsafeUpd v . zip js . G.toList <$> indexed f j (getColumn m j)
+  | otherwise       = pure m
+  where js = [j, j + y .. ]
+        -- a  = x * y
+
+-- | Indexed traversal over the columns of a matrix. Unlike 'rows', each
+--   column is a new separate vector.
+--
+-- >>> traverseOf_ columns print a
+-- [V2 0 0,V2 0 1,V2 0 2]
+-- [V2 1 0,V2 1 1,V2 1 2]
+-- [V2 2 0,V2 2 1,V2 2 2]
+--
+columns :: (Vector v a, Vector w b)
+        => IndexedTraversal Int (Array v V2 a) (Array w V2 b) (v a) (w b)
+columns f m@(Array l@(V2 _ y) _) = Array l . G.concat <$> go 0 where
+  go j | j >= y    = pure []
+       | otherwise = (:) <$> indexed f j (getColumn m j) <*> go (j+1)
+{-# INLINE columns #-}
+
+getColumn :: Vector v a => Array v V2 a -> Int -> v a
+getColumn (Array (V2 x y) v) j = G.generate x $ \i -> G.unsafeIndex v (i * y + j)
+{-# INLINE getColumn #-}
+
+-- Functions for working over slices of arrays.
 
 sliced :: (Vector v a, Shape l1, Shape l2)
       => Getting (l2 Int) (l1 Int) (l2 Int)
