@@ -214,10 +214,12 @@ instance (MVector v a, l ~ V1) => MVector (MArray v l) a where
   {-# INLINE basicUnsafeNew #-}
   {-# INLINE basicUnsafeRead #-}
   {-# INLINE basicUnsafeWrite #-}
+  {-# INLINE basicInitialize #-}
   basicLength (MArray (V1 n) _) = n
   basicUnsafeSlice i n (MArray _ v) = MArray (V1 n) $ GM.basicUnsafeSlice i n v
   basicOverlaps (MArray _ v) (MArray _ w) = GM.basicOverlaps v w
   basicUnsafeNew n = MArray (V1 n) `liftM` GM.basicUnsafeNew n
   basicUnsafeRead (MArray _ v) i = GM.basicUnsafeRead v i
   basicUnsafeWrite (MArray _ v) i a = GM.basicUnsafeWrite v i a
+  basicInitialize (MArray _ v) = GM.basicInitialize v
 
