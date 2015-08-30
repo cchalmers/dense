@@ -78,7 +78,12 @@ module Data.Shaped
   -- ** Modifying arrays
   , (//)
 
-  -- ** Zipping
+  -- * Zipping
+  -- ** Tuples
+  , Data.Shaped.zip
+  , Data.Shaped.zip3
+
+  -- ** Zip with function
   , zipWith
   , zipWith3
   , izipWith
@@ -158,35 +163,40 @@ module Data.Shaped
 
 
 #if __GLASGOW_HASKELL__ <= 708
-import           Control.Applicative      (Applicative, (<*>))
-import           Data.Foldable            (Foldable)
+import           Control.Applicative            (Applicative, (<*>))
+import           Data.Foldable                  (Foldable)
 #endif
 
 import           Control.Comonad
 import           Control.Comonad.Store
 import           Control.Lens
-import           Control.Monad            (liftM)
+import           Control.Monad                  (liftM)
 import           Control.Monad.ST
-import qualified Data.Foldable            as F
+import qualified Data.Foldable                  as F
 import           Data.Functor.Classes
-import           Data.Maybe               (fromMaybe)
-import qualified Data.Vector              as B
-import           Data.Vector.Generic      (Vector)
-import qualified Data.Vector.Generic      as G
-import qualified Data.Vector.Generic.Mutable  as GM
-import           Data.Vector.Generic.Lens (toVectorOf)
-import qualified Data.Vector.Primitive    as P
-import qualified Data.Vector.Storable     as S
-import qualified Data.Vector.Unboxed      as U
-import           Linear                   hiding (vector)
+import qualified Data.List                   as L
+import           Data.Maybe                     (fromMaybe)
+import qualified Data.Vector                    as B
+import           Data.Vector.Fusion.Bundle      (Bundle)
+import qualified Data.Vector.Fusion.Bundle      as Bundle
+import           Data.Vector.Fusion.Bundle.Size
+import           Data.Vector.Fusion.Util
+import           Data.Vector.Generic            (Vector)
+import qualified Data.Vector.Generic            as G
+import           Data.Vector.Generic.Lens       (toVectorOf)
+import qualified Data.Vector.Generic.Mutable    as GM
+import qualified Data.Vector.Primitive          as P
+import qualified Data.Vector.Storable           as S
+import qualified Data.Vector.Unboxed            as U
+import           Linear                         hiding (vector)
 
 import           Data.Shaped.Base
 import           Data.Shaped.Index
-import           Data.Shaped.Mutable      (MArray (..))
-import qualified Data.Shaped.Mutable      as M
+import           Data.Shaped.Mutable            (MArray (..))
+import qualified Data.Shaped.Mutable            as M
 
-import           Prelude                  hiding (null, replicate, zipWith,
-                                           zipWith3)
+import           Prelude                        hiding (null, replicate,
+                                                 zipWith, zipWith3)
 
 -- Aliases -------------------------------------------------------------
 
@@ -357,51 +367,107 @@ linearGenerateM l f
 (//) :: (G.Vector v a, Shape l) => Array v l a -> [(l Int, a)] -> Array v l a
 Array l v // xs = Array l $ v G.// over (each . _1) (toIndex l) xs
 
--- Zipping -------------------------------------------------------------
+------------------------------------------------------------------------
+-- Streams
+------------------------------------------------------------------------
 
+streamSub :: (Shape l, Vector v a) => l Int -> Array v l a -> Bundle v a
+streamSub l2 (Array l1 v) | eq1 l1 l2 = G.stream v
+streamSub l2 (Array l1 v)             = Bundle.unfoldr get 0 `Bundle.sized` Exact n
+  where
+    n = F.product l2
+
+    get i | i >= n    = Nothing
+          | otherwise = case G.basicUnsafeIndexM v (toIndex l1 j) of Box x -> Just (x, i+1)
+      where j = fromIndex l2 i
+
+streamShape :: Shape l => l Int -> Bundle v (l Int)
+streamShape l = Bundle.fromListN (F.product l) $ toListOf enumShape l
+{-# INLINE streamShape #-}
+
+------------------------------------------------------------------------
+-- Zipping
+------------------------------------------------------------------------
+
+-- Tuple zip -----------------------------------------------------------
+
+-- | Zip two arrays element wise. If the array's don't have the same
+--   shape, the new array with be the intersection of the two shapes.
+zip :: (Shape l, Vector v a, Vector v b, Vector v (a,b))
+    => Array v l a
+    -> Array v l b
+    -> Array v l (a,b)
+zip = zipWith (,)
+
+-- | Zip three arrays element wise. If the array's don't have the same
+--   shape, the new array with be the intersection of the two shapes.
+zip3 :: (Shape l, Vector v a, Vector v b, Vector v c, Vector v (a,b,c))
+     => Array v l a
+     -> Array v l b
+     -> Array v l c
+     -> Array v l (a,b,c)
+zip3 = zipWith3 (,,)
+
+-- Zip with function ---------------------------------------------------
+
+-- | Zip two arrays using the given function. If the array's don't have
+--   the same shape, the new array with be the intersection of the two
+--   shapes.
 zipWith :: (Shape l, Vector v a, Vector v b, Vector v c)
         => (a -> b -> c)
         -> Array v l a
         -> Array v l b
         -> Array v l c
-zipWith f (Array l1 v1) (Array l2 v2)
+zipWith f a1@(Array l1 v1) a2@(Array l2 v2)
   | eq1 l1 l1 = Array l1 $ G.zipWith f v1 v2
-  | otherwise = Array l' $ error "intersect zipWith not yet implimented"
+  | otherwise = Array l' $ G.unstream $ Bundle.zipWith f (streamSub l' a1) (streamSub l' a2)
   where l' = intersectShape l1 l2
 
+-- | Zip three arrays using the given function. If the array's don't
+--   have the same shape, the new array with be the intersection of the
+--   two shapes.
 zipWith3 :: (Shape l, Vector v a, Vector v b, Vector v c, Vector v d)
          => (a -> b -> c -> d)
          -> Array v l a
          -> Array v l b
          -> Array v l c
          -> Array v l d
-zipWith3 f (Array l1 v1) (Array l2 v2) (Array l3 v3)
+zipWith3 f a1@(Array l1 v1) a2@(Array l2 v2) a3@(Array l3 v3)
   | eq1 l1 l2 &&
     eq1 l2 l3 = Array l1 $ G.zipWith3 f v1 v2 v3
-  | otherwise = Array l' $ error "intersect zipWith not yet implimented"
-  where l' = intersectShape l1 l2 `intersectShape` l3
+  | otherwise = Array l' $ G.unstream $ Bundle.zipWith3 f (streamSub l' a1) (streamSub l' a2) (streamSub l' a3)
+  where l' = intersectShape (intersectShape l1 l2) l3
 
+-- Indexed zipping -----------------------------------------------------
 
+-- | Zip two arrays using the given function with access to the index.
+--   If the array's don't have the same shape, the new array with be the
+--   intersection of the two shapes.
 izipWith :: (Shape l, Vector v a, Vector v b, Vector v c)
          => (l Int -> a -> b -> c)
          -> Array v l a
          -> Array v l b
          -> Array v l c
-izipWith f (Array l1 v1) (Array l2 v2)
-  | eq1 l1 l2 = Array l1 $ G.izipWith (f . fromIndex l1) v1 v2
-  | otherwise = error "izipWith not yet implimented for different shaped arrays"
+izipWith f a1@(Array l1 v1) a2@(Array l2 v2)
+  | eq1 l1 l2 = Array l1 $ G.unstream $ Bundle.zipWith3 f (streamShape l1) (G.stream v1) (G.stream v2)
+  | otherwise = Array l' $ G.unstream $ Bundle.zipWith3 f (streamShape l') (streamSub l' a1) (streamSub l' a2)
+  where l' = intersectShape l1 l2
 {-# INLINE izipWith #-}
 
+-- | Zip two arrays using the given function with access to the index.
+--   If the array's don't have the same shape, the new array with be the
+--   intersection of the two shapes.
 izipWith3 :: (Shape l, Vector v a, Vector v b, Vector v c, Vector v d)
           => (l Int -> a -> b -> c -> d)
           -> Array v l a
           -> Array v l b
           -> Array v l c
           -> Array v l d
-izipWith3 f (Array l1 v1) (Array l2 v2) (Array l3 v3)
-  | eq1 l1 l2 &&
-    eq1 l2 l3 = Array l1 $ G.izipWith3 (f . fromIndex l1) v1 v2 v3
-  | otherwise = error "izipWith3 not yet implimented for different shaped arrays"
+izipWith3 f a1@(Array l1 v1) a2@(Array l2 v2) a3@(Array l3 v3)
+  | eq1 l1 l2 = Array l1 $ G.unstream $ Bundle.zipWith4 f (streamShape l1) (G.stream v1) (G.stream v2) (G.stream v3)
+  | otherwise = l' `seq`
+      (Array l' $ G.unstream $ Bundle.zipWith4 f (streamShape l') (streamSub l' a1) (streamSub l' a2) (streamSub l' a3))
+  where l' = intersectShape (intersectShape l1 l2) l3
 {-# INLINE izipWith3 #-}
 
 ------------------------------------------------------------------------
@@ -426,7 +492,7 @@ izipWith3 f (Array l1 v1) (Array l2 v2) (Array l3 v3)
 -- [V2 2 0,V2 2 1,V2 2 2,V2 2 3,V2 2 4]
 ixRow :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
 ixRow i f m@(Array (l@(V2 x y)) v)
-  | y >= 0 && i < x = Array l . G.unsafeUpd v . zip [a..] . G.toList <$> indexed f i (G.slice a y v)
+  | y >= 0 && i < x = Array l . G.unsafeUpd v . L.zip [a..] . G.toList <$> indexed f i (G.slice a y v)
   | otherwise       = pure m
   where a  = i * y
 
@@ -453,7 +519,7 @@ rows f (Array l@(V2 x y) v) = Array l . G.concat <$> go 0 0 where
 -- [V2 2 0,V2 2 1,V2 2 2,V2 102 103,V2 2 4]
 ixColumn :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
 ixColumn j f m@(Array (l@(V2 _ y)) v)
-  | j >= 0 && j < y = Array l . G.unsafeUpd v . zip js . G.toList <$> indexed f j (getColumn m j)
+  | j >= 0 && j < y = Array l . G.unsafeUpd v . L.zip js . G.toList <$> indexed f j (getColumn m j)
   | otherwise       = pure m
   where js = [j, j + y .. ]
         -- a  = x * y
@@ -495,7 +561,7 @@ ixPlane :: Vector v a
         -> IndexedTraversal' Int (Array v V3 a) (Array v V2 a)
 ixPlane l32 i f a@(Array l v)
   | i < 0 || i >= k = pure a
-  | otherwise       = Array l . (v G.//) . zip is . toListOf values
+  | otherwise       = Array l . (v G.//) . L.zip is . toListOf values
                         <$> indexed f i (getPlane l32 i a)
   where
     is = toListOf (cloneLens l32 . enumShape . to (\x -> toIndex l $ pure i & l32 #~ x)) l
