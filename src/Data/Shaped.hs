@@ -75,6 +75,12 @@ module Data.Shaped
   , linearIndex
   , unsafeLinearIndex
 
+  -- *** Monadic indexing
+  , indexM
+  , unsafeIndexM
+  , linearIndexM
+  , unsafeLinearIndexM
+
   -- ** Modifying arrays
   , (//)
 
@@ -297,6 +303,50 @@ linearIndex i (Array _ v) = v G.! i
 unsafeLinearIndex :: Vector v a => Int -> Array v l a -> a
 unsafeLinearIndex i (Array _ v) = G.unsafeIndex v i
 {-# INLINE unsafeLinearIndex #-}
+
+-- Monadic indexing ----------------------------------------------------
+
+-- | /O(1)/ Indexing in a monad.
+--
+--   The monad allows operations to be strict in the vector when necessary.
+--   Suppose vector copying is implemented like this:
+--
+-- > copy mv v = ... write mv i (v ! i) ...
+--
+--   For lazy vectors, @v ! i@ would not be evaluated which means that
+--   @mv@ would unnecessarily retain a reference to @v@ in each element
+--   written.
+--
+--   With 'indexM', copying can be implemented like this instead:
+--
+-- > copy mv v = ... do
+-- >   x <- indexM v i
+-- >   write mv i x
+--
+--   Here, no references to @v@ are retained because indexing (but /not/
+--   the elements) is evaluated eagerly.
+--
+--   Throws an error if the index is out of range.
+indexM :: (Shape l, Vector v a, Monad m) => Array v l a -> l Int -> m a
+indexM (Array l v) i = boundsCheck l i $ G.unsafeIndexM v (toIndex l i)
+{-# INLINE indexM #-}
+
+-- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
+--   explanation of why this is useful.
+unsafeIndexM :: (Shape l, Vector v a, Monad m) => Array v l a -> l Int -> m a
+unsafeIndexM (Array l v) i = G.unsafeIndexM v (toIndex l i)
+{-# INLINE unsafeIndexM #-}
+
+-- | /O(1)/ Indexing in a monad. Throws an error if the index is out of
+--   range.
+linearIndexM :: (Shape l, Vector v a, Monad m) => Array v l a -> Int -> m a
+linearIndexM (Array l v) i = boundsCheck l (fromIndex l i) $ G.unsafeIndexM v i
+
+-- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
+--   explanation of why this is useful.
+unsafeLinearIndexM :: (Vector v a, Monad m) => Array v l a -> Int -> m a
+unsafeLinearIndexM (Array _ v) i = G.unsafeIndexM v i
+{-# INLINE unsafeLinearIndexM #-}
 
 -- Initialisation ------------------------------------------------------
 
