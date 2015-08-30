@@ -147,6 +147,13 @@ module Data.Shaped
   , R2 (..)
   , R3 (..)
   , R4 (..)
+
+  -- ** Extra planes
+  , _xz
+  , _yz
+  , _yx
+  , _zy
+  , _zx
   ) where
 
 
