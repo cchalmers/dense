@@ -3,6 +3,18 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies          #-}
+-----------------------------------------------------------------------------
+-- |
+-- Module      :  Data.Shaped.Mutable
+-- Copyright   :  (c) Christopher Chalmers
+-- License     :  BSD3
+--
+-- Maintainer  :  Christopher Chalmers
+-- Stability   :  provisional
+-- Portability :  non-portable
+--
+-- This module provides generic functions over mutable shaped vectors.
+-----------------------------------------------------------------------------
 module Data.Shaped.Mutable
   (
     -- * Mutable array
@@ -70,9 +82,16 @@ import           Prelude                       hiding (read, replicate)
 data MArray v l s a = MArray !(l Int) !(v s a)
   deriving Typeable
 
-type UMArray = MArray U.MVector
-type SMArray = MArray S.MVector
+-- | Boxed mutable array.
 type BMArray = MArray B.MVector
+
+-- | Unboxed mutable array.
+type UMArray = MArray U.MVector
+
+-- | Storable mutable array.
+type SMArray = MArray S.MVector
+
+-- | Primitive mutable array.
 type PMArray = MArray P.MVector
 
 -- | New mutable array with shape @l@.
