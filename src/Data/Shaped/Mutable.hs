@@ -7,7 +7,6 @@ module Data.Shaped.Mutable
   (
     -- * Mutable array
     MArray (..)
-  , Shape (..)
   , UMArray
   , SMArray
   , BMArray
