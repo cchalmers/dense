@@ -20,7 +20,7 @@
 -- Portability :  non-portable
 --
 -- This module provides generic functions over shaped vectors. This is
--- equivilant to "vector"'s 'Data.Vector.Generic' module.
+-- equivalent to "vector"'s 'Data.Vector.Generic' module.
 -----------------------------------------------------------------------------
 module Data.Shaped
   (
@@ -94,11 +94,8 @@ module Data.Shaped
   , ixPlane
   , planes
 
-  -- , slice
-  , sliced
-  , line
+  -- *** Ordinals
   , unsafeOrdinals
-  , plane
 
   -- * Mutable
   , MArray
@@ -425,7 +422,7 @@ ixRow i f m@(Array (l@(V2 x y)) v)
   where a  = i * y
 
 -- | Indexed traversal over the rows of a matrix. Each row is an
---   efficent 'Data.Vector.Generic.slice' of the original vector.
+--   efficient 'Data.Vector.Generic.slice' of the original vector.
 --
 -- >>> traverseOf_ rows print m
 -- [V2 0 0,V2 0 1,V2 0 2]
@@ -516,90 +513,12 @@ concatPlanes l l32 as = create $ do
   return arr
 
 getPlane :: Vector v a => ALens' (V3 Int) (V2 Int) -> Int -> Array v V3 a -> Array v V2 a
-getPlane l32 i a =
-  generate (a ^# layout . l32) $ \x -> a ! (pure i & l32 #~ x)
+getPlane l32 i a = generate (a ^# layout . l32) $ \x -> a ! (pure i & l32 #~ x)
 
--- Functions for working over slices of arrays.
+-- Ordinals ------------------------------------------------------------
 
-sliced :: (Vector v a, Shape l1, Shape l2)
-      => Getting (l2 Int) (l1 Int) (l2 Int)
-      -> (l2 Int -> l1 Int)
-      -> Lens' (Array v l1 a) (Array v l2 a)
-sliced = undefined
-
-sliced'
-  :: (Vector v a, Shape l1, Shape l2)
-  => (l1 Int -> l2 Int)
-  -> (l2 Int -> l1 Int)
-  -> Lens' (Array v l1 a) (Array v l2 a)
-sliced' f12 f21 f arr@(Array l1 _) =
-  f a <&> \arr' -> arr // (arr' ^@.. reindexed f21 values)
-  where a  = generate (f12 l1) $ \x -> arr ^?! ix (f21 x)
-
-slice :: (Vector v a, Vector w a, Shape l1, Shape l2)
-      => Getting (l2 Int) (l1 Int) (l2 Int)
-      -> (l2 Int -> l1 Int)
-      -> Array v l1 a
-      -> Array w l2 a
-slice l f arr@(Array l1 _) = generate l2 $ \x -> arr ^?! ix (f x) where l2 = l1 ^. l
-
--- column :: Vector v a => Int -> Array v V2 a -> Array v V1 a
--- column y = slice (_x . to V1) (\(V1 x) -> V2 x y)
-
--- | 'row' :: Lens' (l Int) Int -> l Int -> Array v l a -> Array v V1 a
---
---
--- row :: Vector v a => Getting (l Int) Int (l Int) -> l Int -> Lens' (Array v l a) (Array v V1 a)
--- row g l0 f arr@(Array l _) = f v1 <&> \v1' -> --
---   where
---     v1 = generate (l ^. g) $ \x -> arr ^?! ix (x ^.)
-line :: (Vector v a, Shape l)
-     => Lens' (l Int) Int -- ^ Lens onto target line
-     -> l Int             -- ^ Some point on the line
-     -> Lens' (Array v l a) (Array v V1 a) -- Lens onto the line
-line l = line' l l
-{-# INLINE line #-}
-
-line' :: (Vector v a, Shape l)
-      => Getting (V1 Int) (l Int) Int
-      -> ASetter' (l Int) Int
-      -> l Int
-      -> Lens' (Array v l a) (Array v V1 a)
-line' g s l = sliced' (view (g . to V1)) (\(V1 x) -> l & s .~ x)
-{-# INLINE line' #-}
-
--- line :: (Vector v a, Shape l) => Lens' (l Int) Int -> l Int -> IndexedTraversal' (l Int) (Array v l a) a
-
--- planes :: (Vector v a, Shape l) => Lens' (l Int) Int -> l Int -> IndexedTraversal' Int (Array v V3 a) (Array v V2 a)
-
--- row :: (Vector v a, Shape l) => ALens' (l Int) Int -> Int -> Lens' (Array v l a) (Array v V1 a)
--- row l x = sliced (cloneLens l . to V1) (\(V1 x) -> xx & l #~ x)
---   where xx = x <$ zero
-
-plane :: (Vector v a, Vector w a)
-      => ALens' (V3 Int) (V2 Int) -- Lens onto plane
-      -> Int -- number of plane
-      -> Array v V3 a
-      -> Array w V2 a -- Lens' (V3 Int) (V2 Int) =>
-plane l n = slice getter (\xx -> x & l #~ xx)
-  where x      = n <$ (zero :: Additive f => f Int)
-        getter = cloneLens l
-
--- plane :: (Vector v a, Vector w a)
---       => Lens' (V3 Int) (V2 Int) -- Lens onto plane
---       -> Int -- number of plane
---       -> Array v V3 a
---       -> Array w V2 a -- Lens' (V3 Int) (V2 Int) =>
--- plane l n = slice getter (\xx -> x & l #~ xx)
---   where x      = n <$ (zero :: Additive f => f Int)
---         getter = cloneLens l
-
-
--- | This 'Traversal' will ignore any duplicates in the supplied list
---   of indices.
---
--- >>> toListOf (ordinals [1,3,2,5,9,10]) $ Vector.fromList [2,4..40]
--- [4,8,6,12,20,22]
+-- | This 'Traversal' should not have any duplicates in the list of
+--   indices.
 unsafeOrdinals :: (Vector v a, Shape l) => [l Int] -> IndexedTraversal' (l Int) (Array v l a) a
 unsafeOrdinals is f (Array l v) = Array l . (v G.//) <$> traverse g is
   where g x = let i = toIndex l x in (,) i <$> indexed f x (G.unsafeIndex v i)
