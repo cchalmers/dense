@@ -3,8 +3,29 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE Rank2Types           #-}
 {-# LANGUAGE UndecidableInstances #-}
+-----------------------------------------------------------------------------
+-- |
+-- Module      :  Data.Shaped.Mutable
+-- Copyright   :  (c) Christopher Chalmers
+-- License     :  BSD3
+--
+-- Maintainer  :  Christopher Chalmers
+-- Stability   :  provisional
+-- Portability :  non-portable
+--
+-- This module provides a class for types that can be converted to and
+-- from linear indexes.
+--
+-- The default instances are defined in row-major order.
+-----------------------------------------------------------------------------
+module Data.Shaped.Index
+  ( -- * Shape class
+    Shape (..)
 
-module Data.Shaped.Index where
+    -- * Utilities
+  , boundsCheck
+  , showShape
+  ) where
 
 #if __GLASGOW_HASKELL__ <= 708
 import           Control.Applicative
@@ -24,6 +45,7 @@ import           Linear.V
 -- valid shape. This class will likely change in the future. Suggestions
 -- are welcome.
 
+-- | Class for types that can be converted to and from linear indexes.
 class (Eq1 f, Additive f, Traversable f) => Shape f where
   -- | @toIndex l x@ returns the linear index @i@ of the shaped index @x@
   --   for array layout @l@.
@@ -37,6 +59,7 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   fromIndex l i = snd $ mapAccumR quotRem i l
   {-# INLINE fromIndex #-}
 
+  -- | Calculate the intersection of two shapes.
   intersectShape :: f Int -> f Int -> f Int
   intersectShape = liftU2 min
   {-# INLINE intersectShape #-}
@@ -52,6 +75,7 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   -- slicing :: Lens' l1 l2 -> (l2 -> l2) -> l1 -> Array v l1 a -> Array v l2 a
   -- slicing ls f l arr =
 
+  -- | Indexed fold for the range between two shapes.
   rangeBetween :: f Int -> f Int -> IndexedFold Int (f Int) (f Int)
   rangeBetween x1 x2 = l -- conjoined l (indexing l)
    -- horribly inefficient
@@ -59,6 +83,7 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
           l = enumShape . filtered f
   {-# INLINE rangeBetween #-}
 
+  -- | Indexed fold to the shape.
   enumShape :: IndexedFold Int (f Int) (f Int)
   enumShape f l = go 0 where
     -- What about negative indices?
@@ -70,9 +95,9 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
 instance Shape Identity
 instance Shape V0
 instance Shape V1
-instance Shape V2
-instance Shape V3
-instance Shape V4
+instance Shape V2 where enumShape = enumV2; rangeBetween = rangeBetweenV2
+instance Shape V3 where enumShape = enumV3
+instance Shape V4 where enumShape = enumV4
 instance Dim n => Shape (V n)
 
 enumV2 :: IndexedFold Int (V2 Int) (V2 Int)
