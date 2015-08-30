@@ -250,8 +250,7 @@ fromListInto l as
 {-# INLINE fromListInto #-}
 
 -- | O(n) Convert the first @n@ elements of a list to an Array with the
---   given shape. Returns 'Nothing' if there are not enough elements in
---   the list.
+--   given shape. Throw an error if the list is not long enough.
 fromListInto_ :: (Shape l, Vector v a) => l Int -> [a] -> Array v l a
 fromListInto_ l as = fromMaybe err $ fromListInto l as
   where
@@ -362,7 +361,7 @@ linearGenerateM l f
   where n = F.product l
 {-# INLINE linearGenerateM #-}
 
--- | For each pair (i,a) from the list, replace the vector element at
+-- | For each pair (i,a) from the list, replace the array element at
 --   position i by a.
 (//) :: (G.Vector v a, Shape l) => Array v l a -> [(l Int, a)] -> Array v l a
 Array l v // xs = Array l $ v G.// over (each . _1) (toIndex l) xs
