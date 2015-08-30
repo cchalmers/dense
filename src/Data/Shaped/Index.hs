@@ -95,9 +95,17 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
 instance Shape Identity
 instance Shape V0
 instance Shape V1
-instance Shape V2 where enumShape = enumV2; rangeBetween = rangeBetweenV2
-instance Shape V3 where enumShape = enumV3
-instance Shape V4 where enumShape = enumV4
+instance Shape V2 where
+  enumShape = enumV2
+  {-# INLINE enumShape #-}
+  rangeBetween = rangeBetweenV2
+  {-# INLINE rangeBetween #-}
+instance Shape V3 where
+  enumShape = enumV3
+  {-# INLINE enumShape #-}
+instance Shape V4 where
+  enumShape = enumV4
+  {-# INLINE enumShape #-}
 instance Dim n => Shape (V n)
 
 enumV2 :: IndexedFold Int (V2 Int) (V2 Int)
@@ -106,6 +114,7 @@ enumV2 f l@(V2 x y) = go zero where
     | i >= x    = noEffect
     | j >= y    = go $ V2 (i+1) 0
     | otherwise = indexed f (toIndex l q) q *> go (V2 i (j+1))
+{-# INLINE enumV2 #-}
 
 rangeBetweenV2 :: V2 Int -> V2 Int -> IndexedFold Int (V2 Int) (V2 Int)
 rangeBetweenV2 v0@(V2 _ y0) (V2 x2 y2) f l = go v0 where
@@ -113,6 +122,7 @@ rangeBetweenV2 v0@(V2 _ y0) (V2 x2 y2) f l = go v0 where
     | j >= x2   = noEffect
     | i >= y2   = go $ V2 (i+1) y0
     | otherwise = indexed f (toIndex l q) q *> go (V2 i (j+1))
+{-# INLINE rangeBetweenV2 #-}
 
 enumV3 :: IndexedFold Int (V3 Int) (V3 Int)
 enumV3 f l@(V3 x y z) = go zero where
@@ -121,6 +131,7 @@ enumV3 f l@(V3 x y z) = go zero where
     | j >= y    = go $ V3 (i+1)    0  0
     | k >= z    = go $ V3    i  (j+1) 0
     | otherwise = indexed f (toIndex l q) q *> go (V3 i j (k+1))
+{-# INLINE enumV3 #-}
 
 enumV4 :: IndexedFold Int (V4 Int) (V4 Int)
 enumV4 f l@(V4 x y z w) = go zero where
@@ -130,6 +141,7 @@ enumV4 f l@(V4 x y z w) = go zero where
     | k >= z    = go $ V4    i  (j+1)    0  0
     | m >= w    = go $ V4    i  (j+1) (k+1) 0
     | otherwise = indexed f (toIndex l q) q *> go (V4 i j k (m+1))
+{-# INLINE enumV4 #-}
 
 -- | Perform a bounds check for index @i@ and layout @l@. Throws an
 --   'IndexOutOfBounds' exception when out of range. This can be caught
