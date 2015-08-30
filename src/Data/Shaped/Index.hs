@@ -166,6 +166,8 @@ boundsCheck l i
   | otherwise   = throwing _IndexOutOfBounds $ "(" ++ showShape i ++ ", " ++ showShape l ++ ")"
 {-# INLINE boundsCheck #-}
 
+-- | Show a shape in the form @VN i1 i2 .. iN@ where @N@ is the 'length'
+--   of the shape.
 showShape :: Shape l => l Int -> String
 showShape l = "V" ++ show (lengthOf folded l) ++ " " ++ unwords (show <$> F.toList l)
 
