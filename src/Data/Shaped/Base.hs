@@ -32,7 +32,7 @@ module Data.Shaped.Base
 
     -- * Lenses
   , layout
-  , linear
+  , vector
   , values
 
   -- * Functions on arrays
@@ -85,7 +85,7 @@ import           Data.Vector.Generic.Lens        (vectorTraverse)
 import qualified Data.Vector.Generic.Mutable     as GM
 import qualified Data.Vector.Generic.New         as New
 import           GHC.Generics                    (Generic, Generic1)
-import           Linear
+import           Linear                          hiding (vector)
 import           Text.ParserCombinators.ReadPrec (readS_to_Prec)
 import qualified Text.Read                       as Read
 
@@ -115,7 +115,7 @@ extent (Array l _) = l
 --   current position in the array.
 values :: (Shape l, Vector v a, Vector w b)
        => IndexedTraversal (l Int) (Array v l a) (Array w l b) a b
-values = \f arr -> reindexed (fromIndex $ extent arr) (linear . vectorTraverse) f arr
+values = \f arr -> reindexed (fromIndex $ extent arr) (vector . vectorTraverse) f arr
 {-# INLINE values #-}
 
 -- | Lens onto the shape of the vector. The total size of the layout
@@ -127,9 +127,9 @@ layout f (Array l v) = f l <&> \l' -> Array l' v
 -- | Indexed lens over the underlying vector of an array. The index is
 --   the 'extent' of the array. You must _not_ change the length of the
 --   vector (even for 'V1' layouts, use '_Flat' for 'V1').
-linear :: IndexedLens (l Int) (Array v l a) (Array w l b) (v a) (w b)
-linear f (Array l v) = indexed f l v <&> \w -> Array l w
-{-# INLINE linear #-}
+vector :: IndexedLens (l Int) (Array v l a) (Array w l b) (v a) (w b)
+vector f (Array l v) = indexed f l v <&> \w -> Array l w
+{-# INLINE vector #-}
 
 -- Mutable conversion --------------------------------------------------
 
@@ -183,7 +183,7 @@ instance (Shape l, Vector v a) => Ixed (Array v l a) where
   {-# INLINE ix #-}
 
 instance (Vector v a, Vector v b) => Each (Array v l a) (Array v l b) a b where
-  each = linear . vectorTraverse
+  each = vector . vectorTraverse
   {-# INLINE each #-}
 
 instance (Shape l, Vector v a) => AsEmpty (Array v l a) where
@@ -207,11 +207,11 @@ instance (NFData (l Int), NFData (v a)) => NFData (Array v l a) where
 type Boxed v = v ~ B.Vector
 
 instance Boxed v => Functor (Array v l) where
-  fmap = over linear . fmap
+  fmap = over vector . fmap
   {-# INLINE fmap #-}
 
 instance Boxed v => F.Foldable (Array v l) where
-  foldMap f = F.foldMap f . view linear
+  foldMap f = F.foldMap f . view vector
   {-# INLINE foldMap #-}
 
 instance Boxed v => Traversable (Array v l) where

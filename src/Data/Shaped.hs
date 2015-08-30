@@ -32,19 +32,21 @@ module Data.Shaped
   , SArray
   , PArray
 
-    -- * Lenses
+    -- ** Lenses
   , layout
-  , linear
+  , vector
+
+    -- ** Traversals
   , values
   , values'
 
   -- * Construction
 
   -- ** Flat arrays
-  , _Flat
+  , flat
   , fromList
 
-  -- ** Shaped lists
+  -- ** Shaped from lists
   , fromListInto
   , fromListInto_
 
@@ -169,7 +171,7 @@ import           Data.Vector.Generic.Lens (toVectorOf)
 import qualified Data.Vector.Primitive    as P
 import qualified Data.Vector.Storable     as S
 import qualified Data.Vector.Unboxed      as U
-import           Linear
+import           Linear                   hiding (vector)
 
 import           Data.Shaped.Base
 import           Data.Shaped.Index
@@ -207,9 +209,9 @@ values' = values
 --   Note that 'V1' arrays are an instance of 'Vector' so you can use
 --   any of the functions in 'Data.Vector.Generic' on them without
 --   needing to convert.
-_Flat :: (Vector v a, Vector w b) => Iso (Array v V1 a) (Array w V1 b) (v a) (w b)
-_Flat = iso (\(Array _ v) -> v) (\v -> Array (V1 $ G.length v) v)
-{-# INLINE _Flat #-}
+flat :: (Vector v a, Vector w b) => Iso (Array v V1 a) (Array w V1 b) (v a) (w b)
+flat = iso (\(Array _ v) -> v) (\v -> Array (V1 $ G.length v) v)
+{-# INLINE flat #-}
 
 -- Constructing vectors ------------------------------------------------
 
