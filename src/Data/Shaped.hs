@@ -56,6 +56,7 @@ module Data.Shaped
   -- ** Monadic initialisation
   , create
   , replicateM
+  , generateM
   , linearGenerateM
 
   -- * Functions on arrays
@@ -86,8 +87,12 @@ module Data.Shaped
   -- *** Matrix
   , ixRow
   , rows
-  , ixColumn -- Frustrating clash with linear.
+  , ixColumn
   , columns
+
+  -- *** 3D
+  , ixPlane
+  , planes
 
   -- , slice
   , sliced
@@ -162,6 +167,7 @@ import           Data.Maybe               (fromMaybe)
 import qualified Data.Vector              as B
 import           Data.Vector.Generic      (Vector)
 import qualified Data.Vector.Generic      as G
+import qualified Data.Vector.Generic.Mutable  as GM
 import           Data.Vector.Generic.Lens (toVectorOf)
 import qualified Data.Vector.Primitive    as P
 import qualified Data.Vector.Storable     as S
@@ -414,8 +420,8 @@ izipWith3 f (Array l1 v1) (Array l2 v2) (Array l3 v3)
 -- [V2 2 0,V2 2 1,V2 2 2,V2 2 3,V2 2 4]
 ixRow :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
 ixRow i f m@(Array (l@(V2 x y)) v)
-  | i < x     = Array l . G.unsafeUpd v . zip [a..] . G.toList <$> indexed f i (G.slice a y v)
-  | otherwise = pure m
+  | y >= 0 && i < x = Array l . G.unsafeUpd v . zip [a..] . G.toList <$> indexed f i (G.slice a y v)
+  | otherwise       = pure m
   where a  = i * y
 
 -- | Indexed traversal over the rows of a matrix. Each row is an
@@ -441,7 +447,7 @@ rows f (Array l@(V2 x y) v) = Array l . G.concat <$> go 0 0 where
 -- [V2 2 0,V2 2 1,V2 2 2,V2 102 103,V2 2 4]
 ixColumn :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
 ixColumn j f m@(Array (l@(V2 _ y)) v)
-  | j < y && j >= 0 = Array l . G.unsafeUpd v . zip js . G.toList <$> indexed f j (getColumn m j)
+  | j >= 0 && j < y = Array l . G.unsafeUpd v . zip js . G.toList <$> indexed f j (getColumn m j)
   | otherwise       = pure m
   where js = [j, j + y .. ]
         -- a  = x * y
@@ -456,7 +462,7 @@ ixColumn j f m@(Array (l@(V2 _ y)) v)
 --
 columns :: (Vector v a, Vector w b)
         => IndexedTraversal Int (Array v V2 a) (Array w V2 b) (v a) (w b)
-columns f m@(Array l@(V2 _ y) _) = Array l . G.concat <$> go 0 where
+columns f m@(Array l@(V2 _ y) _) = Array l . transposeConcat l <$> go 0 where
   go j | j >= y    = pure []
        | otherwise = (:) <$> indexed f j (getColumn m j) <*> go (j+1)
 {-# INLINE columns #-}
@@ -464,6 +470,54 @@ columns f m@(Array l@(V2 _ y) _) = Array l . G.concat <$> go 0 where
 getColumn :: Vector v a => Array v V2 a -> Int -> v a
 getColumn (Array (V2 x y) v) j = G.generate x $ \i -> G.unsafeIndex v (i * y + j)
 {-# INLINE getColumn #-}
+
+transposeConcat :: Vector v a => V2 Int -> [v a] -> v a
+transposeConcat (V2 x y) vs = G.create $ do
+  mv <- GM.new (x*y)
+  iforM_ vs $ \j v ->
+    -- vector doesn't have iforM_
+    flip G.imapM_ v $ \i a ->
+      GM.write mv (i*y + j) a
+  return mv
+{-# INLINE transposeConcat #-}
+
+-- | Traversal over a single plane of a 3D array given a lens onto that
+--   plane (like '_xy', '_yz', '_zx').
+ixPlane :: Vector v a
+        => ALens' (V3 Int) (V2 Int)
+        -> Int
+        -> IndexedTraversal' Int (Array v V3 a) (Array v V2 a)
+ixPlane l32 i f a@(Array l v)
+  | i < 0 || i >= k = pure a
+  | otherwise       = Array l . (v G.//) . zip is . toListOf values
+                        <$> indexed f i (getPlane l32 i a)
+  where
+    is = toListOf (cloneLens l32 . enumShape . to (\x -> toIndex l $ pure i & l32 #~ x)) l
+    k  = sum $ l & l32 #~ 0
+
+-- | Traversal over all planes of 3D array given a lens onto that plane
+--   (like '_xy', '_yz', '_zx').
+planes :: (Vector v a, Vector w b)
+       => ALens' (V3 Int) (V2 Int)
+       -> IndexedTraversal Int (Array v V3 a) (Array w V3 b) (Array v V2 a) (Array w V2 b)
+planes l32 f a@(Array l _) = concatPlanes l l32 <$> go 0 where
+  go i | i >= k    = pure []
+       | otherwise = (:) <$> indexed f i (getPlane l32 i a) <*> go (i+1)
+  k = sum $ l & l32 #~ 0
+{-# INLINE planes #-}
+
+concatPlanes :: Vector v a => V3 Int -> ALens' (V3 Int) (V2 Int) -> [Array v V2 a] -> Array v V3 a
+concatPlanes l l32 as = create $ do
+  arr <- M.new l
+  iforM_ as $ \i m ->
+    iforMOf_ values m $ \x a -> do
+      let w = pure i & l32 #~ x
+      M.write arr w a
+  return arr
+
+getPlane :: Vector v a => ALens' (V3 Int) (V2 Int) -> Int -> Array v V3 a -> Array v V2 a
+getPlane l32 i a =
+  generate (a ^# layout . l32) $ \x -> a ! (pure i & l32 #~ x)
 
 -- Functions for working over slices of arrays.
 
