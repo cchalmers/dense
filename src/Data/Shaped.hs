@@ -1,13 +1,9 @@
 {-# LANGUAGE CPP                   #-}
-{-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TypeFamilies          #-}
 -----------------------------------------------------------------------------
 -- |
@@ -345,7 +341,7 @@ linearIndexM (Array l v) i = boundsCheck l (fromIndex l i) $ G.unsafeIndexM v i
 -- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
 --   explanation of why this is useful.
 unsafeLinearIndexM :: (Vector v a, Monad m) => Array v l a -> Int -> m a
-unsafeLinearIndexM (Array _ v) i = G.unsafeIndexM v i
+unsafeLinearIndexM (Array _ v) = G.unsafeIndexM v
 {-# INLINE unsafeLinearIndexM #-}
 
 -- Initialisation ------------------------------------------------------
@@ -515,7 +511,7 @@ izipWith3 :: (Shape l, Vector v a, Vector v b, Vector v c, Vector v d)
 izipWith3 f a1@(Array l1 v1) a2@(Array l2 v2) a3@(Array l3 v3)
   | eq1 l1 l2 = Array l1 $ G.unstream $ Bundle.zipWith4 f (streamShape l1) (G.stream v1) (G.stream v2) (G.stream v3)
   | otherwise = l' `seq`
-      (Array l' $ G.unstream $ Bundle.zipWith4 f (streamShape l') (streamSub l' a1) (streamSub l' a2) (streamSub l' a3))
+      Array l' (G.unstream $ Bundle.zipWith4 f (streamShape l') (streamSub l' a1) (streamSub l' a2) (streamSub l' a3))
   where l' = intersectShape (intersectShape l1 l2) l3
 {-# INLINE izipWith3 #-}
 
