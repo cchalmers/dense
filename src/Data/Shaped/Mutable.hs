@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies          #-}
@@ -147,19 +146,19 @@ swap (MArray l v) i j = boundsCheck l i boundsCheck l j $ GM.unsafeSwap v (toInd
 -- | Read a mutable array at element @i@ by indexing the internal
 --   vector.
 linearRead :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> m a
-linearRead (MArray _ v) i = GM.read v i
+linearRead (MArray _ v) = GM.read v
 {-# INLINE linearRead #-}
 
 -- | Write a mutable array at element @i@ by indexing the internal
 --   vector.
 linearWrite :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> a -> m ()
-linearWrite (MArray _ v) i a = GM.write v i a
+linearWrite (MArray _ v) = GM.write v
 {-# INLINE linearWrite #-}
 
 -- | Swap two elements in a mutable array by indexing the internal
 --   vector.
 linearSwap :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> Int -> m ()
-linearSwap (MArray _ v) i j = GM.swap v i j
+linearSwap (MArray _ v) = GM.swap v
 {-# INLINE linearSwap #-}
 
 linearModify :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> (a -> a) -> m ()
@@ -175,7 +174,7 @@ unsafeRead (MArray l v) s = GM.unsafeRead v (toIndex l s)
 
 -- | 'write' without bounds checking.
 unsafeWrite :: (PrimMonad m, Shape l, MVector v a) => MArray v l (PrimState m) a -> l Int -> a -> m ()
-unsafeWrite (MArray l v) s a = GM.unsafeWrite v (toIndex l s) a
+unsafeWrite (MArray l v) s = GM.unsafeWrite v (toIndex l s)
 {-# INLINE unsafeWrite #-}
 
 -- | 'swap' without bounds checking.
@@ -191,17 +190,17 @@ unsafeModify (MArray l v) s f = GM.unsafeRead v i >>= GM.unsafeWrite v i . f
 
 -- | 'linearRead' without bounds checking.
 unsafeLinearRead :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> m a
-unsafeLinearRead (MArray _ v) i = GM.unsafeRead v i
+unsafeLinearRead (MArray _ v) = GM.unsafeRead v
 {-# INLINE unsafeLinearRead #-}
 
 -- | 'linearWrite' without bounds checking.
 unsafeLinearWrite :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> a -> m ()
-unsafeLinearWrite (MArray _ v) i a = GM.unsafeWrite v i a
+unsafeLinearWrite (MArray _ v) = GM.unsafeWrite v
 {-# INLINE unsafeLinearWrite #-}
 
 -- | 'linearSwap' without bounds checking.
 unsafeLinearSwap :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> Int -> m ()
-unsafeLinearSwap (MArray _ v) i j = GM.unsafeSwap v i j
+unsafeLinearSwap (MArray _ v) = GM.unsafeSwap v
 {-# INLINE unsafeLinearSwap #-}
 
 -- | 'linearModify' without bounds checking.
@@ -213,7 +212,7 @@ unsafeLinearModify (MArray _ v) i f = GM.unsafeRead v i >>= GM.unsafeWrite v i .
 
 -- | Set all elements in a mutable array to a constant value.
 set :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> a -> m ()
-set (MArray _ v) a = GM.set v a
+set (MArray _ v) = GM.set v
 {-# INLINE set #-}
 
 -- | Copy all elements from one array into another.
@@ -238,7 +237,7 @@ instance (MVector v a, l ~ V1) => MVector (MArray v l) a where
   basicUnsafeSlice i n (MArray _ v) = MArray (V1 n) $ GM.basicUnsafeSlice i n v
   basicOverlaps (MArray _ v) (MArray _ w) = GM.basicOverlaps v w
   basicUnsafeNew n = MArray (V1 n) `liftM` GM.basicUnsafeNew n
-  basicUnsafeRead (MArray _ v) i = GM.basicUnsafeRead v i
-  basicUnsafeWrite (MArray _ v) i a = GM.basicUnsafeWrite v i a
+  basicUnsafeRead (MArray _ v) = GM.basicUnsafeRead v
+  basicUnsafeWrite (MArray _ v) = GM.basicUnsafeWrite v
   basicInitialize (MArray _ v) = GM.basicInitialize v
 
