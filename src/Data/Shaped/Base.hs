@@ -514,6 +514,26 @@ instance Shape l => Traversable (Focused l) where
   {-# INLINE traverse #-}
 
 -- | Relative to focus.
+instance Shape l => FunctorWithIndex (l Int) (Focused l) where
+  imap f (Focused u d) = Focused u (imap (f . (^+^ u)) d)
+  {-# INLINE imap #-}
+
+-- | Relative to focus.
+instance Shape l => FoldableWithIndex (l Int) (Focused l) where
+  ifoldr f b (Focused u d) = ifoldr (f . (^+^ u)) b d
+  {-# INLINE ifoldr #-}
+
+  ifolded = ifoldring ifoldr
+  {-# INLINE ifolded #-}
+
+  ifoldMap = ifoldMapOf ifolded
+  {-# INLINE ifoldMap #-}
+
+instance Shape l => TraversableWithIndex (l Int) (Focused l) where
+  itraverse f (Focused u d) = Focused u <$> itraverse (f . (^+^ u)) d
+  {-# INLINE itraverse #-}
+
+-- | Relative to focus.
 instance Shape l => Ixed (Focused l a) where
   ix i f (Focused u d) = Focused u <$> ix (i ^+^ u) f d
   {-# INLINE ix #-}
