@@ -28,7 +28,7 @@ library
     MultiParamTypeClasses MultiWayIf RankNTypes StandaloneDeriving
     TypeFamilies
   build-depends:
-    base >=4.7 && <4.9,
+    base >=4.6 && <4.9,
     vector >= 0.11.0.0,
     linear,
     deepseq,
@@ -39,6 +39,7 @@ library
     bytes,
     comonad,
     binary,
+    transformers-compat,
     transformers
   hs-source-dirs: src
   ghc-options: -Wall
