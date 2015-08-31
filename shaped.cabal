@@ -2,17 +2,15 @@ name:                shaped
 version:             0.1.0.0
 synopsis:            Mutable and immutable arrays with multi-dimensional indexing
 description:
-  Experimental package that gives shape to a generic vector to turn it
-  into a multi-dimensional array. Uses vectors from the linear package
-  for indicies.
-
-  Provdies mutable a immutable interface, indexed traversals over the
-  array values.
+  Provides multi-dimentional arrays by adding a shape to a vector from
+  the vector package using indicies from the linear package. Supports
+  mutable a immutable arrays with a similar interface to vector but with
+  a strong lens flavour.
 license:             BSD3
 license-file:        LICENSE
 author:              cchalmers
 maintainer:          c.chalmers@me.com
--- copyright:           
+copyright:           (c) Christopher Chalmers 2015
 category:            Data
 build-type:          Simple
 -- extra-source-files:  
@@ -24,14 +22,17 @@ library
     Data.Shaped.Base
     Data.Shaped.Mutable
     Data.Shaped.Index
-  -- other-modules:       
-  other-extensions:    FlexibleInstances, UndecidableInstances, DeriveFunctor, DeriveDataTypeable
+  other-extensions:
+    BangPatterns CPP ConstraintKinds DeriveDataTypeable DeriveFunctor
+    DeriveGeneric FlexibleContexts FlexibleInstances
+    MultiParamTypeClasses MultiWayIf RankNTypes StandaloneDeriving
+    TypeFamilies
   build-depends:
     base >=4.7 && <4.9,
+    vector >= 0.11.0.0,
     linear,
     deepseq,
     hashable,
-    vector,
     primitive,
     lens,
     cereal,
@@ -39,6 +40,6 @@ library
     comonad,
     binary,
     transformers
-  hs-source-dirs:      src
+  hs-source-dirs: src
   ghc-options: -Wall
-  default-language:    Haskell2010
+  default-language: Haskell2010

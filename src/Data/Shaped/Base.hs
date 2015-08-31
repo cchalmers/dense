@@ -203,7 +203,7 @@ instance (NFData (l Int), NFData (v a)) => NFData (Array v l a) where
 
 -- Boxed instances -----------------------------------------------------
 
--- | A the vector is the boxed vector.
+-- | The vector is the boxed vector.
 type Boxed v = v ~ B.Vector
 
 instance Boxed v => Functor (Array v l) where
