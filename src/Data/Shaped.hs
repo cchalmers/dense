@@ -165,7 +165,7 @@ module Data.Shaped
 
 
 #if __GLASGOW_HASKELL__ <= 708
-import           Control.Applicative            (Applicative, (<*>))
+import           Control.Applicative            (Applicative, (<*>), pure)
 import           Data.Foldable                  (Foldable)
 #endif
 
