@@ -610,7 +610,7 @@ ixPlane l32 i f a@(Array l v)
                         <$> indexed f i (getPlane l32 i a)
   where
     is = toListOf (cloneLens l32 . enumShape . to (\x -> toIndex l $ pure i & l32 #~ x)) l
-    k  = sum $ l & l32 #~ 0
+    k  = F.sum $ l & l32 #~ 0
 
 -- | Traversal over all planes of 3D array given a lens onto that plane
 --   (like '_xy', '_yz', '_zx').
@@ -620,7 +620,7 @@ planes :: (Vector v a, Vector w b)
 planes l32 f a@(Array l _) = concatPlanes l l32 <$> go 0 where
   go i | i >= k    = pure []
        | otherwise = (:) <$> indexed f i (getPlane l32 i a) <*> go (i+1)
-  k = sum $ l & l32 #~ 0
+  k = F.sum $ l & l32 #~ 0
 {-# INLINE planes #-}
 
 concatPlanes :: Vector v a => V3 Int -> ALens' (V3 Int) (V2 Int) -> [Array v V2 a] -> Array v V3 a
