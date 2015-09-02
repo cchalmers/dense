@@ -119,16 +119,26 @@ values = \f arr -> reindexed (fromIndex $ extent arr) (vector . vectorTraverse) 
 {-# INLINE values #-}
 
 -- | Lens onto the shape of the vector. The total size of the layout
---   _must_ remain the same (this is not checked).
-layout :: Lens (Array v l a) (Array v t a) (l Int) (t Int)
-layout f (Array l v) = f l <&> \l' -> Array l' v
+--   _must_ remain the same or an error is thrown.
+layout :: (Shape l, Shape t) => Lens (Array v l a) (Array v t a) (l Int) (t Int)
+layout f (Array l v) = f l <&> \l' ->
+  if F.product l == F.product l'
+     then Array l' v
+     else error $ "layout: Array's layout size mismatch; trying to replace shape "
+                 ++ showShape l ++ ", with " ++ showShape l'
 {-# INLINE layout #-}
 
 -- | Indexed lens over the underlying vector of an array. The index is
 --   the 'extent' of the array. You must _not_ change the length of the
---   vector (even for 'V1' layouts, use '_Flat' for 'V1').
-vector :: IndexedLens (l Int) (Array v l a) (Array w l b) (v a) (w b)
-vector f (Array l v) = indexed f l v <&> \w -> Array l w
+--   vector, otherwise an error will be thrown (even for 'V1' layouts,
+--   use 'flat' for 'V1').
+vector :: (Vector v a, Vector w b) => IndexedLens (l Int) (Array v l a) (Array w l b) (v a) (w b)
+vector f (Array l v) =
+  indexed f l v <&> \w ->
+    if G.length v == G.length w
+       then Array l w
+       else error $ "vector: Array's vector size mismatch; trying to replace vector of length "
+                 ++ show (G.length v) ++ ", with one of length " ++ show (G.length w)
 {-# INLINE vector #-}
 
 -- Mutable conversion --------------------------------------------------
