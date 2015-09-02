@@ -519,36 +519,17 @@ izipWith3 f a1@(Array l1 v1) a2@(Array l2 v2) a3@(Array l3 v3)
 -- Slices
 ------------------------------------------------------------------------
 
--- >> let m = generate (V2 3 5) id :: BArray V2 (V2 Int)
-
--- >>> prettyMatrix m
--- [V2 0 0,V2 0 1,V2 0 2]
--- [V2 1 0,V2 1 1,V2 1 2]
--- [V2 2 0,V2 2 1,V2 2 2]
---
--- prettyMatrix :: (Vector v a, Show a) => Array v V2 a -> IO ()
--- prettyMatrix = traverseOf_ rows print
-
--- | Affine traversal over a single row in a matrix.
---
--- >> prettyMatrix $ m & ixRow 1 . mapped . _y .~ 0
--- [V2 0 0,V2 0 1,V2 0 2,V2 0 3,V2 0 4]
--- [V2 1 0,V2 1 10,V2 1 20,V2 1 30,V2 1 40]
--- [V2 2 0,V2 2 1,V2 2 2,V2 2 3,V2 2 4]
-ixRow :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
-ixRow i f m@(Array (l@(V2 x y)) v)
-  | y >= 0 && i < x = Array l . G.unsafeUpd v . L.zip [a..] . G.toList <$> indexed f i (G.slice a y v)
-  | otherwise       = pure m
-  where a  = i * y
+-- $setup
+-- >>> import Debug.SimpleReflect
+-- >>> let m = fromListInto_ (V2 3 4) [a,b,c,d,e,f,g,h,i,j,k,l] :: BArray V2 Expr
 
 -- | Indexed traversal over the rows of a matrix. Each row is an
 --   efficient 'Data.Vector.Generic.slice' of the original vector.
 --
 -- >>> traverseOf_ rows print m
--- [V2 0 0,V2 0 1,V2 0 2]
--- [V2 1 0,V2 1 1,V2 1 2]
--- [V2 2 0,V2 2 1,V2 2 2]
---
+-- [a,b,c,d]
+-- [e,f,g,h]
+-- [i,j,k,l]
 rows :: (Vector v a, Vector w b)
      => IndexedTraversal Int (Array v V2 a) (Array w V2 b) (v a) (w b)
 rows f (Array l@(V2 x y) v) = Array l . G.concat <$> go 0 0 where
@@ -556,46 +537,81 @@ rows f (Array l@(V2 x y) v) = Array l . G.concat <$> go 0 0 where
          | otherwise = (:) <$> indexed f i (G.slice a y v) <*> go (i+1) (a+y)
 {-# INLINE rows #-}
 
--- | Affine traversal over a single column in a matrix.
+-- | Affine traversal over a single row in a matrix.
 --
--- >>> prettyMatrix $ m & ixColumn 3 . each +~ 100
--- [V2 0 0,V2 0 1,V2 0 2,V2 100 103,V2 0 4]
--- [V2 1 0,V2 1 1,V2 1 2,V2 101 103,V2 1 4]
--- [V2 2 0,V2 2 1,V2 2 2,V2 102 103,V2 2 4]
-ixColumn :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
-ixColumn j f m@(Array (l@(V2 _ y)) v)
-  | j >= 0 && j < y = Array l . G.unsafeUpd v . L.zip js . G.toList <$> indexed f j (getColumn m j)
+-- >>> traverseOf_ rows print $ m & ixRow 1 . each *~ 2
+-- [a,b,c,d]
+-- [e * 2,f * 2,g * 2,h * 2]
+-- [i,j,k,l]
+--
+--   The row vector should remain the same size to satisfy traversal
+--   laws but give reasonable behaviour if the size differs:
+--
+-- >>> traverseOf_ rows print $ m & ixRow 1 .~ B.fromList [0,1]
+-- [a,b,c,d]
+-- [0,1,g,h]
+-- [i,j,k,l]
+--
+-- >>> traverseOf_ rows print $ m & ixRow 1 .~ B.fromList [0..100]
+-- [a,b,c,d]
+-- [0,1,2,3]
+-- [i,j,k,l]
+ixRow :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
+ixRow i f m@(Array (l@(V2 x y)) v)
+  | y >= 0 && i < x = Array l . G.unsafeUpd v . L.zip [a..] . G.toList . G.take y <$> indexed f i (G.slice a y v)
   | otherwise       = pure m
-  where js = [j, j + y .. ]
-        -- a  = x * y
+  where a  = i * y
+{-# INLINE ixRow #-}
 
 -- | Indexed traversal over the columns of a matrix. Unlike 'rows', each
 --   column is a new separate vector.
 --
--- >>> traverseOf_ columns print a
--- [V2 0 0,V2 0 1,V2 0 2]
--- [V2 1 0,V2 1 1,V2 1 2]
--- [V2 2 0,V2 2 1,V2 2 2]
+-- >>> traverseOf_ columns print m
+-- [a,e,i]
+-- [b,f,j]
+-- [c,g,k]
+-- [d,h,l]
 --
+-- >>> traverseOf_ rows print $ m & columns . indices odd . each .~ 0
+-- [a,0,c,0]
+-- [e,0,g,0]
+-- [i,0,k,0]
+--
+--   The vectors should be the same size to be a valid traversal. If the
+--   vectors are different sizes, the number of rows in the new array
+--   will be the length of the smallest vector.
 columns :: (Vector v a, Vector w b)
         => IndexedTraversal Int (Array v V2 a) (Array w V2 b) (v a) (w b)
-columns f m@(Array l@(V2 _ y) _) = Array l . transposeConcat l <$> go 0 where
+columns f m@(Array l@(V2 _ y) _) = transposeConcat l <$> go 0 where
   go j | j >= y    = pure []
        | otherwise = (:) <$> indexed f j (getColumn m j) <*> go (j+1)
 {-# INLINE columns #-}
+
+-- | Affine traversal over a single column in a matrix.
+--
+-- >>> traverseOf_ rows print $ m & ixColumn 2 . each +~ 1
+-- [a,b,c + 1,d]
+-- [e,f,g + 1,h]
+-- [i,j,k + 1,l]
+ixColumn :: Vector v a => Int -> IndexedTraversal' Int (Array v V2 a) (v a)
+ixColumn j f m@(Array (l@(V2 _ y)) v)
+  | j >= 0 && j < y = Array l . G.unsafeUpd v . L.zip js . G.toList . G.take y <$> indexed f j (getColumn m j)
+  | otherwise       = pure m
+  where js = [j, j + y .. ]
+{-# INLINE ixColumn #-}
 
 getColumn :: Vector v a => Array v V2 a -> Int -> v a
 getColumn (Array (V2 x y) v) j = G.generate x $ \i -> G.unsafeIndex v (i * y + j)
 {-# INLINE getColumn #-}
 
-transposeConcat :: Vector v a => V2 Int -> [v a] -> v a
-transposeConcat (V2 x y) vs = G.create $ do
-  mv <- GM.new (x*y)
+transposeConcat :: Vector v a => V2 Int -> [v a] -> Array v V2 a
+transposeConcat (V2 _ y) vs = Array (V2 x' y) $ G.create $ do
+  mv <- GM.new (x'*y)
   iforM_ vs $ \j v ->
-    -- vector doesn't have iforM_
-    flip G.imapM_ v $ \i a ->
-      GM.write mv (i*y + j) a
+    F.for_ [0..x'-1] $ \i ->
+      GM.write mv (i*y + j) (v G.! i)
   return mv
+  where x' = minimum $ map G.length vs
 {-# INLINE transposeConcat #-}
 
 -- | Traversal over a single plane of a 3D array given a lens onto that

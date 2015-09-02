@@ -143,15 +143,16 @@ enumV4 f l@(V4 x y z w) = go zero where
     | otherwise = indexed f (toIndex l q) q *> go (V4 i j k (m+1))
 {-# INLINE enumV4 #-}
 
--- | Perform a bounds check for index @i@ and layout @l@. Throws an
---   'IndexOutOfBounds' exception when out of range. This can be caught
---   with the '_IndexOutOfBounds' prism.
+-- | @boundsCheck l i@ performs a bounds check for index @i@ and layout
+--   @l@. Throws an 'IndexOutOfBounds' exception when out of range in
+--   the form @(i, l)@. This can be caught with the '_IndexOutOfBounds'
+--   prism.
 --
 -- >>> boundsCheck (V2 3 5) (V2 1 4) "in range"
 -- "in range"
 --
--- >>> boundsCheck (V3 10 20) (V2 10 5) "in bounds"
--- *** Exception: array index out of range: (V2 10 20, V2 10 5)
+-- >>> boundsCheck (V2 10 20) (V2 10 5) "in bounds"
+-- "*** Exception: array index out of range: (V2 10 5, V2 10 20)
 --
 -- >>> catching _IndexOutOfBounds (boundsCheck (V1 2) (V1 2) (putStrLn "in range")) print
 -- "(V1 2, V1 2)"
@@ -159,7 +160,7 @@ enumV4 f l@(V4 x y z w) = go zero where
 -- The output format is suitable to be read using the '_Show' prism:
 --
 -- >>> trying (_IndexOutOfBounds . _Show) (boundsCheck (V1 2) (V1 20) (putStrLn "in range")) :: IO (Either (V1 Int, V1 Int) ())
--- Left (V1 2,V1 2)
+-- Left (V1 20,V1 2)
 boundsCheck :: Shape l => l Int -> l Int -> a -> a
 boundsCheck l i
   | inRange l i = id
