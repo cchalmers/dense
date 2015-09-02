@@ -46,6 +46,10 @@ module Data.Shaped
   , fromListInto
   , fromListInto_
 
+  -- ** Shaped from vectors
+  , fromVectorInto
+  , fromVectorInto_
+
   -- ** Initialisation
   , replicate
   , generate
@@ -259,6 +263,22 @@ fromListInto_ l as = fromMaybe err $ fromListInto l as
     err = error $ "fromListInto_: shape " ++ showShape l ++ " is too large for list"
 {-# INLINE fromListInto_ #-}
 
+-- | Create an array from a 'vector' and a 'layout'. Return 'Nothing' if
+--   the vector is not the right shape.
+fromVectorInto :: (Shape l, Vector v a) => l Int -> v a -> Maybe (Array v l a)
+fromVectorInto l v
+  | F.product l == G.length v = Just $! Array l v
+  | otherwise                 = Nothing
+{-# INLINE fromVectorInto #-}
+
+-- | Create an array from a 'vector' and a 'layout'. Throws an error if
+--   the vector is not the right shape.
+fromVectorInto_ :: (Shape l, Vector v a) => l Int -> v a -> Array v l a
+fromVectorInto_ l as = fromMaybe err $ fromVectorInto l as
+  where
+    err = error $ "fromVectorInto_: shape " ++ showShape l ++ " is too large for the vector"
+{-# INLINE fromVectorInto_ #-}
+
 -- | The empty 'Array' with a 'zero' shape.
 empty :: (Vector v a, Additive l) => Array v l a
 empty = Array zero G.empty
@@ -337,6 +357,7 @@ unsafeIndexM (Array l v) i = G.unsafeIndexM v (toIndex l i)
 --   range.
 linearIndexM :: (Shape l, Vector v a, Monad m) => Array v l a -> Int -> m a
 linearIndexM (Array l v) i = boundsCheck l (fromIndex l i) $ G.unsafeIndexM v i
+{-# INLINE linearIndexM #-}
 
 -- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
 --   explanation of why this is useful.
