@@ -106,6 +106,7 @@ module Data.Shaped
   -- *** 3D
   , ixPlane
   , planes
+  , flattenPlane
 
   -- *** Ordinals
   , unsafeOrdinals
@@ -671,6 +672,20 @@ concatPlanes l l32 as = create $ do
 
 getPlane :: Vector v a => ALens' (V3 Int) (V2 Int) -> Int -> Array v V3 a -> Array v V2 a
 getPlane l32 i a = generate (a ^# layout . l32) $ \x -> a ! (pure i & l32 #~ x)
+
+-- | Flatten a plane by reducing a vector in the third dimension to a
+--   single value.
+flattenPlane :: (Vector v a, Vector w b)
+             => ALens' (V3 Int) (V2 Int)
+             -> (v a -> b)
+             -> Array v V3 a
+             -> Array w V2 b
+flattenPlane l32 f a@(Array l v) = generate l' $ \x -> f (getVector x)
+  where
+    getVector x = G.generate n $ \i -> a ! (pure i & l32 #~ x)
+    n  = F.sum $ l & l32 #~ 0
+    l' = l ^# l32
+{-# INLINE flattenPlane #-}
 
 -- Ordinals ------------------------------------------------------------
 
