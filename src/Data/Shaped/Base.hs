@@ -101,7 +101,7 @@ import           Prelude                         hiding (null, replicate,
                                                   zipWith, zipWith3)
 
 -- | An 'Array' is a generic vector with a shape.
-data Array v l a = Array !(l Int) !(v a)
+data Array v l a = Array !(Layout l) !(v a)
   deriving Typeable
 
 -- | Get the shape of an array.
@@ -114,13 +114,13 @@ extent (Array l _) = l
 -- | Indexed traversal over the elements of an array. The index is the
 --   current position in the array.
 values :: (Shape l, Vector v a, Vector w b)
-       => IndexedTraversal (l Int) (Array v l a) (Array w l b) a b
+       => IndexedTraversal (Layout l) (Array v l a) (Array w l b) a b
 values = \f arr -> reindexed (fromIndex $ extent arr) (vector . vectorTraverse) f arr
 {-# INLINE values #-}
 
 -- | Lens onto the shape of the vector. The total size of the layout
 --   _must_ remain the same or an error is thrown.
-layout :: (Shape l, Shape t) => Lens (Array v l a) (Array v t a) (l Int) (t Int)
+layout :: (Shape l, Shape t) => Lens (Array v l a) (Array v t a) (Layout l) (Layout t)
 layout f (Array l v) = f l <&> \l' ->
   if F.product l == F.product l'
      then Array l' v
@@ -132,7 +132,7 @@ layout f (Array l v) = f l <&> \l' ->
 --   the 'extent' of the array. You must _not_ change the length of the
 --   vector, otherwise an error will be thrown (even for 'V1' layouts,
 --   use 'flat' for 'V1').
-vector :: (Vector v a, Vector w b) => IndexedLens (l Int) (Array v l a) (Array w l b) (v a) (w b)
+vector :: (Vector v a, Vector w b) => IndexedLens (Layout l) (Array v l a) (Array w l b) (v a) (w b)
 vector f (Array l v) =
   indexed f l v <&> \w ->
     if G.length v == G.length w
@@ -341,7 +341,7 @@ deriving instance (Typeable l, Typeable v, Typeable a, Data (l Int), Data (v a))
 
 -- | A delayed representation of an array. This useful for mapping over
 --   an array in parallel.
-data Delayed l a = Delayed !(l Int) (Int -> a)
+data Delayed l a = Delayed !(Layout l) (Int -> a)
   deriving (Typeable, Functor)
 
 -- | Turn a material array into a delayed one with the same shape.

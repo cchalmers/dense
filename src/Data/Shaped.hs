@@ -248,7 +248,7 @@ fromList = G.fromList
 -- | O(n) Convert the first @n@ elements of a list to an Array with the
 --   given shape. Returns 'Nothing' if there are not enough elements in
 --   the list.
-fromListInto :: (Shape l, Vector v a) => l Int -> [a] -> Maybe (Array v l a)
+fromListInto :: (Shape l, Vector v a) => Layout l-> [a] -> Maybe (Array v l a)
 fromListInto l as
   | G.length v == n = Just $ Array l v
   | otherwise       = Nothing
@@ -258,7 +258,7 @@ fromListInto l as
 
 -- | O(n) Convert the first @n@ elements of a list to an Array with the
 --   given shape. Throw an error if the list is not long enough.
-fromListInto_ :: (Shape l, Vector v a) => l Int -> [a] -> Array v l a
+fromListInto_ :: (Shape l, Vector v a) => Layout l-> [a] -> Array v l a
 fromListInto_ l as = fromMaybe err $ fromListInto l as
   where
     err = error $ "fromListInto_: shape " ++ showShape l ++ " is too large for list"
@@ -266,7 +266,7 @@ fromListInto_ l as = fromMaybe err $ fromListInto l as
 
 -- | Create an array from a 'vector' and a 'layout'. Return 'Nothing' if
 --   the vector is not the right shape.
-fromVectorInto :: (Shape l, Vector v a) => l Int -> v a -> Maybe (Array v l a)
+fromVectorInto :: (Shape l, Vector v a) => Layout l-> v a -> Maybe (Array v l a)
 fromVectorInto l v
   | F.product l == G.length v = Just $! Array l v
   | otherwise                 = Nothing
@@ -274,7 +274,7 @@ fromVectorInto l v
 
 -- | Create an array from a 'vector' and a 'layout'. Throws an error if
 --   the vector is not the right shape.
-fromVectorInto_ :: (Shape l, Vector v a) => l Int -> v a -> Array v l a
+fromVectorInto_ :: (Shape l, Vector v a) => Layout l-> v a -> Array v l a
 fromVectorInto_ l as = fromMaybe err $ fromVectorInto l as
   where
     err = error $ "fromVectorInto_: shape " ++ showShape l ++ " is too large for the vector"
@@ -384,7 +384,7 @@ replicate l a
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-linearGenerate :: (Shape l, Vector v a) => l Int -> (Int -> a) -> Array v l a
+linearGenerate :: (Shape l, Vector v a) => Layout l-> (Int -> a) -> Array v l a
 linearGenerate l f
   | n > 0     = Array l $ G.generate n f
   | otherwise = empty
@@ -393,7 +393,7 @@ linearGenerate l f
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-generate :: (Shape l, Vector v a) => l Int -> (l Int -> a) -> Array v l a
+generate :: (Shape l, Vector v a) => Layout l-> (l Int -> a) -> Array v l a
 generate l f
   | n > 0     = Array l $ G.generate n (f . fromIndex l)
   | otherwise = empty
@@ -404,7 +404,7 @@ generate l f
 
 -- | O(n) Construct an array of the given shape by filling each position
 --   with the monadic value.
-replicateM :: (Monad m, Shape l, Vector v a) => l Int -> m a -> m (Array v l a)
+replicateM :: (Monad m, Shape l, Vector v a) => Layout l-> m a -> m (Array v l a)
 replicateM l a
   | n > 0     = Array l `liftM` G.replicateM n a
   | otherwise = return empty
@@ -413,7 +413,7 @@ replicateM l a
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-generateM :: (Monad m, Shape l, Vector v a) => l Int -> (l Int -> m a) -> m (Array v l a)
+generateM :: (Monad m, Shape l, Vector v a) => Layout l-> (l Int -> m a) -> m (Array v l a)
 generateM l f
   | n > 0     = Array l `liftM` G.generateM n (f . fromIndex l)
   | otherwise = return empty
@@ -422,7 +422,7 @@ generateM l f
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-linearGenerateM :: (Monad m, Shape l, Vector v a) => l Int -> (Int -> m a) -> m (Array v l a)
+linearGenerateM :: (Monad m, Shape l, Vector v a) => Layout l-> (Int -> m a) -> m (Array v l a)
 linearGenerateM l f
   | n > 0     = Array l `liftM` G.generateM n f
   | otherwise = return empty
@@ -438,7 +438,7 @@ Array l v // xs = Array l $ v G.// over (each . _1) (toIndex l) xs
 -- Streams
 ------------------------------------------------------------------------
 
-streamSub :: (Shape l, Vector v a) => l Int -> Array v l a -> Bundle v a
+streamSub :: (Shape l, Vector v a) => Layout l-> Array v l a -> Bundle v a
 streamSub l2 (Array l1 v) | eq1 l1 l2 = G.stream v
 streamSub l2 (Array l1 v)             = Bundle.unfoldr get 0 `Bundle.sized` Exact n
   where
@@ -448,7 +448,7 @@ streamSub l2 (Array l1 v)             = Bundle.unfoldr get 0 `Bundle.sized` Exac
           | otherwise = case G.basicUnsafeIndexM v (toIndex l1 j) of Box x -> Just (x, i+1)
       where j = fromIndex l2 i
 
-streamShape :: Shape l => l Int -> Bundle v (l Int)
+streamShape :: Shape l => Layout l-> Bundle v (l Int)
 streamShape l = Bundle.fromListN (F.product l) $ toListOf enumShape l
 {-# INLINE streamShape #-}
 
@@ -680,7 +680,7 @@ flattenPlane :: (Vector v a, Vector w b)
              -> (v a -> b)
              -> Array v V3 a
              -> Array w V2 b
-flattenPlane l32 f a@(Array l v) = generate l' $ \x -> f (getVector x)
+flattenPlane l32 f a@(Array l _) = generate l' $ \x -> f (getVector x)
   where
     getVector x = G.generate n $ \i -> a ! (pure i & l32 #~ x)
     n  = F.sum $ l & l32 #~ 0
@@ -722,7 +722,7 @@ delayed = iso delay manifest
 {-# INLINE delayed #-}
 
 -- | Sequential manifestation of a delayed array.
-manifestS :: (Vector v a , Shape l) => Delayed l a -> Array v l a
+manifestS :: (Vector v a, Shape l) => Delayed l a -> Array v l a
 manifestS arr@(Delayed l _) = Array l (toVectorOf folded arr)
 {-# INLINE manifestS #-}
 

@@ -20,7 +20,8 @@
 -----------------------------------------------------------------------------
 module Data.Shaped.Index
   ( -- * Shape class
-    Shape (..)
+    Layout
+  , Shape (..)
 
     -- * Utilities
   , boundsCheck
@@ -40,22 +41,22 @@ import           Data.Traversable
 import           Linear
 import           Linear.V
 
--- I'm not happy with this class. Additive and Traversable is enough for
--- everything we need but not everything that satisfies this is makes a
--- valid shape. This class will likely change in the future. Suggestions
--- are welcome.
+-- | A 'Layout' is the full size of an array. This alias is used to help
+--   distinguish between the layout of an array and an index (usually
+--   just @l Int@) in a type signature.
+type Layout l = l Int
 
 -- | Class for types that can be converted to and from linear indexes.
 class (Eq1 f, Additive f, Traversable f) => Shape f where
   -- | @toIndex l x@ returns the linear index @i@ of the shaped index @x@
   --   for array layout @l@.
-  toIndex :: f Int -> f Int -> Int
+  toIndex :: Layout f -> f Int -> Int
   toIndex l x = F.foldl (\k (e, a) -> k * e + a) 0 (liftI2 (,) l x)
   {-# INLINE toIndex #-}
 
   -- | @toIndex l i@ returns the shaped index @x@ of the linear index @i@
   --   for array layout @l@.
-  fromIndex :: f Int -> Int -> f Int
+  fromIndex :: Layout f -> Int -> f Int
   fromIndex l i = snd $ mapAccumR quotRem i l
   {-# INLINE fromIndex #-}
 
@@ -65,18 +66,18 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   {-# INLINE intersectShape #-}
 
   -- | @'toIndex' l@ and @'fromIndex' l@ form two halfs of an isomorphism.
-  indexFor :: f Int -> Iso' (f Int) Int
+  indexFor :: Layout f -> Iso' (f Int) Int
   indexFor l = iso (toIndex l) (fromIndex l)
 
   -- | @inRange ex i@ checks @i < ex@ for every coodinate of @f@.
-  inRange :: (Num a, Ord a) => f a -> f a -> Bool
+  inRange :: Layout f -> f Int -> Bool
   inRange l i = F.and $ liftI2 (\ii li -> ii >= 0 && ii < li) i l
 
   -- slicing :: Lens' l1 l2 -> (l2 -> l2) -> l1 -> Array v l1 a -> Array v l2 a
   -- slicing ls f l arr =
 
   -- | Indexed fold for the range between two shapes.
-  rangeBetween :: f Int -> f Int -> IndexedFold Int (f Int) (f Int)
+  rangeBetween :: f Int -> f Int -> IndexedFold Int (Layout f) (f Int)
   rangeBetween x1 x2 = l -- conjoined l (indexing l)
    -- horribly inefficient
     where f x = F.and (liftI2 (<=) x1 x) && F.and (liftI2 (>) x x2)
@@ -84,7 +85,7 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   {-# INLINE rangeBetween #-}
 
   -- | Indexed fold to the shape.
-  enumShape :: IndexedFold Int (f Int) (f Int)
+  enumShape :: IndexedFold Int (Layout f) (f Int)
   enumShape f l = go 0 where
     -- What about negative indices?
     n = F.product l
@@ -108,7 +109,7 @@ instance Shape V4 where
   {-# INLINE enumShape #-}
 instance Dim n => Shape (V n)
 
-enumV2 :: IndexedFold Int (V2 Int) (V2 Int)
+enumV2 :: IndexedFold Int (Layout V2) (V2 Int)
 enumV2 f l@(V2 x y) = go zero where
   go q@(V2 i j)
     | i >= x    = noEffect
@@ -116,7 +117,7 @@ enumV2 f l@(V2 x y) = go zero where
     | otherwise = indexed f (toIndex l q) q *> go (V2 i (j+1))
 {-# INLINE enumV2 #-}
 
-rangeBetweenV2 :: V2 Int -> V2 Int -> IndexedFold Int (V2 Int) (V2 Int)
+rangeBetweenV2 :: V2 Int -> V2 Int -> IndexedFold Int (Layout V2) (V2 Int)
 rangeBetweenV2 v0@(V2 _ y0) (V2 x2 y2) f l = go v0 where
   go q@(V2 i j)
     | j >= x2   = noEffect
@@ -124,7 +125,7 @@ rangeBetweenV2 v0@(V2 _ y0) (V2 x2 y2) f l = go v0 where
     | otherwise = indexed f (toIndex l q) q *> go (V2 i (j+1))
 {-# INLINE rangeBetweenV2 #-}
 
-enumV3 :: IndexedFold Int (V3 Int) (V3 Int)
+enumV3 :: IndexedFold Int (Layout V3) (V3 Int)
 enumV3 f l@(V3 x y z) = go zero where
   go q@(V3 i j k)
     | i >= x    = noEffect
@@ -133,7 +134,7 @@ enumV3 f l@(V3 x y z) = go zero where
     | otherwise = indexed f (toIndex l q) q *> go (V3 i j (k+1))
 {-# INLINE enumV3 #-}
 
-enumV4 :: IndexedFold Int (V4 Int) (V4 Int)
+enumV4 :: IndexedFold Int (Layout V4) (V4 Int)
 enumV4 f l@(V4 x y z w) = go zero where
   go q@(V4 i j k m)
     | i >= x    = noEffect
@@ -161,7 +162,7 @@ enumV4 f l@(V4 x y z w) = go zero where
 --
 -- >>> trying (_IndexOutOfBounds . _Show) (boundsCheck (V1 2) (V1 20) (putStrLn "in range")) :: IO (Either (V1 Int, V1 Int) ())
 -- Left (V1 20,V1 2)
-boundsCheck :: Shape l => l Int -> l Int -> a -> a
+boundsCheck :: Shape l => Layout l-> l Int -> a -> a
 boundsCheck l i
   | inRange l i = id
   | otherwise   = throwing _IndexOutOfBounds $ "(" ++ showShape i ++ ", " ++ showShape l ++ ")"

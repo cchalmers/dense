@@ -23,6 +23,10 @@ module Data.Shaped.Mutable
   , BMArray
   , PMArray
 
+  -- * Lenses
+  , mlayout
+  , mvector
+
     -- * Creation
   , new
   , replicate
@@ -69,6 +73,7 @@ module Data.Shaped.Mutable
 
 import           Control.Monad                 (liftM)
 import           Control.Monad.Primitive
+import           Control.Lens                  (IndexedLens, indexed, Lens, (<&>))
 import           Data.Foldable                 as F
 import           Data.Typeable
 import qualified Data.Vector                   as B
@@ -84,7 +89,7 @@ import           Data.Shaped.Index
 import           Prelude                       hiding (read, replicate)
 
 -- | A mutable array with a shape.
-data MArray v l s a = MArray !(l Int) !(v s a)
+data MArray v l s a = MArray !(Layout l) !(v s a)
   deriving Typeable
 
 -- | Boxed mutable array.
@@ -99,19 +104,41 @@ type SMArray = MArray S.MVector
 -- | Primitive mutable array.
 type PMArray = MArray P.MVector
 
+-- | Lens onto the shape of the vector. The total size of the layout
+--   _must_ remain the same or an error is thrown.
+mlayout :: (Shape l, Shape l') => Lens (MArray v l s a) (MArray v l' s a) (Layout l) (Layout l')
+mlayout f (MArray l v) = f l <&> \l' ->
+  if F.product l == F.product l'
+     then MArray l' v
+     else error $ "mlayout: MArray's layout size mismatch; trying to replace shape "
+                 ++ showShape l ++ ", with " ++ showShape l'
+{-# INLINE mlayout #-}
+
+-- | Indexed lens over the underlying vector of an array. The index is
+--   the 'extent' of the array. You must _not_ change the length of the
+--   vector, otherwise an error will be thrown.
+mvector :: (MVector v a, MVector w b) => IndexedLens (Layout l) (MArray v l s a) (MArray w l t b) (v s a) (w t b)
+mvector f (MArray l v) =
+  indexed f l v <&> \w ->
+    if GM.length v == GM.length w
+       then MArray l w
+       else error $ "mvector: mArray's vector size mismatch; trying to replace vector of length "
+                 ++ show (GM.length v) ++ ", with one of length " ++ show (GM.length w)
+{-# INLINE mvector #-}
+
 -- | New mutable array with shape @l@.
-new :: (PrimMonad m, Shape l, MVector v a) => l Int -> m (MArray v l (PrimState m) a)
+new :: (PrimMonad m, Shape l, MVector v a) => Layout l-> m (MArray v l (PrimState m) a)
 new l = MArray l `liftM` GM.new (F.product l)
 {-# INLINE new #-}
 
 -- | New mutable array with shape @l@ filled with element @a@.
-replicate :: (PrimMonad m, Shape l, MVector v a) => l Int -> a -> m (MArray v l (PrimState m) a)
+replicate :: (PrimMonad m, Shape l, MVector v a) => Layout l-> a -> m (MArray v l (PrimState m) a)
 replicate l a = MArray l `liftM` GM.replicate (F.product l) a
 {-# INLINE replicate #-}
 
 -- | New mutable array with shape @l@ filled with result of monadic
 --   action @a@.
-replicateM :: (PrimMonad m, Shape l, MVector v a) => l Int -> m a -> m (MArray v l (PrimState m) a)
+replicateM :: (PrimMonad m, Shape l, MVector v a) => Layout l-> m a -> m (MArray v l (PrimState m) a)
 replicateM l a = MArray l `liftM` GM.replicateM (F.product l) a
 {-# INLINE replicateM #-}
 
