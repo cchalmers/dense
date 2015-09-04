@@ -23,14 +23,19 @@ module Data.Shaped.Index
     Layout
   , Shape (..)
 
-    -- * Utilities
+    -- * Bounds checking
+  , ArrayException (IndexOutOfBounds)
+  , _IndexOutOfBounds
   , boundsCheck
+
+    -- * Utilities
   , showShape
   ) where
 
 #if __GLASGOW_HASKELL__ <= 708
 import           Control.Applicative
 #endif
+import           Control.Exception
 import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Lens.Internal.Getter
@@ -72,9 +77,6 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   -- | @inRange ex i@ checks @i < ex@ for every coodinate of @f@.
   inRange :: Layout f -> f Int -> Bool
   inRange l i = F.and $ liftI2 (\ii li -> ii >= 0 && ii < li) i l
-
-  -- slicing :: Lens' l1 l2 -> (l2 -> l2) -> l1 -> Array v l1 a -> Array v l2 a
-  -- slicing ls f l arr =
 
   -- | Indexed fold for the range between two shapes.
   rangeBetween :: f Int -> f Int -> IndexedFold Int (Layout f) (f Int)
