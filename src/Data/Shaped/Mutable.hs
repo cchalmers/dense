@@ -54,6 +54,12 @@ module Data.Shaped.Mutable
   , unsafeSwap
   , unsafeLinearSwap
 
+    -- ** Exchange
+  , exchange
+  , linearExchange
+  , unsafeExchange
+  , unsafeLinearExchange
+
     -- * Misc
   , set
   , clear
@@ -143,6 +149,12 @@ swap :: (PrimMonad m, Shape l, MVector v a) => MArray v l (PrimState m) a -> l I
 swap (MArray l v) i j = boundsCheck l i boundsCheck l j $ GM.unsafeSwap v (toIndex l i) (toIndex l j)
 {-# INLINE swap #-}
 
+-- | Replace the element at the give position and return the old
+--   element.
+exchange :: (PrimMonad m, Shape l, MVector v a) => MArray v l (PrimState m) a -> l Int -> a -> m a
+exchange (MArray l v) i a = boundsCheck l i $ GM.unsafeExchange v (toIndex l i) a
+{-# INLINE exchange #-}
+
 -- | Read a mutable array at element @i@ by indexing the internal
 --   vector.
 linearRead :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> m a
@@ -164,6 +176,12 @@ linearSwap (MArray _ v) = GM.swap v
 linearModify :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> (a -> a) -> m ()
 linearModify (MArray _ v) i f = GM.read v i >>= GM.unsafeWrite v i . f
 {-# INLINE linearModify #-}
+
+-- | Replace the element at the give position and return the old
+--   element.
+linearExchange :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> a -> m a
+linearExchange (MArray _ v) i a = GM.exchange v i a
+{-# INLINE linearExchange #-}
 
 -- Unsafe varients
 
@@ -188,6 +206,12 @@ unsafeModify (MArray l v) s f = GM.unsafeRead v i >>= GM.unsafeWrite v i . f
   where i = toIndex l s
 {-# INLINE unsafeModify #-}
 
+-- | Replace the element at the give position and return the old
+--   element.
+unsafeExchange :: (PrimMonad m, Shape l, MVector v a) => MArray v l (PrimState m) a -> l Int -> a -> m a
+unsafeExchange (MArray l v) i a = GM.unsafeExchange v (toIndex l i) a
+{-# INLINE unsafeExchange #-}
+
 -- | 'linearRead' without bounds checking.
 unsafeLinearRead :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> m a
 unsafeLinearRead (MArray _ v) = GM.unsafeRead v
@@ -204,9 +228,15 @@ unsafeLinearSwap (MArray _ v) = GM.unsafeSwap v
 {-# INLINE unsafeLinearSwap #-}
 
 -- | 'linearModify' without bounds checking.
-unsafeLinearModify :: (PrimMonad m, Shape l, MVector v a) => MArray v l (PrimState m) a -> Int -> (a -> a) -> m ()
+unsafeLinearModify :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> (a -> a) -> m ()
 unsafeLinearModify (MArray _ v) i f = GM.unsafeRead v i >>= GM.unsafeWrite v i . f
 {-# INLINE unsafeLinearModify #-}
+
+-- | Replace the element at the give position and return the old
+--   element.
+unsafeLinearExchange :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> a -> m a
+unsafeLinearExchange (MArray _ v) i a = GM.unsafeExchange v i a
+{-# INLINE unsafeLinearExchange #-}
 
 -- Filling and copying -------------------------------------------------
 
