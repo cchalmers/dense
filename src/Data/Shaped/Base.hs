@@ -122,10 +122,9 @@ values = \f arr -> reindexed (fromIndex $ extent arr) (vector . vectorTraverse) 
 --   _must_ remain the same or an error is thrown.
 layout :: (Shape l, Shape t) => Lens (Array v l a) (Array v t a) (Layout l) (Layout t)
 layout f (Array l v) = f l <&> \l' ->
-  if F.product l == F.product l'
-     then Array l' v
-     else error $ "layout: Array's layout size mismatch; trying to replace shape "
-                 ++ showShape l ++ ", with " ++ showShape l'
+  sizeMissmatch (F.product l) (F.product l')
+    ("layout: trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
+    $ Array l' v
 {-# INLINE layout #-}
 
 -- | Indexed lens over the underlying vector of an array. The index is
@@ -135,10 +134,9 @@ layout f (Array l v) = f l <&> \l' ->
 vector :: (Vector v a, Vector w b) => IndexedLens (Layout l) (Array v l a) (Array w l b) (v a) (w b)
 vector f (Array l v) =
   indexed f l v <&> \w ->
-    if G.length v == G.length w
-       then Array l w
-       else error $ "vector: Array's vector size mismatch; trying to replace vector of length "
-                 ++ show (G.length v) ++ ", with one of length " ++ show (G.length w)
+  sizeMissmatch (G.length v) (G.length w)
+     ("vector: trying to replace vector of length " ++ show (G.length v) ++ " with one of length " ++ show (G.length w))
+     $ Array l w
 {-# INLINE vector #-}
 
 -- Mutable conversion --------------------------------------------------

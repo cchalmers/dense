@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE Rank2Types           #-}
 {-# LANGUAGE UndecidableInstances #-}
 -----------------------------------------------------------------------------
@@ -28,6 +29,12 @@ module Data.Shaped.Index
   , _IndexOutOfBounds
   , boundsCheck
 
+    -- * Size missmatch
+  , SizeMissmatch (..)
+  , AsSizeMissmatch
+  , _SizeMissmatch
+  , sizeMissmatch
+
     -- * Utilities
   , showShape
   ) where
@@ -40,6 +47,7 @@ import           Control.Exception.Lens
 import           Control.Lens
 import           Control.Lens.Internal.Getter
 import           Data.Foldable                as F
+import           Data.Typeable
 
 import           Data.Functor.Classes
 import           Data.Traversable
@@ -146,6 +154,8 @@ enumV4 f l@(V4 x y z w) = go zero where
     | otherwise = indexed f (toIndex l q) q *> go (V4 i j k (m+1))
 {-# INLINE enumV4 #-}
 
+-- Bounds check --------------------------------------------------------
+
 -- | @boundsCheck l i@ performs a bounds check for index @i@ and layout
 --   @l@. Throws an 'IndexOutOfBounds' exception when out of range in
 --   the form @(i, l)@. This can be caught with the '_IndexOutOfBounds'
@@ -169,6 +179,44 @@ boundsCheck l i
   | inRange l i = id
   | otherwise   = throwing _IndexOutOfBounds $ "(" ++ showShape i ++ ", " ++ showShape l ++ ")"
 {-# INLINE boundsCheck #-}
+
+-- Size missmatch ------------------------------------------------------
+
+data SizeMissmatch = SizeMissmatch String
+  deriving Typeable
+
+instance Exception SizeMissmatch
+instance Show SizeMissmatch where
+  showsPrec _ (SizeMissmatch s)
+    = showString "size missmatch"
+    . (if not (null s) then showString ": " . showString s
+                       else id)
+
+-- | Exception thown from missmatching sizes.
+class AsSizeMissmatch t where
+  -- | Extract information about an 'SizeMissmatch'.
+  --
+  -- @
+  -- '_SizeMissmatch' :: 'Prism'' 'SizeMissmatch' 'String'
+  -- '_SizeMissmatch' :: 'Prism'' 'SomeException' 'String'
+  -- @
+  _SizeMissmatch :: Prism' t String
+
+instance AsSizeMissmatch SizeMissmatch where
+  _SizeMissmatch = prism' SizeMissmatch $ (\(SizeMissmatch s) -> Just s)
+  {-# INLINE _SizeMissmatch #-}
+
+instance AsSizeMissmatch SomeException where
+  _SizeMissmatch = exception . (_SizeMissmatch :: Prism' SizeMissmatch String)
+  {-# INLINE _SizeMissmatch #-}
+
+-- | Check the sizes are equal. If not, throw 'SizeMissmatch'.
+sizeMissmatch :: Int -> Int -> String -> a -> a
+sizeMissmatch i j err
+  | i == j    = id
+  | otherwise = throwing _SizeMissmatch err
+
+-- Utilities -----------------------------------------------------------
 
 -- | Show a shape in the form @VN i1 i2 .. iN@ where @N@ is the 'length'
 --   of the shape.

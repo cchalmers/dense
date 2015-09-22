@@ -108,10 +108,9 @@ type PMArray = MArray P.MVector
 --   _must_ remain the same or an error is thrown.
 mlayout :: (Shape l, Shape l') => Lens (MArray v l s a) (MArray v l' s a) (Layout l) (Layout l')
 mlayout f (MArray l v) = f l <&> \l' ->
-  if F.product l == F.product l'
-     then MArray l' v
-     else error $ "mlayout: MArray's layout size mismatch; trying to replace shape "
-                 ++ showShape l ++ ", with " ++ showShape l'
+  sizeMissmatch (F.product l) (F.product l')
+    ("mlayout: trying to replace shape " ++ showShape l ++ ", with " ++ showShape l')
+    $ MArray l' v
 {-# INLINE mlayout #-}
 
 -- | Indexed lens over the underlying vector of an array. The index is
@@ -120,10 +119,9 @@ mlayout f (MArray l v) = f l <&> \l' ->
 mvector :: (MVector v a, MVector w b) => IndexedLens (Layout l) (MArray v l s a) (MArray w l t b) (v s a) (w t b)
 mvector f (MArray l v) =
   indexed f l v <&> \w ->
-    if GM.length v == GM.length w
-       then MArray l w
-       else error $ "mvector: mArray's vector size mismatch; trying to replace vector of length "
-                 ++ show (GM.length v) ++ ", with one of length " ++ show (GM.length w)
+  sizeMissmatch (GM.length v) (GM.length w)
+     ("mvector: trying to replace vector of length " ++ show (GM.length v) ++ ", with one of length " ++ show (GM.length w))
+     $ MArray l w
 {-# INLINE mvector #-}
 
 -- | New mutable array with shape @l@.
