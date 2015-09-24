@@ -28,6 +28,10 @@ module Data.Shaped
   , SArray
   , PArray
 
+    -- ** Extracting size
+  , extent
+  , size
+
     -- ** Lenses
   , layout
   , vector
@@ -219,6 +223,19 @@ type SArray = Array S.Vector
 -- | 'Primitive' array.
 type PArray = Array P.Vector
 
+-- dimensions ----------------------------------------------------------
+
+-- | Extract the 'layout' of an array.
+extent :: Array v l b -> l Int
+extent (Array l _) = l
+{-# INLINE extent #-}
+
+-- | The number of elements in the array. This is the 'product' of the
+--   'layout'.
+size :: Shape l => Array v l b -> Int
+size = F.product . extent
+{-# INLINE size #-}
+
 -- Lenses --------------------------------------------------------------
 
 -- | Same as 'values' but restrictive in the vector type.
@@ -404,7 +421,7 @@ generate l f
 
 -- | O(n) Construct an array of the given shape by filling each position
 --   with the monadic value.
-replicateM :: (Monad m, Shape l, Vector v a) => Layout l-> m a -> m (Array v l a)
+replicateM :: (Monad m, Shape l, Vector v a) => Layout l -> m a -> m (Array v l a)
 replicateM l a
   | n > 0     = Array l `liftM` G.replicateM n a
   | otherwise = return empty
