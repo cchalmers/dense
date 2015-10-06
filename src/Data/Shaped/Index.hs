@@ -1,9 +1,12 @@
-{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE MultiParamTypeClasses                  #-}
+{-# LANGUAGE TypeFamilies                  #-}
+{-# LANGUAGE FunctionalDependencies                  #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE Rank2Types           #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DefaultSignatures    #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Shaped.Mutable
@@ -23,13 +26,25 @@ module Data.Shaped.Index
   ( -- * Shape class
     Layout
   , Shape (..)
+  , indexFor
+  , shapeIndexes
+  , shapeIndexesBetween
 
-    -- * Bounds checking
+    -- * HasLayout
+  , HasLayout (..)
+  , extent
+  , size
+  , indexes
+  , indexesBetween
+
+    -- * Exceptions
+
+    -- (* Bounds checking
   , ArrayException (IndexOutOfBounds)
   , _IndexOutOfBounds
   , boundsCheck
 
-    -- * Size missmatch
+    -- (* Size missmatch
   , SizeMissmatch (..)
   , AsSizeMissmatch
   , _SizeMissmatch
@@ -39,9 +54,7 @@ module Data.Shaped.Index
   , showShape
   ) where
 
-#if __GLASGOW_HASKELL__ <= 708
 import           Control.Applicative
-#endif
 import           Control.Exception
 import           Control.Exception.Lens
 import           Control.Lens
@@ -52,12 +65,16 @@ import           Data.Typeable
 import           Data.Functor.Classes
 import           Data.Traversable
 import           Linear
-import           Linear.V
+-- import           Linear.V
 
 -- | A 'Layout' is the full size of an array. This alias is used to help
 --   distinguish between the layout of an array and an index (usually
 --   just @l Int@) in a type signature.
-type Layout l = l Int
+type Layout f = f Int
+
+------------------------------------------------------------------------
+-- Shape class
+------------------------------------------------------------------------
 
 -- | Class for types that can be converted to and from linear indexes.
 class (Eq1 f, Additive f, Traversable f) => Shape f where
@@ -78,81 +95,167 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   intersectShape = liftU2 min
   {-# INLINE intersectShape #-}
 
-  -- | @'toIndex' l@ and @'fromIndex' l@ form two halfs of an isomorphism.
-  indexFor :: Layout f -> Iso' (f Int) Int
-  indexFor l = iso (toIndex l) (fromIndex l)
+  -- | Increment a shape by one. It is assumed that the provided indexed
+  --   is 'inRange'.
+  stepShape :: Layout f -> f Int -> Maybe (f Int)
+  stepShape l = guardPure (inRange l) . fromIndex l . (+1) . toIndex l
+  {-# INLINE stepShape #-}
 
-  -- | @inRange ex i@ checks @i < ex@ for every coodinate of @f@.
+  -- | Increment a shape by one.
+  stepShapeBetween :: f Int -> f Int -> Layout f -> f Int -> Maybe (f Int)
+  stepShapeBetween = undefined
+
+  -- | @inRange ex i@ checks @i < ex@ for every coordinate of @f@.
   inRange :: Layout f -> f Int -> Bool
   inRange l i = F.and $ liftI2 (\ii li -> ii >= 0 && ii < li) i l
+  {-# INLINE inRange #-}
 
-  -- | Indexed fold for the range between two shapes.
-  rangeBetween :: f Int -> f Int -> IndexedFold Int (Layout f) (f Int)
-  rangeBetween x1 x2 = l -- conjoined l (indexing l)
-   -- horribly inefficient
-    where f x = F.and (liftI2 (<=) x1 x) && F.and (liftI2 (>) x x2)
-          l = enumShape . filtered f
-  {-# INLINE rangeBetween #-}
+guardPure :: Alternative f => (a -> Bool) -> a -> f a
+guardPure p a = if p a then pure a else empty
+{-# INLINE guardPure #-}
 
-  -- | Indexed fold to the shape.
-  enumShape :: IndexedFold Int (Layout f) (f Int)
-  enumShape f l = go 0 where
-    -- What about negative indices?
-    n = F.product l
-    go i | i == n    = noEffect
-         | otherwise = indexed f i (fromIndex l i) *> go (i + 1)
-  {-# INLINE enumShape #-}
-
-instance Shape Identity
 instance Shape V0
-instance Shape V1
+
+instance Shape V1 where
+  -- {-# INLINE toIndex #-}
+  {-# INLINE fromIndex #-}
+  {-# INLINE intersectShape #-}
+  {-# INLINE stepShape #-}
+  {-# INLINE inRange #-}
+  -- toIndex = const
+  fromIndex = const
+  intersectShape = min
+  stepShape l = guardPure (inRange l)
+  stepShapeBetween _a b _l i = guardPure (> b) i'
+    where i' = i + 1
+  inRange m i = i >= 0 && i < m
+
 instance Shape V2 where
-  enumShape = enumV2
-  {-# INLINE enumShape #-}
-  rangeBetween = rangeBetweenV2
-  {-# INLINE rangeBetween #-}
+  stepShape (V2 x y) (V2 i j)
+    | j + 1 < y  = Just (V2      i  (j + 1))
+    | i + 1 < x  = Just (V2 (i + 1)      0 )
+    | otherwise  = Nothing
+  {-# INLINE stepShape #-}
+
+  stepShapeBetween (V2 _ia ja) (V2 ib jb) (V2 _x _y) (V2 i j)
+    | j + 1 < jb  = Just (V2      i  (j + 1))
+    | i + 1 < ib  = Just (V2 (i + 1)     ja )
+    | otherwise  = Nothing
+  {-# INLINE stepShapeBetween #-}
+
 instance Shape V3 where
-  enumShape = enumV3
-  {-# INLINE enumShape #-}
+  stepShape (V3 x y z) (V3 i j k)
+    | k + 1 < z  = Just (V3      i       j  (k + 1))
+    | j + 1 < y  = Just (V3      i  (j + 1)      0 )
+    | i + 1 < x  = Just (V3 (i + 1)      0       0 )
+    | otherwise  = Nothing
+  {-# INLINE stepShape #-}
+
+  stepShapeBetween (V3 _ia ja ka) (V3 ib jb kb) (V3 _x _y _z) (V3 i j k)
+    | k < kb  = Just (V3      i       j  (k + 1))
+    | j < jb  = Just (V3      i  (j + 1)     ka )
+    | i < ib  = Just (V3 (i + 1)     ja      ka )
+    | otherwise  = Nothing
+  {-# INLINE stepShapeBetween #-}
+
 instance Shape V4 where
-  enumShape = enumV4
-  {-# INLINE enumShape #-}
-instance Dim n => Shape (V n)
+  stepShape (V4 x y z w) (V4 i j k l)
+    | l + 1 < w  = Just (V4      i       j       k  (l + 1))
+    | k + 1 < z  = Just (V4      i       j  (k + 1)      0 )
+    | j + 1 < y  = Just (V4      i  (j + 1)      0       0 )
+    | i + 1 < x  = Just (V4 (i + 1)      0       0       0 )
+    | otherwise  = Nothing
+  {-# INLINE stepShape #-}
 
-enumV2 :: IndexedFold Int (Layout V2) (V2 Int)
-enumV2 f l@(V2 x y) = go zero where
-  go q@(V2 i j)
-    | i >= x    = noEffect
-    | j >= y    = go $ V2 (i+1) 0
-    | otherwise = indexed f (toIndex l q) q *> go (V2 i (j+1))
-{-# INLINE enumV2 #-}
+  stepShapeBetween (V4 _ia ja ka la) (V4 ib jb kb lb) (V4 _x _y _z _w) (V4 i j k l)
+    | l < lb  = Just (V4      i       j       k  (l + 1))
+    | k < kb  = Just (V4      i       j  (k + 1)     la )
+    | j < jb  = Just (V4      i  (j + 1)     ka      la )
+    | i < ib  = Just (V4 (i + 1)     ja      ka      la )
+    | otherwise  = Nothing
+  {-# INLINE stepShapeBetween #-}
 
-rangeBetweenV2 :: V2 Int -> V2 Int -> IndexedFold Int (Layout V2) (V2 Int)
-rangeBetweenV2 v0@(V2 _ y0) (V2 x2 y2) f l = go v0 where
-  go q@(V2 i j)
-    | j >= x2   = noEffect
-    | i >= y2   = go $ V2 (i+1) y0
-    | otherwise = indexed f (toIndex l q) q *> go (V2 i (j+1))
-{-# INLINE rangeBetweenV2 #-}
+-- instance Dim n => Shape (V n)
 
-enumV3 :: IndexedFold Int (Layout V3) (V3 Int)
-enumV3 f l@(V3 x y z) = go zero where
-  go q@(V3 i j k)
-    | i >= x    = noEffect
-    | j >= y    = go $ V3 (i+1)    0  0
-    | k >= z    = go $ V3    i  (j+1) 0
-    | otherwise = indexed f (toIndex l q) q *> go (V3 i j (k+1))
-{-# INLINE enumV3 #-}
+-- | @'toIndex' l@ and @'fromIndex' l@ form two halfs of an isomorphism.
+indexFor :: Shape f => Layout f -> Iso' (f Int) Int
+indexFor l = iso (toIndex l) (fromIndex l)
+{-# INLINE indexFor #-}
 
-enumV4 :: IndexedFold Int (Layout V4) (V4 Int)
-enumV4 f l@(V4 x y z w) = go zero where
-  go q@(V4 i j k m)
-    | i >= x    = noEffect
-    | j >= y    = go $ V4 (i+1)    0     0  0
-    | k >= z    = go $ V4    i  (j+1)    0  0
-    | m >= w    = go $ V4    i  (j+1) (k+1) 0
-    | otherwise = indexed f (toIndex l q) q *> go (V4 i j k (m+1))
-{-# INLINE enumV4 #-}
+------------------------------------------------------------------------
+-- HasLayout
+------------------------------------------------------------------------
+
+-- | Class of things that have a 'Layout'. This means we can use the
+--   same functions for the various different arrays in the library.
+class Shape f => HasLayout f a | a -> f where
+  -- | Lens onto the  'Layout' of something.
+  -- layout :: Shape f' => Lens' a a' (Layout f) (Layout f')
+  layout :: Lens' a (Layout f)
+  default layout :: (a ~ f Int) => Lens' a (Layout f)
+  layout = id
+  {-# INLINE layout #-}
+
+instance HasLayout V0 (Layout V0)
+instance HasLayout V1 (Layout V1)
+instance HasLayout V2 (Layout V2)
+instance HasLayout V3 (Layout V3)
+instance HasLayout V4 (Layout V4)
+
+-- | Get the extent of an array.
+--
+-- @
+-- 'extent' :: 'Array' v f a    -> f 'Int'
+-- 'extent' :: 'MArray' v f s a -> f 'Int'
+-- 'extent' :: 'Delayed' f a    -> f 'Int'
+-- 'extent' :: 'Focused' f a    -> f 'Int'
+-- @
+extent :: HasLayout f a => a -> f Int
+extent = view layout
+{-# INLINE extent #-}
+
+-- | Get the total number of elements in an array.
+--
+-- @
+-- 'size' :: 'Array' v f a    -> 'Int'
+-- 'size' :: 'MArray' v f s a -> 'Int'
+-- 'size' :: 'Delayed' f a    -> 'Int'
+-- 'size' :: 'Focused' f a    -> 'Int'
+-- @
+size :: HasLayout f a => a -> Int
+size = F.product . view layout
+{-# INLINE size #-}
+
+-- NB: lens already uses indices so we settle for indexes
+
+-- | Indexed fold for all the indexes in the layout.
+indexes :: HasLayout f a => IndexedFold Int a (f Int)
+indexes = layout . shapeIndexes
+{-# INLINE indexes #-}
+
+shapeIndexes :: Shape f => IndexedFold Int (Layout f) (f Int)
+shapeIndexes g l = go (0::Int) (if eq1 l zero then Nothing else Just zero) where
+  go i (Just x) = indexed g i x *> go (i + 1) (stepShape l x)
+  go _ Nothing  = noEffect
+  {-# INLINE go #-}
+{-# INLINE shapeIndexes #-}
+
+-- | Indexed fold between the two indexes.
+indexesBetween :: HasLayout f a => f Int -> f Int -> IndexedFold Int a (f Int)
+indexesBetween a b = layout . shapeIndexesBetween a b
+{-# INLINE indexesBetween #-}
+
+shapeIndexesBetween :: Shape f => f Int -> f Int -> IndexedFold Int (Layout f) (f Int)
+shapeIndexesBetween a b f l =
+  go (0::Int) (if eq1 l a || not (inRange l b) then Nothing else Just a) where
+    go i (Just x) = indexed f i x *> go (i + 1) (stepShapeBetween a b l x)
+    go _ Nothing  = noEffect
+    {-# INLINE go #-}
+{-# INLINE shapeIndexesBetween #-}
+
+------------------------------------------------------------------------
+-- Exceptions
+------------------------------------------------------------------------
 
 -- Bounds check --------------------------------------------------------
 

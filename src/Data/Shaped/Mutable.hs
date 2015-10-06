@@ -113,6 +113,10 @@ mlayout f (MArray l v) = f l <&> \l' ->
     $ MArray l' v
 {-# INLINE mlayout #-}
 
+instance Shape f => HasLayout f (MArray v f s a) where
+  layout = mlayout
+  {-# INLINE layout #-}
+
 -- | Indexed lens over the underlying vector of an array. The index is
 --   the 'extent' of the array. You must _not_ change the length of the
 --   vector, otherwise an error will be thrown.

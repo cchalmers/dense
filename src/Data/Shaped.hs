@@ -223,19 +223,6 @@ type SArray = Array S.Vector
 -- | 'Primitive' array.
 type PArray = Array P.Vector
 
--- dimensions ----------------------------------------------------------
-
--- | Extract the 'layout' of an array.
-extent :: Array v l b -> l Int
-extent (Array l _) = l
-{-# INLINE extent #-}
-
--- | The number of elements in the array. This is the 'product' of the
---   'layout'.
-size :: Shape l => Array v l b -> Int
-size = F.product . extent
-{-# INLINE size #-}
-
 -- Lenses --------------------------------------------------------------
 
 -- | Same as 'values' but restrictive in the vector type.
@@ -465,8 +452,8 @@ streamSub l2 (Array l1 v)             = Bundle.unfoldr get 0 `Bundle.sized` Exac
           | otherwise = case G.basicUnsafeIndexM v (toIndex l1 j) of Box x -> Just (x, i+1)
       where j = fromIndex l2 i
 
-streamShape :: Shape l => Layout l-> Bundle v (l Int)
-streamShape l = Bundle.fromListN (F.product l) $ toListOf enumShape l
+streamShape :: Shape l => Layout l -> Bundle v (l Int)
+streamShape l = Bundle.fromListN (F.product l) $ toListOf shapeIndexes l
 {-# INLINE streamShape #-}
 
 ------------------------------------------------------------------------
@@ -664,7 +651,7 @@ ixPlane l32 i f a@(Array l v)
   | otherwise       = Array l . (v G.//) . L.zip is . toListOf values
                         <$> indexed f i (getPlane l32 i a)
   where
-    is = toListOf (cloneLens l32 . enumShape . to (\x -> toIndex l $ pure i & l32 #~ x)) l
+    is = toListOf (cloneLens l32 . shapeIndexes . to (\x -> toIndex l $ pure i & l32 #~ x)) l
     k  = F.sum $ l & l32 #~ 0
 
 -- | Traversal over all planes of 3D array given a lens onto that plane

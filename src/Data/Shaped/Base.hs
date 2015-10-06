@@ -104,11 +104,6 @@ import           Prelude                         hiding (null, replicate,
 data Array v l a = Array !(Layout l) !(v a)
   deriving Typeable
 
--- | Get the shape of an array.
-extent :: Array v f a -> f Int
-extent (Array l _) = l
-{-# INLINE extent #-}
-
 -- Lenses --------------------------------------------------------------
 
 -- | Indexed traversal over the elements of an array. The index is the
@@ -117,15 +112,6 @@ values :: (Shape l, Vector v a, Vector w b)
        => IndexedTraversal (Layout l) (Array v l a) (Array w l b) a b
 values = \f arr -> reindexed (fromIndex $ extent arr) (vector . vectorTraverse) f arr
 {-# INLINE values #-}
-
--- | Lens onto the shape of the vector. The total size of the layout
---   _must_ remain the same or an error is thrown.
-layout :: (Shape l, Shape t) => Lens (Array v l a) (Array v t a) (Layout l) (Layout t)
-layout f (Array l v) = f l <&> \l' ->
-  sizeMissmatch (F.product l) (F.product l')
-    ("layout: trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
-    $ Array l' v
-{-# INLINE layout #-}
 
 -- | Indexed lens over the underlying vector of an array. The index is
 --   the 'extent' of the array. You must _not_ change the length of the
@@ -170,6 +156,17 @@ unsafeThaw (Array l v) = MArray l `liftM` G.unsafeThaw v
 ------------------------------------------------------------------------
 -- Instances
 ------------------------------------------------------------------------
+
+-- | Lens onto the shape of the vector. The total size of the layout
+--   _must_ remain the same or an error is thrown.
+instance Shape f => HasLayout f (Array v f a) where
+  layout f (Array l v) = f l <&> \l' ->
+    sizeMissmatch (F.product l) (F.product l')
+      ("layout (Array): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
+      $ Array l' v
+  {-# INLINE layout #-}
+
+-- layout :: (Shape l, Shape t) => Lens (Array v l a) (Array v t a) (Layout l) (Layout t)
 
 instance (Vector v a, Eq1 l, Eq a) => Eq (Array v l a) where
   Array l1 v1 == Array l2 v2 = eq1 l1 l2 && G.eq v1 v2
@@ -347,6 +344,13 @@ delay :: (Vector v a, Shape l) => Array v l a -> Delayed l a
 delay (Array l v) = Delayed l (G.unsafeIndex v)
 {-# INLINE delay #-}
 
+instance Shape f => HasLayout f (Delayed f a) where
+  layout f (Delayed l ixF) = f l <&> \l' ->
+    sizeMissmatch (F.product l) (F.product l')
+      ("layout (Delayed): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
+      $ Delayed l' ixF
+  {-# INLINE layout #-}
+
 -- | 'foldMap' in parallel.
 instance Shape l => Foldable (Delayed l) where
   foldr f b (Delayed l ixF) = go 0 where
@@ -408,7 +412,7 @@ instance Shape l => FunctorWithIndex (l Int) (Delayed l) where
   {-# INLINE imap #-}
 
 instance Shape l => FoldableWithIndex (l Int) (Delayed l) where
-  ifoldr f b (Delayed l ixF) = ifoldrOf enumShape (\i x -> f x (ixF i)) b l
+  ifoldr f b (Delayed l ixF) = ifoldrOf shapeIndexes (\i x -> f x (ixF i)) b l
   {-# INLINE ifoldr #-}
 
   ifolded = ifoldring ifoldr
@@ -483,6 +487,13 @@ genDelayed l f = Delayed l (f . fromIndex l)
 --   element. This element is the target of 'extract'.
 data Focused l a = Focused !(l Int) !(Delayed l a)
   deriving (Typeable, Functor)
+
+instance Shape f => HasLayout f (Focused f a) where
+  layout f (Focused x (Delayed l ixF)) = f l <&> \l' ->
+    sizeMissmatch (F.product l) (F.product l')
+      ("layout (Focused): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
+      $ Focused x (Delayed l' ixF)
+  {-# INLINE layout #-}
 
 instance Shape l => Comonad (Focused l) where
   {-# INLINE extract #-}
