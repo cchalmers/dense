@@ -20,6 +20,8 @@ library
   exposed-modules:
     Data.Shaped
     Data.Shaped.Base
+    Data.Shaped.Generic
+    Data.Shaped.Unboxed
     Data.Shaped.Mutable
     Data.Shaped.Index
   other-extensions:
