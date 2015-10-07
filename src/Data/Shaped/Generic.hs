@@ -15,8 +15,7 @@
 -- Stability   :  provisional
 -- Portability :  non-portable
 --
--- This module provides generic functions over shaped vectors. This is
--- equivalent to "vector"'s 'Data.Vector.Generic' module.
+-- This module provides generic functions over shaped vectors.
 -----------------------------------------------------------------------------
 module Data.Shaped.Generic
   (
@@ -28,12 +27,15 @@ module Data.Shaped.Generic
   , SArray
   , PArray
 
+    -- * Layout of an array
+  , HasLayout (..)
+  , Layout
+
     -- ** Extracting size
   , extent
   , size
 
-    -- ** Lenses
-  , layout
+    -- * Underlying vector
   , vector
 
     -- ** Traversals
@@ -154,7 +156,7 @@ module Data.Shaped.Generic
   , locale
   , shiftFocus
 
-  -- * Common layouts
+  -- * Common shapes
   , V1 (..)
   , V2 (..)
   , V3 (..)
@@ -744,12 +746,12 @@ unfocus :: Focused l a -> Delayed l a
 unfocus (Focused _ d) = d
 {-# INLINE unfocus #-}
 
--- | Indexed lens onto the delayed array, indexed with the focus.
+-- | Indexed lens onto the delayed array, indexed at the focus.
 unfocused :: IndexedLens (l Int) (Focused l a) (Focused l b) (Delayed l a) (Delayed l b)
 unfocused f (Focused x d) = Focused x <$> indexed f x d
 {-# INLINE unfocused #-}
 
--- | Lens onto the position of store.
+-- | Lens onto the position of a 'ComonadStore'.
 --
 -- @
 -- 'locale' :: 'Lens'' ('Focused' l a) (l 'Int')

@@ -78,14 +78,12 @@ type Layout f = f Int
 
 -- | Class for types that can be converted to and from linear indexes.
 class (Eq1 f, Additive f, Traversable f) => Shape f where
-  -- | @toIndex l x@ returns the linear index @i@ of the shaped index @x@
-  --   for array layout @l@.
+  -- | Convert a shape to its linear index using the 'Layout'.
   toIndex :: Layout f -> f Int -> Int
   toIndex l x = F.foldl (\k (e, a) -> k * e + a) 0 (liftI2 (,) l x)
   {-# INLINE toIndex #-}
 
-  -- | @toIndex l i@ returns the shaped index @x@ of the linear index @i@
-  --   for array layout @l@.
+  -- | Convert a linear index to a shape the 'Layout'.
   fromIndex :: Layout f -> Int -> f Int
   fromIndex l i = snd $ mapAccumR quotRem i l
   {-# INLINE fromIndex #-}
@@ -125,7 +123,7 @@ instance Shape V1 where
   -- toIndex = const
   fromIndex = const
   intersectShape = min
-  stepShape l = guardPure (inRange l)
+  stepShape l = guardPure (inRange l) . (+1)
   stepShapeBetween _a b _l i = guardPure (> b) i'
     where i' = i + 1
   inRange m i = i >= 0 && i < m
@@ -190,11 +188,11 @@ indexFor l = iso (toIndex l) (fromIndex l)
 --   same functions for the various different arrays in the library.
 class Shape f => HasLayout f a | a -> f where
   -- | Lens onto the  'Layout' of something.
-  -- layout :: Shape f' => Lens' a a' (Layout f) (Layout f')
   layout :: Lens' a (Layout f)
   default layout :: (a ~ f Int) => Lens' a (Layout f)
   layout = id
   {-# INLINE layout #-}
+  -- layout :: Shape f' => Lens' a a' (Layout f) (Layout f')
 
 instance HasLayout V0 (Layout V0)
 instance HasLayout V1 (Layout V1)
@@ -205,10 +203,10 @@ instance HasLayout V4 (Layout V4)
 -- | Get the extent of an array.
 --
 -- @
--- 'extent' :: 'Array' v f a    -> f 'Int'
--- 'extent' :: 'MArray' v f s a -> f 'Int'
--- 'extent' :: 'Delayed' f a    -> f 'Int'
--- 'extent' :: 'Focused' f a    -> f 'Int'
+-- 'extent' :: 'Data.Shaped.Generic.Array' v f a    -> f 'Int'
+-- 'extent' :: 'Data.Shaped.Mutable.MArray' v f s a -> f 'Int'
+-- 'extent' :: 'Data.Shaped.Generic.Delayed' f a    -> f 'Int'
+-- 'extent' :: 'Data.Shaped.Generic.Focused' f a    -> f 'Int'
 -- @
 extent :: HasLayout f a => a -> f Int
 extent = view layout
@@ -233,6 +231,7 @@ indexes :: HasLayout f a => IndexedFold Int a (f Int)
 indexes = layout . shapeIndexes
 {-# INLINE indexes #-}
 
+-- | 'indexes' for a 'Shape'.
 shapeIndexes :: Shape f => IndexedFold Int (Layout f) (f Int)
 shapeIndexes g l = go (0::Int) (if eq1 l zero then Nothing else Just zero) where
   go i (Just x) = indexed g i x *> go (i + 1) (stepShape l x)
@@ -245,6 +244,7 @@ indexesBetween :: HasLayout f a => f Int -> f Int -> IndexedFold Int a (f Int)
 indexesBetween a b = layout . shapeIndexesBetween a b
 {-# INLINE indexesBetween #-}
 
+-- | 'indexesBetween' for a 'Shape'.
 shapeIndexesBetween :: Shape f => f Int -> f Int -> IndexedFold Int (Layout f) (f Int)
 shapeIndexesBetween a b f l =
   go (0::Int) (if eq1 l a || not (inRange l b) then Nothing else Just a) where

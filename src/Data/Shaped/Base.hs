@@ -31,7 +31,6 @@ module Data.Shaped.Base
   , Boxed
 
     -- * Lenses
-  , layout
   , vector
   , values
 
@@ -109,7 +108,7 @@ data Array v l a = Array !(Layout l) !(v a)
 -- | Indexed traversal over the elements of an array. The index is the
 --   current position in the array.
 values :: (Shape l, Vector v a, Vector w b)
-       => IndexedTraversal (Layout l) (Array v l a) (Array w l b) a b
+       => IndexedTraversal (l Int) (Array v l a) (Array w l b) a b
 values = \f arr -> reindexed (fromIndex $ extent arr) (vector . vectorTraverse) f arr
 {-# INLINE values #-}
 
@@ -157,8 +156,7 @@ unsafeThaw (Array l v) = MArray l `liftM` G.unsafeThaw v
 -- Instances
 ------------------------------------------------------------------------
 
--- | Lens onto the shape of the vector. The total size of the layout
---   _must_ remain the same or an error is thrown.
+-- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
 instance Shape f => HasLayout f (Array v f a) where
   layout f (Array l v) = f l <&> \l' ->
     sizeMissmatch (F.product l) (F.product l')
@@ -344,6 +342,7 @@ delay :: (Vector v a, Shape l) => Array v l a -> Delayed l a
 delay (Array l v) = Delayed l (G.unsafeIndex v)
 {-# INLINE delay #-}
 
+-- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
 instance Shape f => HasLayout f (Delayed f a) where
   layout f (Delayed l ixF) = f l <&> \l' ->
     sizeMissmatch (F.product l) (F.product l')
@@ -475,7 +474,8 @@ manifest (Delayed l ixF) = Array l v
     !threads = unsafePerformIO getNumCapabilities
 {-# INLINE manifest #-}
 
-genDelayed :: Shape l => l Int -> (l Int -> a) -> Delayed l a
+-- | Generate a 'Delayed' array using the given 'Layout' and construction function.
+genDelayed :: Shape l => Layout l -> (l Int -> a) -> Delayed l a
 genDelayed l f = Delayed l (f . fromIndex l)
 {-# INLINE genDelayed #-}
 
@@ -488,6 +488,7 @@ genDelayed l f = Delayed l (f . fromIndex l)
 data Focused l a = Focused !(l Int) !(Delayed l a)
   deriving (Typeable, Functor)
 
+-- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
 instance Shape f => HasLayout f (Focused f a) where
   layout f (Focused x (Delayed l ixF)) = f l <&> \l' ->
     sizeMissmatch (F.product l) (F.product l')
@@ -532,12 +533,12 @@ instance Shape l => Traversable (Focused l) where
   traverse f (Focused u d) = Focused u <$> traverse f d
   {-# INLINE traverse #-}
 
--- | Relative to focus.
+-- | Index relative to focus.
 instance Shape l => FunctorWithIndex (l Int) (Focused l) where
   imap f (Focused u d) = Focused u (imap (f . (^-^ u)) d)
   {-# INLINE imap #-}
 
--- | Relative to focus.
+-- | Index relative to focus.
 instance Shape l => FoldableWithIndex (l Int) (Focused l) where
   ifoldr f b (Focused u d) = ifoldr (f . (^-^ u)) b d
   {-# INLINE ifoldr #-}
@@ -548,11 +549,12 @@ instance Shape l => FoldableWithIndex (l Int) (Focused l) where
   ifoldMap = ifoldMapOf ifolded
   {-# INLINE ifoldMap #-}
 
+-- | Index relative to focus.
 instance Shape l => TraversableWithIndex (l Int) (Focused l) where
   itraverse f (Focused u d) = Focused u <$> itraverse (f . (^-^ u)) d
   {-# INLINE itraverse #-}
 
--- | Relative to focus.
+-- | Index relative to focus.
 instance Shape l => Ixed (Focused l a) where
   ix i f (Focused u d) = Focused u <$> ix (i ^-^ u) f d
   {-# INLINE ix #-}
