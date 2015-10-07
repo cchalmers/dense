@@ -1,4 +1,4 @@
--- {-# LANGUAGE CPP                   #-}
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -190,46 +190,43 @@ module Data.Shaped.Generic
   ) where
 
 
--- #if __GLASGOW_HASKELL__ <= 708
--- import           Control.Applicative            (Applicative, (<*>), pure)
--- import           Data.Foldable                  (Foldable)
--- #endif
+#if __GLASGOW_HASKELL__ <= 708
+import           Control.Applicative               (Applicative, pure, (<*>))
+import           Data.Foldable                     (Foldable)
+#endif
 
 import           Control.Comonad
 import           Control.Comonad.Store
 import           Control.Lens
-import           Control.Monad                  (liftM)
+import           Control.Monad                     (liftM)
+import           Control.Monad.Primitive
 import           Control.Monad.ST
-import qualified Data.Foldable                  as F
+import qualified Data.Foldable                     as F
 import           Data.Functor.Classes
-import qualified Data.List                   as L
-import           Data.Maybe                     (fromMaybe)
-import qualified Data.Vector                    as B
-import           Data.Vector.Fusion.Bundle      (MBundle)
-import qualified Data.Vector.Fusion.Bundle      as Bundle
-import qualified Data.Vector.Fusion.Bundle.Monadic      as MBundle
-import qualified Data.Vector.Fusion.Stream.Monadic      as Stream
-import           Data.Vector.Fusion.Stream.Monadic (Step (..), Stream (..))
+import qualified Data.List                         as L
+import           Data.Maybe                        (fromMaybe)
+import qualified Data.Vector                       as B
+import           Data.Vector.Fusion.Bundle         (MBundle)
+import qualified Data.Vector.Fusion.Bundle         as Bundle
+import qualified Data.Vector.Fusion.Bundle.Monadic as MBundle
 import           Data.Vector.Fusion.Bundle.Size
--- import           Data.Vector.Fusion.Util
-import           Data.Vector.Generic            (Vector)
-import qualified Data.Vector.Generic            as G
-import           Data.Vector.Generic.Lens       (toVectorOf)
-import qualified Data.Vector.Generic.Mutable    as GM
-import qualified Data.Vector.Primitive          as P
-import qualified Data.Vector.Storable           as S
-import qualified Data.Vector.Unboxed            as U
-import Control.Monad.Primitive
-import           Linear                         hiding (vector)
+import           Data.Vector.Fusion.Stream.Monadic (Step (..), Stream (..))
+import qualified Data.Vector.Fusion.Stream.Monadic as Stream
+import           Data.Vector.Generic               (Vector)
+import qualified Data.Vector.Generic               as G
+import qualified Data.Vector.Generic.Mutable       as GM
+import qualified Data.Vector.Primitive             as P
+import qualified Data.Vector.Storable              as S
+import qualified Data.Vector.Unboxed               as U
+import           Linear                            hiding (vector)
 
 import           Data.Shaped.Base
--- import           Data.Shaped.Fusion
 import           Data.Shaped.Index
-import           Data.Shaped.Mutable            (MArray (..))
-import qualified Data.Shaped.Mutable            as M
+import           Data.Shaped.Mutable               (MArray (..))
+import qualified Data.Shaped.Mutable               as M
 
-import           Prelude                        hiding (null, replicate,
-                                                 zipWith, zipWith3)
+import           Prelude                           hiding (null, replicate,
+                                                    zipWith, zipWith3)
 
 -- Aliases -------------------------------------------------------------
 
@@ -829,7 +826,7 @@ delayed = iso delay manifest
 
 -- | Sequential manifestation of a delayed array.
 manifestS :: (Vector v a, Shape l) => Delayed l a -> Array v l a
-manifestS arr@(Delayed l _) = Array l (toVectorOf folded arr)
+manifestS (Delayed l f) = Array l (G.generate (F.product l) f)
 {-# INLINE manifestS #-}
 
 ------------------------------------------------------------------------
