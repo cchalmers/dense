@@ -73,6 +73,16 @@ module Data.Shaped.Generic
 
   -- * Functions on arrays
 
+  -- ** Bulk updates
+  , (//)
+
+  -- ** Accumulations
+  , accum
+
+  -- ** Mapping
+  , map
+  , imap
+
   -- ** Empty arrays
   , empty
   , null
@@ -90,9 +100,6 @@ module Data.Shaped.Generic
   , unsafeIndexM
   , linearIndexM
   , unsafeLinearIndexM
-
-  -- ** Modifying arrays
-  , (//)
 
   -- * Zipping
   -- ** Tuples
@@ -197,7 +204,7 @@ import           Data.Foldable                     (Foldable)
 
 import           Control.Comonad
 import           Control.Comonad.Store
-import           Control.Lens
+import           Control.Lens hiding (imap)
 import           Control.Monad                     (liftM)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
@@ -226,7 +233,7 @@ import           Data.Shaped.Mutable               (MArray (..))
 import qualified Data.Shaped.Mutable               as M
 
 import           Prelude                           hiding (null, replicate,
-                                                    zipWith, zipWith3)
+                                                    zipWith, zipWith3, map)
 
 -- Aliases -------------------------------------------------------------
 
@@ -446,28 +453,42 @@ linearGenerateM l f
   where n = F.product l
 {-# INLINE linearGenerateM #-}
 
+-- Modifying -----------------------------------------------------------
+
+-- | /O(n)/ Map a function over an array
+map :: (Vector v a, Vector v b) => (a -> b) -> Array v l a -> Array v l b
+map f (Array l a) = Array l (G.map f a)
+{-# INLINE map #-}
+
+-- | /O(n)/ Apply a function to every element of a vector and its index
+imap :: (Shape l, Vector v a, Vector v b) => (l Int -> a -> b) -> Array v l a -> Array v l b
+imap f (Array l v) =
+  Array l $ (G.unstream . Bundle.inplace (Stream.zipWith f (streamIndexes l)) id . G.stream) v
+{-# INLINE imap #-}
+
+-- Bulk updates --------------------------------------------------------
+
 -- | For each pair (i,a) from the list, replace the array element at
 --   position i by a.
 (//) :: (G.Vector v a, Shape l) => Array v l a -> [(l Int, a)] -> Array v l a
 Array l v // xs = Array l $ v G.// over (each . _1) (toIndex l) xs
 
+-- Accumilation --------------------------------------------------------
+
+-- | /O(m+n)/ For each pair @(i,b)@ from the list, replace the array element
+--   @a@ at position @i@ by @f a b@.
+--
+accum :: (Shape l, Vector v a)
+      => (a -> b -> a)  -- ^ accumulating function @f@
+      -> Array v l a    -- ^ initial array
+      -> [(l Int, b)]   -- ^ list of index/value pairs (of length @n@)
+      -> Array v l a
+accum f (Array l v) us = Array l $ G.accum f v (over (mapped . _1) (toIndex l) us)
+{-# INLINE accum #-}
+
 ------------------------------------------------------------------------
 -- Streams
 ------------------------------------------------------------------------
-
--- streamSub :: (Shape l, Vector v a) => Layout l -> Array v l a -> Bundle v a
--- streamSub l2 (Array l1 v) | eq1 l1 l2 = G.stream v
--- streamSub l2 (Array l1 v)             = Bundle.unfoldr get 0 `Bundle.sized` Exact n
---   where
---     n = F.product l2
-
---     get i | i >= n    = Nothing
---           | otherwise = case G.basicUnsafeIndexM v (toIndex l1 j) of Box x -> Just (x, i+1)
---       where j = fromIndex l2 i
-
--- streamShape :: Shape l => Layout l -> Bundle v (l Int)
--- streamShape l = Bundle.fromListN (F.product l) $ toListOf shapeIndexes l
--- {-# INLINE streamShape #-}
 
 -- Copied from Data.Vector.Generic because it isn't exported from there.
 
@@ -736,7 +757,7 @@ transposeConcat (V2 _ y) vs = Array (V2 x' y) $ G.create $ do
     F.for_ [0..x'-1] $ \i ->
       GM.write mv (i*y + j) (v G.! i)
   return mv
-  where x' = minimum $ map G.length vs
+  where x' = minimum $ fmap G.length vs
 {-# INLINE transposeConcat #-}
 
 -- | Traversal over a single plane of a 3D array given a lens onto that
@@ -800,7 +821,7 @@ unsafeOrdinals is f (Array l v) = Array l . (v G.//) <$> traverse g is
 {-# INLINE [0] unsafeOrdinals #-}
 
 setOrdinals :: (Indexable (l Int) p, Vector v a, Shape l) => [l Int] -> p a a -> Array v l a -> Array v l a
-setOrdinals is f (Array l v) = Array l $ G.unsafeUpd v (map g is)
+setOrdinals is f (Array l v) = Array l $ G.unsafeUpd v (fmap g is)
   where g x = let i = toIndex l x in (,) i $ indexed f x (G.unsafeIndex v i)
 {-# INLINE setOrdinals #-}
 

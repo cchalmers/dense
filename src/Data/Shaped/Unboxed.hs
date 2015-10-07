@@ -83,6 +83,13 @@ module Data.Shaped.Unboxed
   -- ** Modifying arrays
   , (//)
 
+  -- ** Accumulations
+  , accum
+
+  -- ** Mapping
+  , map
+  , imap
+
   -- * Zipping
   -- ** Tuples
   , zip
@@ -163,18 +170,18 @@ module Data.Shaped.Unboxed
   , _zx
   ) where
 
-import qualified Data.Vector.Unboxed as UV
-import qualified Data.Shaped.Generic as G
-import qualified Data.Shaped.Mutable as M
+import           Control.Lens            hiding (imap)
 import           Control.Monad.Primitive
+import           Control.Monad.ST
+import qualified Data.Shaped.Generic     as G
 import           Data.Shaped.Index
-import           Data.Vector.Unboxed (Vector, Unbox)
-import Control.Lens
-import Linear
-import Control.Monad.ST
+import qualified Data.Shaped.Mutable     as M
+import           Data.Vector.Unboxed     (Unbox, Vector)
+import qualified Data.Vector.Unboxed     as UV
+import           Linear
 
-import           Prelude                        hiding (null, replicate, zip, zip3,
-                                                 zipWith, zipWith3)
+import           Prelude                 hiding (map, null, replicate, zip,
+                                          zip3, zipWith, zipWith3)
 
 type Array = G.UArray
 type MArray = G.UMArray
@@ -365,10 +372,39 @@ linearGenerateM :: (Monad m, Shape l, Unbox a) => Layout l-> (Int -> m a) -> m (
 linearGenerateM = G.linearGenerateM
 {-# INLINE linearGenerateM #-}
 
+-- Modifying -----------------------------------------------------------
+
+-- | /O(n)/ Map a function over an array
+map :: (Unbox a, Unbox b) => (a -> b) -> Array l a -> Array l b
+map = G.map
+{-# INLINE map #-}
+
+-- | /O(n)/ Apply a function to every element of a vector and its index
+imap :: (Shape l, Unbox a, Unbox b) => (l Int -> a -> b) -> Array l a -> Array l b
+imap = G.imap
+{-# INLINE imap #-}
+
+-- Bulk updates --------------------------------------------------------
+
+
 -- | For each pair (i,a) from the list, replace the array element at
 --   position i by a.
 (//) :: (Unbox a, Shape l) => Array l a -> [(l Int, a)] -> Array l a
 (//) = (G.//)
+{-# INLINE (//) #-}
+
+-- Accumilation --------------------------------------------------------
+
+-- | /O(m+n)/ For each pair @(i,b)@ from the list, replace the array element
+--   @a@ at position @i@ by @f a b@.
+--
+accum :: (Shape l, Unbox a)
+      => (a -> b -> a) -- ^ accumulating function @f@
+      -> Array l a     -- ^ initial array
+      -> [(l Int, b)]  -- ^ list of index/value pairs (of length @n@)
+      -> Array l a
+accum = G.accum
+{-# INLINE accum #-}
 
 ------------------------------------------------------------------------
 -- Zipping

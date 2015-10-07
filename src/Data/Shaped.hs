@@ -19,7 +19,7 @@
 -- "shaped" without exporting names that conflict with names in prelude,
 -- so it can often be imported unqualified.
 --
--- For boxed-specific arrays see 'Data.Shaped.Boxed'.
+-- For boxed-specific arrays (a la 'Data.Vector') see 'Data.Shaped.Boxed'.
 -----------------------------------------------------------------------------
 module Data.Shaped
   (
