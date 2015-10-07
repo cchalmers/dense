@@ -19,8 +19,8 @@
 -----------------------------------------------------------------------------
 module Data.Shaped.Unboxed
   (
-    -- * Array types
-    Array
+    -- * UArray types
+    UArray
   , Shape (..)
 
     -- ** Extracting size
@@ -118,7 +118,7 @@ module Data.Shaped.Unboxed
   , unsafeOrdinals
 
   -- * Mutable
-  , M.UMArray
+  , UMArray
 
   , thaw
   , freeze
@@ -173,30 +173,28 @@ module Data.Shaped.Unboxed
 import           Control.Lens            hiding (imap)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
-import qualified Data.Shaped.Generic     as G
-import           Data.Shaped.Index
-import qualified Data.Shaped.Mutable     as M
 import           Data.Vector.Unboxed     (Unbox, Vector)
-import qualified Data.Vector.Unboxed     as UV
 import           Linear
 
 import           Prelude                 hiding (map, null, replicate, zip,
                                           zip3, zipWith, zipWith3)
 
-type Array = G.UArray
-type MArray = G.UMArray
+import           Data.Shaped.Generic     (UArray)
+import qualified Data.Shaped.Generic     as G
+import           Data.Shaped.Index
+import           Data.Shaped.Mutable     (UMArray)
 
 -- Lenses --------------------------------------------------------------
 
 -- | Same as 'values' but restrictive in the vector type.
 values :: (Shape l, Unbox a, Unbox b)
-       => IndexedTraversal (l Int) (Array l a) (Array l b) a b
+       => IndexedTraversal (l Int) (UArray l a) (UArray l b) a b
 values = G.values'
 {-# INLINE values #-}
 
 -- | Same as 'values' but restrictive in the vector type.
 values' :: (Shape l, Unbox a, Unbox b)
-       => IndexedTraversal (l Int) (Array l a) (Array l b) a b
+       => IndexedTraversal (l Int) (UArray l a) (UArray l b) a b
 values' = G.values'
 {-# INLINE values' #-}
 
@@ -206,7 +204,7 @@ values' = G.values'
 --   Note that 'V1' arrays are an instance of 'Vector' so you can use
 --   any of the functions in 'Data.Vector.Generic' on them without
 --   needing to convert.
-flat :: (Unbox a, Unbox b) => Iso (Array V1 a) (Array V1 b) (Vector a) (Vector b)
+flat :: (Unbox a, Unbox b) => Iso (UArray V1 a) (UArray V1 b) (Vector a) (Vector b)
 flat = G.flat
 {-# INLINE flat #-}
 
@@ -214,42 +212,42 @@ flat = G.flat
 
 -- | Contruct a flat array from a list. (This is just 'G.fromList' from
 --   'Data.Vector.Generic'.)
-fromList :: Unbox a => [a] -> Array V1 a
+fromList :: Unbox a => [a] -> UArray V1 a
 fromList = G.fromList
 {-# INLINE fromList #-}
 
--- | O(n) Convert the first @n@ elements of a list to an Arrayith the
+-- | O(n) Convert the first @n@ elements of a list to an UArrayith the
 --   given shape. Returns 'Nothing' if there are not enough elements in
 --   the list.
-fromListInto :: (Shape l, Unbox a) => Layout l-> [a] -> Maybe (Array l a)
+fromListInto :: (Shape l, Unbox a) => Layout l-> [a] -> Maybe (UArray l a)
 fromListInto = G.fromListInto
 {-# INLINE fromListInto #-}
 
--- | O(n) Convert the first @n@ elements of a list to an Arrayith the
+-- | O(n) Convert the first @n@ elements of a list to an UArrayith the
 --   given shape. Throw an error if the list is not long enough.
-fromListInto_ :: (Shape l, Unbox a) => Layout l-> [a] -> Array l a
+fromListInto_ :: (Shape l, Unbox a) => Layout l-> [a] -> UArray l a
 fromListInto_ = G.fromListInto_
 {-# INLINE fromListInto_ #-}
 
 -- | Create an array from a 'vector' and a 'layout'. Return 'Nothing' if
 --   the vector is not the right shape.
-fromVectorInto :: (Shape l, Unbox a) => Layout l-> Vector a -> Maybe (Array l a)
+fromVectorInto :: (Shape l, Unbox a) => Layout l-> Vector a -> Maybe (UArray l a)
 fromVectorInto = G.fromVectorInto
 {-# INLINE fromVectorInto #-}
 
 -- | Create an array from a 'vector' and a 'layout'. Throws an error if
 --   the vector is not the right shape.
-fromVectorInto_ :: (Shape l, Unbox a) => Layout l-> Vector a -> Array l a
+fromVectorInto_ :: (Shape l, Unbox a) => Layout l-> Vector a -> UArray l a
 fromVectorInto_ = G.fromVectorInto_
 {-# INLINE fromVectorInto_ #-}
 
--- | The empty 'Array' with a 'zero' shape.
-empty :: (Unbox a, Additive l) => Array l a
+-- | The empty 'UArray' with a 'zero' shape.
+empty :: (Unbox a, Additive l) => UArray l a
 empty = G.empty
 {-# INLINE empty #-}
 
 -- | Test is if the array is 'empty'.
-null :: Foldable l => Array l a -> Bool
+null :: Foldable l => UArray l a -> Bool
 null = G.null
 {-# INLINE null #-}
 
@@ -257,28 +255,28 @@ null = G.null
 
 -- | Index an element of an array. Throws 'IndexOutOfBounds' if the
 --   index is out of bounds.
-(!) :: (Shape l, Unbox a) => Array l a -> l Int -> a
+(!) :: (Shape l, Unbox a) => UArray l a -> l Int -> a
 (!) = (G.!)
 {-# INLINE (!) #-}
 
 -- | Safe index of an element.
-(!?) :: (Shape l, Unbox a) => Array l a -> l Int -> Maybe a
+(!?) :: (Shape l, Unbox a) => UArray l a -> l Int -> Maybe a
 (!?) = (G.!?)
 {-# INLINE (!?) #-}
 
 -- | Index an element of an array without bounds checking.
-unsafeIndex :: (Shape l, Unbox a) => l Int -> Array l a -> a
+unsafeIndex :: (Shape l, Unbox a) => l Int -> UArray l a -> a
 unsafeIndex = G.unsafeIndex
 {-# INLINE unsafeIndex #-}
 
 -- | Index an element of an array while ignoring its shape.
-linearIndex :: Unbox a => Int -> Array l a -> a
+linearIndex :: Unbox a => Int -> UArray l a -> a
 linearIndex = G.linearIndex
 {-# INLINE linearIndex #-}
 
 -- | Index an element of an array while ignoring its shape, without
 --   bounds checking.
-unsafeLinearIndex :: Unbox a => Int -> Array l a -> a
+unsafeLinearIndex :: Unbox a => Int -> UArray l a -> a
 unsafeLinearIndex = G.unsafeLinearIndex
 {-# INLINE unsafeLinearIndex #-}
 
@@ -305,25 +303,25 @@ unsafeLinearIndex = G.unsafeLinearIndex
 --   the elements) is evaluated eagerly.
 --
 --   Throws an error if the index is out of range.
-indexM :: (Shape l, Unbox a, Monad m) => Array l a -> l Int -> m a
+indexM :: (Shape l, Unbox a, Monad m) => UArray l a -> l Int -> m a
 indexM = G.indexM
 {-# INLINE indexM #-}
 
 -- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
 --   explanation of why this is useful.
-unsafeIndexM :: (Shape l, Unbox a, Monad m) => Array l a -> l Int -> m a
+unsafeIndexM :: (Shape l, Unbox a, Monad m) => UArray l a -> l Int -> m a
 unsafeIndexM = G.unsafeIndexM
 {-# INLINE unsafeIndexM #-}
 
 -- | /O(1)/ Indexing in a monad. Throws an error if the index is out of
 --   range.
-linearIndexM :: (Shape l, Unbox a, Monad m) => Array l a -> Int -> m a
+linearIndexM :: (Shape l, Unbox a, Monad m) => UArray l a -> Int -> m a
 linearIndexM = G.linearIndexM
 {-# INLINE linearIndexM #-}
 
 -- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
 --   explanation of why this is useful.
-unsafeLinearIndexM :: (Unbox a, Monad m) => Array l a -> Int -> m a
+unsafeLinearIndexM :: (Unbox a, Monad m) => UArray l a -> Int -> m a
 unsafeLinearIndexM = G.unsafeLinearIndexM
 {-# INLINE unsafeLinearIndexM #-}
 
@@ -331,24 +329,24 @@ unsafeLinearIndexM = G.unsafeLinearIndexM
 
 -- | Execute the monadic action and freeze the resulting array.
 create :: (Unbox a, Shape l)
-       => (forall s. ST s (M.MArray UV.MVector l s a)) -> Array l a
+       => (forall s. ST s (UMArray l s a)) -> UArray l a
 create m = m `seq` runST (m >>= G.unsafeFreeze)
 {-# INLINE create #-}
 
--- | O(n) Array of the given shape with the same value in each position.
-replicate :: (Shape l, Unbox a) => l Int -> a -> Array l a
+-- | O(n) UArray of the given shape with the same value in each position.
+replicate :: (Shape l, Unbox a) => l Int -> a -> UArray l a
 replicate = G.replicate
 {-# INLINE replicate #-}
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-linearGenerate :: (Shape l, Unbox a) => Layout l-> (Int -> a) -> Array l a
+linearGenerate :: (Shape l, Unbox a) => Layout l-> (Int -> a) -> UArray l a
 linearGenerate = G.linearGenerate
 {-# INLINE linearGenerate #-}
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-generate :: (Shape l, Unbox a) => Layout l-> (l Int -> a) -> Array l a
+generate :: (Shape l, Unbox a) => Layout l-> (l Int -> a) -> UArray l a
 generate = G.generate
 {-# INLINE generate #-}
 
@@ -356,31 +354,31 @@ generate = G.generate
 
 -- | O(n) Construct an array of the given shape by filling each position
 --   with the monadic value.
-replicateM :: (Monad m, Shape l, Unbox a) => Layout l -> m a -> m (Array l a)
+replicateM :: (Monad m, Shape l, Unbox a) => Layout l -> m a -> m (UArray l a)
 replicateM = G.replicateM
 {-# INLINE replicateM #-}
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-generateM :: (Monad m, Shape l, Unbox a) => Layout l-> (l Int -> m a) -> m (Array l a)
+generateM :: (Monad m, Shape l, Unbox a) => Layout l-> (l Int -> m a) -> m (UArray l a)
 generateM = G.generateM
 {-# INLINE generateM #-}
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-linearGenerateM :: (Monad m, Shape l, Unbox a) => Layout l-> (Int -> m a) -> m (Array l a)
+linearGenerateM :: (Monad m, Shape l, Unbox a) => Layout l-> (Int -> m a) -> m (UArray l a)
 linearGenerateM = G.linearGenerateM
 {-# INLINE linearGenerateM #-}
 
 -- Modifying -----------------------------------------------------------
 
 -- | /O(n)/ Map a function over an array
-map :: (Unbox a, Unbox b) => (a -> b) -> Array l a -> Array l b
+map :: (Unbox a, Unbox b) => (a -> b) -> UArray l a -> UArray l b
 map = G.map
 {-# INLINE map #-}
 
 -- | /O(n)/ Apply a function to every element of a vector and its index
-imap :: (Shape l, Unbox a, Unbox b) => (l Int -> a -> b) -> Array l a -> Array l b
+imap :: (Shape l, Unbox a, Unbox b) => (l Int -> a -> b) -> UArray l a -> UArray l b
 imap = G.imap
 {-# INLINE imap #-}
 
@@ -389,7 +387,7 @@ imap = G.imap
 
 -- | For each pair (i,a) from the list, replace the array element at
 --   position i by a.
-(//) :: (Unbox a, Shape l) => Array l a -> [(l Int, a)] -> Array l a
+(//) :: (Unbox a, Shape l) => UArray l a -> [(l Int, a)] -> UArray l a
 (//) = (G.//)
 {-# INLINE (//) #-}
 
@@ -400,9 +398,9 @@ imap = G.imap
 --
 accum :: (Shape l, Unbox a)
       => (a -> b -> a) -- ^ accumulating function @f@
-      -> Array l a     -- ^ initial array
+      -> UArray l a     -- ^ initial array
       -> [(l Int, b)]  -- ^ list of index/value pairs (of length @n@)
-      -> Array l a
+      -> UArray l a
 accum = G.accum
 {-# INLINE accum #-}
 
@@ -415,18 +413,18 @@ accum = G.accum
 -- | Zip two arrays element wise. If the array's don't have the same
 --   shape, the new array with be the intersection of the two shapes.
 zip :: (Shape l, Unbox a, Unbox b)
-    => Array l a
-    -> Array l b
-    -> Array l (a,b)
+    => UArray l a
+    -> UArray l b
+    -> UArray l (a,b)
 zip = G.zip
 
 -- | Zip three arrays element wise. If the array's don't have the same
 --   shape, the new array with be the intersection of the two shapes.
 zip3 :: (Shape l, Unbox a, Unbox b, Unbox c)
-     => Array l a
-     -> Array l b
-     -> Array l c
-     -> Array l (a,b,c)
+     => UArray l a
+     -> UArray l b
+     -> UArray l c
+     -> UArray l (a,b,c)
 zip3 = G.zip3
 
 -- Zip with function ---------------------------------------------------
@@ -436,9 +434,9 @@ zip3 = G.zip3
 --   shapes.
 zipWith :: (Shape l, Unbox a, Unbox b, Unbox c)
         => (a -> b -> c)
-        -> Array l a
-        -> Array l b
-        -> Array l c
+        -> UArray l a
+        -> UArray l b
+        -> UArray l c
 zipWith = G.zipWith
 {-# INLINE zipWith #-}
 
@@ -447,10 +445,10 @@ zipWith = G.zipWith
 --   two shapes.
 zipWith3 :: (Shape l, Unbox a, Unbox b, Unbox c, Unbox d)
          => (a -> b -> c -> d)
-         -> Array l a
-         -> Array l b
-         -> Array l c
-         -> Array l d
+         -> UArray l a
+         -> UArray l b
+         -> UArray l c
+         -> UArray l d
 zipWith3 = G.zipWith3
 {-# INLINE zipWith3 #-}
 
@@ -461,9 +459,9 @@ zipWith3 = G.zipWith3
 --   intersection of the two shapes.
 izipWith :: (Shape l, Unbox a, Unbox b, Unbox c)
          => (l Int -> a -> b -> c)
-         -> Array l a
-         -> Array l b
-         -> Array l c
+         -> UArray l a
+         -> UArray l b
+         -> UArray l c
 izipWith = G.izipWith
 {-# INLINE izipWith #-}
 
@@ -472,10 +470,10 @@ izipWith = G.izipWith
 --   intersection of the two shapes.
 izipWith3 :: (Shape l, Unbox a, Unbox b, Unbox c, Unbox d)
           => (l Int -> a -> b -> c -> d)
-          -> Array l a
-          -> Array l b
-          -> Array l c
-          -> Array l d
+          -> UArray l a
+          -> UArray l b
+          -> UArray l c
+          -> UArray l d
 izipWith3 = G.izipWith3
 {-# INLINE izipWith3 #-}
 
@@ -485,7 +483,7 @@ izipWith3 = G.izipWith3
 
 -- $setup
 -- >>> import Debug.SimpleReflect
--- >>> let m = fromListInto_ (V2 3 4) [a,b,c,d,e,f,g,h,i,j,k,l] :: BArray V2 Expr
+-- >>> let m = fromListInto_ (V2 3 4) [a,b,c,d,e,f,g,h,i,j,k,l] :: BUArray V2 Expr
 
 -- | Indexed traversal over the rows of a matrix. Each row is an
 --   efficient 'Data.Vector.Generic.slice' of the original vector.
@@ -495,7 +493,7 @@ izipWith3 = G.izipWith3
 -- [e,f,g,h]
 -- [i,j,k,l]
 rows :: (Unbox a, Unbox b)
-     => IndexedTraversal Int (Array V2 a) (Array V2 b) (Vector a) (Vector b)
+     => IndexedTraversal Int (UArray V2 a) (UArray V2 b) (Vector a) (Vector b)
 rows = G.rows
 {-# INLINE rows #-}
 
@@ -518,7 +516,7 @@ rows = G.rows
 -- [a,b,c,d]
 -- [0,1,2,3]
 -- [i,j,k,l]
-ixRow :: Unbox a => Int -> IndexedTraversal' Int (Array V2 a) (Vector a)
+ixRow :: Unbox a => Int -> IndexedTraversal' Int (UArray V2 a) (Vector a)
 ixRow = G.ixRow
 {-# INLINE ixRow #-}
 
@@ -540,7 +538,7 @@ ixRow = G.ixRow
 --   vectors are different sizes, the number of rows in the new array
 --   will be the length of the smallest vector.
 columns :: (Unbox a, Unbox b)
-        => IndexedTraversal Int (Array V2 a) (Array V2 b) (Vector a) (Vector b)
+        => IndexedTraversal Int (UArray V2 a) (UArray V2 b) (Vector a) (Vector b)
 columns = G.columns
 {-# INLINE columns #-}
 
@@ -550,7 +548,7 @@ columns = G.columns
 -- [a,b,c + 1,d]
 -- [e,f,g + 1,h]
 -- [i,j,k + 1,l]
-ixColumn :: Unbox a => Int -> IndexedTraversal' Int (Array V2 a) (Vector a)
+ixColumn :: Unbox a => Int -> IndexedTraversal' Int (UArray V2 a) (Vector a)
 ixColumn = G.ixColumn
 {-# INLINE ixColumn #-}
 
@@ -559,7 +557,7 @@ ixColumn = G.ixColumn
 ixPlane :: Unbox a
         => ALens' (V3 Int) (V2 Int)
         -> Int
-        -> IndexedTraversal' Int (Array V3 a) (Array V2 a)
+        -> IndexedTraversal' Int (UArray V3 a) (UArray V2 a)
 ixPlane = G.ixPlane
 {-# INLINE ixPlane #-}
 
@@ -567,7 +565,7 @@ ixPlane = G.ixPlane
 --   (like '_xy', '_yz', '_zx').
 planes :: (Unbox a, Unbox b)
        => ALens' (V3 Int) (V2 Int)
-       -> IndexedTraversal Int (Array V3 a) (Array V3 b) (Array V2 a) (Array V2 b)
+       -> IndexedTraversal Int (UArray V3 a) (UArray V3 b) (UArray V2 a) (UArray V2 b)
 planes = G.planes
 {-# INLINE planes #-}
 
@@ -576,8 +574,8 @@ planes = G.planes
 flattenPlane :: (Unbox a, Unbox b)
              => ALens' (V3 Int) (V2 Int)
              -> (Vector a -> b)
-             -> Array V3 a
-             -> Array V2 b
+             -> UArray V3 a
+             -> UArray V2 b
 flattenPlane = G.flattenPlane
 {-# INLINE flattenPlane #-}
 
@@ -585,7 +583,7 @@ flattenPlane = G.flattenPlane
 
 -- | This 'Traversal' should not have any duplicates in the list of
 --   indices.
-unsafeOrdinals :: (Unbox a, Shape l) => [l Int] -> IndexedTraversal' (l Int) (Array l a) a
+unsafeOrdinals :: (Unbox a, Shape l) => [l Int] -> IndexedTraversal' (l Int) (UArray l a) a
 unsafeOrdinals = G.unsafeOrdinals
 {-# INLINE [0] unsafeOrdinals #-}
 
@@ -593,27 +591,27 @@ unsafeOrdinals = G.unsafeOrdinals
 
 -- | O(n) Yield a mutable copy of the immutable vector.
 freeze :: (PrimMonad m, Shape l, Unbox a)
-       => MArray l (PrimState m) a -> m (Array l a)
+       => UMArray l (PrimState m) a -> m (UArray l a)
 freeze = G.freeze
 {-# INLINE freeze #-}
 
 -- | O(n) Yield an immutable copy of the mutable array.
 thaw :: (PrimMonad m, Shape l, Unbox a)
-     => Array l a -> m (MArray l (PrimState m) a)
+     => UArray l a -> m (UMArray l (PrimState m) a)
 thaw = G.thaw
 {-# INLINE thaw #-}
 
 -- | O(1) Unsafe convert a mutable array to an immutable one without
 -- copying. The mutable array may not be used after this operation.
 unsafeFreeze :: (PrimMonad m, Shape l, Unbox a)
-             => MArray l (PrimState m) a -> m (Array l a)
+             => UMArray l (PrimState m) a -> m (UArray l a)
 unsafeFreeze = G.unsafeFreeze
 {-# INLINE unsafeFreeze #-}
 
 -- | O(1) Unsafely convert an immutable array to a mutable one without
 --   copying. The immutable array may not be used after this operation.
 unsafeThaw :: (PrimMonad m, Shape l, Unbox a)
-           => Array l a -> m (MArray l (PrimState m) a)
+           => UArray l a -> m (UMArray l (PrimState m) a)
 unsafeThaw = G.unsafeThaw
 {-# INLINE unsafeThaw #-}
 
@@ -625,12 +623,12 @@ unsafeThaw = G.unsafeThaw
 -- | Isomorphism between an array and it's delayed representation.
 --   Conversion to the array is done in parallel.
 delayed :: (Unbox a, Unbox b, Shape l, Shape k)
-        => Iso (Array l a) (Array k b) (G.Delayed l a) (G.Delayed k b)
+        => Iso (UArray l a) (UArray k b) (G.Delayed l a) (G.Delayed k b)
 delayed = G.delayed
 {-# INLINE delayed #-}
 
 -- | Sequential manifestation of a delayed array.
-manifestS :: (Unbox a, Shape l) => G.Delayed l a -> Array l a
+manifestS :: (Unbox a, Shape l) => G.Delayed l a -> UArray l a
 manifestS = G.manifestS
 {-# INLINE manifestS #-}
 
