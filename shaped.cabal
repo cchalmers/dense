@@ -22,7 +22,6 @@ library
     Data.Shaped.Base
     Data.Shaped.Generic
     Data.Shaped.Unboxed
-    Data.Shaped.Fusion
     Data.Shaped.Mutable
     Data.Shaped.Index
   other-extensions:

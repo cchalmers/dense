@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP                   #-}
+-- {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -34,6 +34,10 @@ module Data.Shaped.Generic
     -- ** Extracting size
   , extent
   , size
+
+    -- ** Folds over indexes
+  , indexes
+  , indexesBetween
 
     -- * Underlying vector
   , vector
@@ -156,6 +160,17 @@ module Data.Shaped.Generic
   , locale
   , shiftFocus
 
+  -- * Fusion
+  -- ** Streams
+  , streamGenerate
+  , streamGenerateM
+  , streamIndexes
+
+  -- ** Bundles
+  , bundleGenerate
+  , bundleGenerateM
+  , bundleIndexes
+
   -- * Common shapes
   , V1 (..)
   , V2 (..)
@@ -175,10 +190,10 @@ module Data.Shaped.Generic
   ) where
 
 
-#if __GLASGOW_HASKELL__ <= 708
-import           Control.Applicative            (Applicative, (<*>), pure)
-import           Data.Foldable                  (Foldable)
-#endif
+-- #if __GLASGOW_HASKELL__ <= 708
+-- import           Control.Applicative            (Applicative, (<*>), pure)
+-- import           Data.Foldable                  (Foldable)
+-- #endif
 
 import           Control.Comonad
 import           Control.Comonad.Store
@@ -190,10 +205,13 @@ import           Data.Functor.Classes
 import qualified Data.List                   as L
 import           Data.Maybe                     (fromMaybe)
 import qualified Data.Vector                    as B
-import           Data.Vector.Fusion.Bundle      (Bundle)
+import           Data.Vector.Fusion.Bundle      (MBundle)
 import qualified Data.Vector.Fusion.Bundle      as Bundle
+import qualified Data.Vector.Fusion.Bundle.Monadic      as MBundle
+import qualified Data.Vector.Fusion.Stream.Monadic      as Stream
+import           Data.Vector.Fusion.Stream.Monadic (Step (..), Stream (..))
 import           Data.Vector.Fusion.Bundle.Size
-import           Data.Vector.Fusion.Util
+-- import           Data.Vector.Fusion.Util
 import           Data.Vector.Generic            (Vector)
 import qualified Data.Vector.Generic            as G
 import           Data.Vector.Generic.Lens       (toVectorOf)
@@ -201,9 +219,11 @@ import qualified Data.Vector.Generic.Mutable    as GM
 import qualified Data.Vector.Primitive          as P
 import qualified Data.Vector.Storable           as S
 import qualified Data.Vector.Unboxed            as U
+import Control.Monad.Primitive
 import           Linear                         hiding (vector)
 
 import           Data.Shaped.Base
+-- import           Data.Shaped.Fusion
 import           Data.Shaped.Index
 import           Data.Shaped.Mutable            (MArray (..))
 import qualified Data.Shaped.Mutable            as M
@@ -254,7 +274,7 @@ fromList = G.fromList
 -- | O(n) Convert the first @n@ elements of a list to an Array with the
 --   given shape. Returns 'Nothing' if there are not enough elements in
 --   the list.
-fromListInto :: (Shape l, Vector v a) => Layout l-> [a] -> Maybe (Array v l a)
+fromListInto :: (Shape l, Vector v a) => Layout l -> [a] -> Maybe (Array v l a)
 fromListInto l as
   | G.length v == n = Just $ Array l v
   | otherwise       = Nothing
@@ -264,7 +284,7 @@ fromListInto l as
 
 -- | O(n) Convert the first @n@ elements of a list to an Array with the
 --   given shape. Throw an error if the list is not long enough.
-fromListInto_ :: (Shape l, Vector v a) => Layout l-> [a] -> Array v l a
+fromListInto_ :: (Shape l, Vector v a) => Layout l -> [a] -> Array v l a
 fromListInto_ l as = fromMaybe err $ fromListInto l as
   where
     err = error $ "fromListInto_: shape " ++ showShape l ++ " is too large for list"
@@ -272,7 +292,7 @@ fromListInto_ l as = fromMaybe err $ fromListInto l as
 
 -- | Create an array from a 'vector' and a 'layout'. Return 'Nothing' if
 --   the vector is not the right shape.
-fromVectorInto :: (Shape l, Vector v a) => Layout l-> v a -> Maybe (Array v l a)
+fromVectorInto :: (Shape l, Vector v a) => Layout l -> v a -> Maybe (Array v l a)
 fromVectorInto l v
   | F.product l == G.length v = Just $! Array l v
   | otherwise                 = Nothing
@@ -280,7 +300,7 @@ fromVectorInto l v
 
 -- | Create an array from a 'vector' and a 'layout'. Throws an error if
 --   the vector is not the right shape.
-fromVectorInto_ :: (Shape l, Vector v a) => Layout l-> v a -> Array v l a
+fromVectorInto_ :: (Shape l, Vector v a) => Layout l -> v a -> Array v l a
 fromVectorInto_ l as = fromMaybe err $ fromVectorInto l as
   where
     err = error $ "fromVectorInto_: shape " ++ showShape l ++ " is too large for the vector"
@@ -390,7 +410,7 @@ replicate l a
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-linearGenerate :: (Shape l, Vector v a) => Layout l-> (Int -> a) -> Array v l a
+linearGenerate :: (Shape l, Vector v a) => Layout l -> (Int -> a) -> Array v l a
 linearGenerate l f
   | n > 0     = Array l $ G.generate n f
   | otherwise = empty
@@ -399,11 +419,8 @@ linearGenerate l f
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-generate :: (Shape l, Vector v a) => Layout l-> (l Int -> a) -> Array v l a
-generate l f
-  | n > 0     = Array l $ G.generate n (f . fromIndex l)
-  | otherwise = empty
-  where n = F.product l
+generate :: (Shape l, Vector v a) => Layout l -> (l Int -> a) -> Array v l a
+generate l f = Array l $ G.unstream (bundleGenerate l f)
 {-# INLINE generate #-}
 
 -- Monadic initialisation ----------------------------------------------
@@ -419,16 +436,13 @@ replicateM l a
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-generateM :: (Monad m, Shape l, Vector v a) => Layout l-> (l Int -> m a) -> m (Array v l a)
-generateM l f
-  | n > 0     = Array l `liftM` G.generateM n (f . fromIndex l)
-  | otherwise = return empty
-  where n = F.product l
+generateM :: (Monad m, Shape l, Vector v a) => Layout l -> (l Int -> m a) -> m (Array v l a)
+generateM l f = Array l `liftM` unstreamM (bundleGenerateM l f)
 {-# INLINE generateM #-}
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-linearGenerateM :: (Monad m, Shape l, Vector v a) => Layout l-> (Int -> m a) -> m (Array v l a)
+linearGenerateM :: (Monad m, Shape l, Vector v a) => Layout l -> (Int -> m a) -> m (Array v l a)
 linearGenerateM l f
   | n > 0     = Array l `liftM` G.generateM n f
   | otherwise = return empty
@@ -444,19 +458,99 @@ Array l v // xs = Array l $ v G.// over (each . _1) (toIndex l) xs
 -- Streams
 ------------------------------------------------------------------------
 
-streamSub :: (Shape l, Vector v a) => Layout l-> Array v l a -> Bundle v a
-streamSub l2 (Array l1 v) | eq1 l1 l2 = G.stream v
-streamSub l2 (Array l1 v)             = Bundle.unfoldr get 0 `Bundle.sized` Exact n
+-- streamSub :: (Shape l, Vector v a) => Layout l -> Array v l a -> Bundle v a
+-- streamSub l2 (Array l1 v) | eq1 l1 l2 = G.stream v
+-- streamSub l2 (Array l1 v)             = Bundle.unfoldr get 0 `Bundle.sized` Exact n
+--   where
+--     n = F.product l2
+
+--     get i | i >= n    = Nothing
+--           | otherwise = case G.basicUnsafeIndexM v (toIndex l1 j) of Box x -> Just (x, i+1)
+--       where j = fromIndex l2 i
+
+-- streamShape :: Shape l => Layout l -> Bundle v (l Int)
+-- streamShape l = Bundle.fromListN (F.product l) $ toListOf shapeIndexes l
+-- {-# INLINE streamShape #-}
+
+-- Copied from Data.Vector.Generic because it isn't exported from there.
+
+unstreamM :: (Monad m, Vector v a) => Bundle.MBundle m u a -> m (v a)
+{-# INLINE [1] unstreamM #-}
+unstreamM s = do
+  xs <- MBundle.toList s
+  return $ G.unstream $ Bundle.unsafeFromList (MBundle.size s) xs
+
+unstreamPrimM :: (PrimMonad m, Vector v a) => Bundle.MBundle m u a -> m (v a)
+{-# INLINE [1] unstreamPrimM #-}
+unstreamPrimM s = GM.munstream s >>= G.unsafeFreeze
+
+-- FIXME: the next two functions are only necessary for the specialisations
+unstreamPrimM_IO :: Vector v a => Bundle.MBundle IO u a -> IO (v a)
+{-# INLINE unstreamPrimM_IO #-}
+unstreamPrimM_IO = unstreamPrimM
+
+unstreamPrimM_ST :: Vector v a => Bundle.MBundle (ST s) u a -> ST s (v a)
+{-# INLINE unstreamPrimM_ST #-}
+unstreamPrimM_ST = unstreamPrimM
+
+{-# RULES
+
+"unstreamM[IO]" unstreamM = unstreamPrimM_IO
+"unstreamM[ST]" unstreamM = unstreamPrimM_ST  #-}
+
+-- | Generate a stream from a 'Layout''s indices.
+streamGenerate :: (Monad m, Shape l) => Layout l -> (l Int -> a) -> Stream m a
+streamGenerate l f = streamGenerateM l (return . f)
+{-# INLINE streamGenerate #-}
+
+-- | Generate a stream from a 'Layout''s indices.
+streamGenerateM :: (Monad m, Shape l) => Layout l -> (l Int -> m a) -> Stream m a
+streamGenerateM l f = l `seq` Stream step (if eq1 l zero then Nothing else Just zero)
   where
-    n = F.product l2
+    {-# INLINE [0] step #-}
+    step (Just i) = do
+      x <- f i
+      return $ Yield x (stepShape l i)
+    step Nothing  = return Done
+{-# INLINE [1] streamGenerateM #-}
 
-    get i | i >= n    = Nothing
-          | otherwise = case G.basicUnsafeIndexM v (toIndex l1 j) of Box x -> Just (x, i+1)
-      where j = fromIndex l2 i
+-- | Stream a sub-layout of an 'Array'. The layout should be inRange of
+--   the array's layout, this is not checked.
+unsafeStreamSub :: (Monad m, Shape l, G.Vector v a) => Layout l -> Array v l a -> Stream m a
+unsafeStreamSub l2 (Array l1 v) = streamGenerateM l2 $ \x -> G.basicUnsafeIndexM v (toIndex l1 x)
+{-# INLINE unsafeStreamSub #-}
 
-streamShape :: Shape l => Layout l -> Bundle v (l Int)
-streamShape l = Bundle.fromListN (F.product l) $ toListOf shapeIndexes l
-{-# INLINE streamShape #-}
+-- | Stream a sub-layout of an 'Array'.
+streamSub :: (Monad m, Shape l, G.Vector v a) => Layout l -> Array v l a -> Stream m a
+streamSub l2 arr@(Array l1 _) = unsafeStreamSub (intersectShape l1 l2) arr
+{-# INLINE streamSub #-}
+
+-- | Make a stream of the indexes of a 'Layout'.
+streamIndexes :: (Monad m, Shape l) => Layout l -> Stream m (l Int)
+streamIndexes l = Stream step (if eq1 l zero then Nothing else Just zero)
+  where
+    {-# INLINE [0] step #-}
+    step (Just i) = return $ Yield i (stepShape l i)
+    step Nothing  = return Done
+{-# INLINE [1] streamIndexes #-}
+
+------------------------------------------------------------------------
+-- Bundles
+------------------------------------------------------------------------
+
+-- | Generate a bundle from 'Layout' indices.
+bundleGenerate :: (Monad m, Shape l) => Layout l -> (l Int -> a) -> MBundle m v a
+bundleGenerate l f = bundleGenerateM l (return . f)
+{-# INLINE bundleGenerate #-}
+
+-- | Generate a bundle from 'Layout' indices.
+bundleGenerateM :: (Monad m, Shape l) => Layout l -> (l Int -> m a) -> MBundle m v a
+bundleGenerateM l f = MBundle.fromStream (streamGenerateM l f) (Exact (F.product l))
+{-# INLINE [1] bundleGenerateM #-}
+
+bundleIndexes :: (Monad m, Shape l) => Layout l -> MBundle m v (l Int)
+bundleIndexes l = MBundle.fromStream (streamIndexes l) (Exact (F.product l))
+{-# INLINE [1] bundleIndexes #-}
 
 ------------------------------------------------------------------------
 -- Zipping
@@ -493,8 +587,10 @@ zipWith :: (Shape l, Vector v a, Vector v b, Vector v c)
         -> Array v l c
 zipWith f a1@(Array l1 v1) a2@(Array l2 v2)
   | eq1 l1 l1 = Array l1 $ G.zipWith f v1 v2
-  | otherwise = Array l' $ G.unstream $ Bundle.zipWith f (streamSub l' a1) (streamSub l' a2)
+  | otherwise = Array l' $ G.unstream $
+      MBundle.fromStream (Stream.zipWith f (streamSub l' a1) (streamSub l' a2)) (Exact (F.product l'))
   where l' = intersectShape l1 l2
+{-# INLINE zipWith #-}
 
 -- | Zip three arrays using the given function. If the array's don't
 --   have the same shape, the new array with be the intersection of the
@@ -508,8 +604,10 @@ zipWith3 :: (Shape l, Vector v a, Vector v b, Vector v c, Vector v d)
 zipWith3 f a1@(Array l1 v1) a2@(Array l2 v2) a3@(Array l3 v3)
   | eq1 l1 l2 &&
     eq1 l2 l3 = Array l1 $ G.zipWith3 f v1 v2 v3
-  | otherwise = Array l' $ G.unstream $ Bundle.zipWith3 f (streamSub l' a1) (streamSub l' a2) (streamSub l' a3)
+  | otherwise = Array l' $ G.unstream $
+      MBundle.fromStream (Stream.zipWith3 f (streamSub l' a1) (streamSub l' a2) (streamSub l' a3)) (Exact (F.product l'))
   where l' = intersectShape (intersectShape l1 l2) l3
+{-# INLINE zipWith3 #-}
 
 -- Indexed zipping -----------------------------------------------------
 
@@ -522,8 +620,9 @@ izipWith :: (Shape l, Vector v a, Vector v b, Vector v c)
          -> Array v l b
          -> Array v l c
 izipWith f a1@(Array l1 v1) a2@(Array l2 v2)
-  | eq1 l1 l2 = Array l1 $ G.unstream $ Bundle.zipWith3 f (streamShape l1) (G.stream v1) (G.stream v2)
-  | otherwise = Array l' $ G.unstream $ Bundle.zipWith3 f (streamShape l') (streamSub l' a1) (streamSub l' a2)
+  | eq1 l1 l2 = Array l1 $ G.unstream $ Bundle.zipWith3 f (bundleIndexes l1) (G.stream v1) (G.stream v2)
+  | otherwise = Array l' $ G.unstream $
+      MBundle.fromStream (Stream.zipWith3 f (streamIndexes l') (streamSub l' a1) (streamSub l' a2)) (Exact (F.product l'))
   where l' = intersectShape l1 l2
 {-# INLINE izipWith #-}
 
@@ -537,9 +636,10 @@ izipWith3 :: (Shape l, Vector v a, Vector v b, Vector v c, Vector v d)
           -> Array v l c
           -> Array v l d
 izipWith3 f a1@(Array l1 v1) a2@(Array l2 v2) a3@(Array l3 v3)
-  | eq1 l1 l2 = Array l1 $ G.unstream $ Bundle.zipWith4 f (streamShape l1) (G.stream v1) (G.stream v2) (G.stream v3)
-  | otherwise = l' `seq`
-      Array l' (G.unstream $ Bundle.zipWith4 f (streamShape l') (streamSub l' a1) (streamSub l' a2) (streamSub l' a3))
+  | eq1 l1 l2 = Array l1 $ G.unstream $ Bundle.zipWith4 f (bundleIndexes l1) (G.stream v1) (G.stream v2) (G.stream v3)
+  | otherwise =
+      Array l' $ G.unstream $ MBundle.fromStream
+        (Stream.zipWith4 f (streamIndexes l') (streamSub l' a1) (streamSub l' a2) (streamSub l' a3)) (Exact (F.product l'))
   where l' = intersectShape (intersectShape l1 l2) l3
 {-# INLINE izipWith3 #-}
 
