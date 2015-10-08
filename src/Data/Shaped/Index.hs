@@ -115,13 +115,13 @@ guardPure p a = if p a then pure a else empty
 instance Shape V0
 
 instance Shape V1 where
-  -- {-# INLINE toIndex #-}
+  {-# INLINE toIndex #-}
   {-# INLINE fromIndex #-}
   {-# INLINE intersectShape #-}
   {-# INLINE stepShape #-}
   {-# INLINE inRange #-}
-  -- toIndex = const
-  fromIndex = const
+  toIndex _ i = i
+  fromIndex _ i = i
   intersectShape = min
   stepShape l = guardPure (inRange l) . (+1)
   stepShapeBetween _a b _l i = guardPure (> b) i'
