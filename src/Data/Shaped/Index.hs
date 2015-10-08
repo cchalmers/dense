@@ -120,8 +120,8 @@ instance Shape V1 where
   {-# INLINE intersectShape #-}
   {-# INLINE stepShape #-}
   {-# INLINE inRange #-}
-  toIndex _ i = i
-  fromIndex _ i = i
+  toIndex _ (V1 i) = i
+  fromIndex _ i = V1 i
   intersectShape = min
   stepShape l = guardPure (inRange l) . (+1)
   stepShapeBetween _a b _l i = guardPure (> b) i'
