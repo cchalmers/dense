@@ -240,7 +240,7 @@ instance (Boxed v, Shape l) => TraversableWithIndex (l Int) (Array v l) where
 instance (Boxed v, Foldable l, Serial1 l) => Serial1 (Array v l) where
   serializeWith putF (Array l v) = do
     serializeWith serialize l
-    traverseOf_ vectorTraverse putF v
+    F.traverse_ putF v
   deserializeWith = genGet (deserializeWith deserialize)
 
 deriving instance (Generic1 v, Generic1 l) => Generic1 (Array v l)
@@ -354,7 +354,7 @@ instance Shape f => HasLayout f (Delayed f a) where
 instance Shape l => Foldable (Delayed l) where
   foldr f b (Delayed l ixF) = go 0 where
     go i
-      | i >= n     = b
+      | i >= n    = b
       | otherwise = f (ixF i) (go (i+1))
     n = F.product l
   {-# INLINE foldr #-}
@@ -405,6 +405,8 @@ instance Shape l => Additive (Delayed l) where
 
   liftI2 f (Delayed l ixF) (Delayed k ixG) = Delayed (intersectShape l k) $ liftA2 f ixF ixG
   {-# INLINE liftI2 #-}
+
+instance Shape l => Metric (Delayed l)
 
 instance Shape l => FunctorWithIndex (l Int) (Delayed l) where
   imap f (Delayed l ixF) = Delayed l $ \i -> f (fromIndex l i) (ixF i)
