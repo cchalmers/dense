@@ -219,25 +219,25 @@ fromList = G.fromList
 -- | O(n) Convert the first @n@ elements of a list to an UArrayith the
 --   given shape. Returns 'Nothing' if there are not enough elements in
 --   the list.
-fromListInto :: (Shape l, Unbox a) => Layout l-> [a] -> Maybe (UArray l a)
+fromListInto :: (Shape l, Unbox a) => Layout l -> [a] -> Maybe (UArray l a)
 fromListInto = G.fromListInto
 {-# INLINE fromListInto #-}
 
 -- | O(n) Convert the first @n@ elements of a list to an UArrayith the
 --   given shape. Throw an error if the list is not long enough.
-fromListInto_ :: (Shape l, Unbox a) => Layout l-> [a] -> UArray l a
+fromListInto_ :: (Shape l, Unbox a) => Layout l -> [a] -> UArray l a
 fromListInto_ = G.fromListInto_
 {-# INLINE fromListInto_ #-}
 
 -- | Create an array from a 'vector' and a 'layout'. Return 'Nothing' if
 --   the vector is not the right shape.
-fromVectorInto :: (Shape l, Unbox a) => Layout l-> Vector a -> Maybe (UArray l a)
+fromVectorInto :: (Shape l, Unbox a) => Layout l -> Vector a -> Maybe (UArray l a)
 fromVectorInto = G.fromVectorInto
 {-# INLINE fromVectorInto #-}
 
 -- | Create an array from a 'vector' and a 'layout'. Throws an error if
 --   the vector is not the right shape.
-fromVectorInto_ :: (Shape l, Unbox a) => Layout l-> Vector a -> UArray l a
+fromVectorInto_ :: (Shape l, Unbox a) => Layout l -> Vector a -> UArray l a
 fromVectorInto_ = G.fromVectorInto_
 {-# INLINE fromVectorInto_ #-}
 
@@ -340,13 +340,13 @@ replicate = G.replicate
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-linearGenerate :: (Shape l, Unbox a) => Layout l-> (Int -> a) -> UArray l a
+linearGenerate :: (Shape l, Unbox a) => Layout l -> (Int -> a) -> UArray l a
 linearGenerate = G.linearGenerate
 {-# INLINE linearGenerate #-}
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-generate :: (Shape l, Unbox a) => Layout l-> (l Int -> a) -> UArray l a
+generate :: (Shape l, Unbox a) => Layout l -> (l Int -> a) -> UArray l a
 generate = G.generate
 {-# INLINE generate #-}
 
@@ -360,13 +360,13 @@ replicateM = G.replicateM
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-generateM :: (Monad m, Shape l, Unbox a) => Layout l-> (l Int -> m a) -> m (UArray l a)
+generateM :: (Monad m, Shape l, Unbox a) => Layout l -> (l Int -> m a) -> m (UArray l a)
 generateM = G.generateM
 {-# INLINE generateM #-}
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-linearGenerateM :: (Monad m, Shape l, Unbox a) => Layout l-> (Int -> m a) -> m (UArray l a)
+linearGenerateM :: (Monad m, Shape l, Unbox a) => Layout l -> (Int -> m a) -> m (UArray l a)
 linearGenerateM = G.linearGenerateM
 {-# INLINE linearGenerateM #-}
 
