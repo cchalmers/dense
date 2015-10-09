@@ -157,6 +157,7 @@ module Data.Shaped.Unboxed
 import           Control.Lens            hiding (imap)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
+import qualified Data.Foldable           as F
 import           Data.Vector.Unboxed     (Unbox, Vector)
 import           Linear
 
@@ -231,7 +232,7 @@ empty = G.empty
 {-# INLINE empty #-}
 
 -- | Test is if the array is 'empty'.
-null :: Foldable l => UArray l a -> Bool
+null :: F.Foldable l => UArray l a -> Bool
 null = G.null
 {-# INLINE null #-}
 
