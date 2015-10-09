@@ -319,6 +319,7 @@ sizeMissmatch :: Int -> Int -> String -> a -> a
 sizeMissmatch i j err
   | i == j    = id
   | otherwise = throwing _SizeMissmatch err
+{-# INLINE sizeMissmatch #-}
 
 -- Utilities -----------------------------------------------------------
 
