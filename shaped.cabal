@@ -48,24 +48,23 @@ library
   ghc-options:      -Wall
   default-language: Haskell2010
 
-
--- test-suite doctests
---   default-language: Haskell2010
---   type:             exitcode-stdio-1.0
---   main-is:          doctest.hs
---   hs-source-dirs:   tests
---   build-depends:
---     base,
---     vector >= 0.11.0.0,
---     linear,
---     deepseq,
---     hashable,
---     primitive,
---     lens,
---     cereal,
---     bytes,
---     comonad,
---     binary,
---     transformers-compat,
---     transformers,
---     doctest
+test-suite doctests
+  default-language: Haskell2010
+  type:             exitcode-stdio-1.0
+  main-is:          doctest.hs
+  hs-source-dirs:   tests
+  build-depends:
+    base,
+    vector >= 0.11.0.0,
+    linear,
+    deepseq,
+    hashable,
+    primitive,
+    lens,
+    cereal,
+    bytes,
+    comonad,
+    binary,
+    transformers-compat,
+    transformers,
+    doctest
