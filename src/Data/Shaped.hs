@@ -140,6 +140,7 @@ module Data.Shaped
   , focusOn
   , unfocus
   , unfocused
+  , extendFocus
 
   -- ** Focus location
   , locale

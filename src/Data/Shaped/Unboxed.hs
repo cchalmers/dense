@@ -147,6 +147,7 @@ module Data.Shaped.Unboxed
   , G.focusOn
   , G.unfocus
   , G.unfocused
+  , G.extendFocus
 
   -- ** Focus location
   , G.locale

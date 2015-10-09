@@ -162,6 +162,7 @@ module Data.Shaped.Generic
   , focusOn
   , unfocus
   , unfocused
+  , extendFocus
 
   -- ** Focus location
   , locale
@@ -852,6 +853,12 @@ unfocus (Focused _ d) = d
 unfocused :: IndexedLens (l Int) (Focused l a) (Focused l b) (Delayed l a) (Delayed l b)
 unfocused f (Focused x d) = Focused x <$> indexed f x d
 {-# INLINE unfocused #-}
+
+-- | Modify a 'Delayed' array by extracting a value from a 'Focused'
+--   each point.
+extendFocus :: Shape l => (Focused l a -> b) -> Delayed l a -> Delayed l b
+extendFocus f = unfocus . extend f . focusOn zero
+{-# INLINE extendFocus #-}
 
 -- | Lens onto the position of a 'ComonadStore'.
 --
