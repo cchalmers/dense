@@ -94,14 +94,14 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   intersectShape = liftU2 min
   {-# INLINE intersectShape #-}
 
-  -- | Increment a shape by one. It is assumed that the provided indexed
+  -- | Increment a shape by one. It is assumed that the provided index
   --   is 'inRange'.
   stepShape :: Layout f -> f Int -> Maybe (f Int)
   stepShape l = guardPure (inRange l) . fromIndex l . (+1) . toIndex l
   {-# INLINE stepShape #-}
 
-  -- | Increment a shape by one.
-  stepShapeBetween :: f Int -> f Int -> Layout f -> f Int -> Maybe (f Int)
+  -- | Increment a shape by one between the two bounds
+  stepShapeBetween :: Layout f -> Layout f -> f Int -> Maybe (f Int)
   stepShapeBetween = undefined
 
   -- | @inRange ex i@ checks @i < ex@ for every coordinate of @f@.
@@ -125,7 +125,7 @@ instance Shape V1 where
   fromIndex _ i = V1 i
   intersectShape = min
   stepShape l = guardPure (inRange l) . (+1)
-  stepShapeBetween _a b _l i = guardPure (> b) i'
+  stepShapeBetween _a b i = guardPure (> b) i'
     where i' = i + 1
   inRange m i = i >= 0 && i < m
 
@@ -136,7 +136,7 @@ instance Shape V2 where
     | otherwise  = Nothing
   {-# INLINE stepShape #-}
 
-  stepShapeBetween (V2 _ia ja) (V2 ib jb) (V2 _x _y) (V2 i j)
+  stepShapeBetween (V2 _ia ja) (V2 ib jb) (V2 i j)
     | j + 1 < jb  = Just (V2      i  (j + 1))
     | i + 1 < ib  = Just (V2 (i + 1)     ja )
     | otherwise  = Nothing
@@ -150,7 +150,7 @@ instance Shape V3 where
     | otherwise  = Nothing
   {-# INLINE stepShape #-}
 
-  stepShapeBetween (V3 _ia ja ka) (V3 ib jb kb) (V3 _x _y _z) (V3 i j k)
+  stepShapeBetween (V3 _ia ja ka) (V3 ib jb kb) (V3 i j k)
     | k < kb  = Just (V3      i       j  (k + 1))
     | j < jb  = Just (V3      i  (j + 1)     ka )
     | i < ib  = Just (V3 (i + 1)     ja      ka )
@@ -166,7 +166,7 @@ instance Shape V4 where
     | otherwise  = Nothing
   {-# INLINE stepShape #-}
 
-  stepShapeBetween (V4 _ia ja ka la) (V4 ib jb kb lb) (V4 _x _y _z _w) (V4 i j k l)
+  stepShapeBetween (V4 _ia ja ka la) (V4 ib jb kb lb) (V4 i j k l)
     | l < lb  = Just (V4      i       j       k  (l + 1))
     | k < kb  = Just (V4      i       j  (k + 1)     la )
     | j < jb  = Just (V4      i  (j + 1)     ka      la )
@@ -249,7 +249,7 @@ indexesBetween a b = layout . shapeIndexesBetween a b
 shapeIndexesBetween :: Shape f => f Int -> f Int -> IndexedFold Int (Layout f) (f Int)
 shapeIndexesBetween a b f l =
   go (0::Int) (if eq1 l a || not (inRange l b) then Nothing else Just a) where
-    go i (Just x) = indexed f i x *> go (i + 1) (stepShapeBetween a b l x)
+    go i (Just x) = indexed f i x *> go (i + 1) (stepShapeBetween a b x)
     go _ Nothing  = noEffect
     {-# INLINE go #-}
 {-# INLINE shapeIndexesBetween #-}
