@@ -237,7 +237,6 @@ shapeIndexes :: Shape f => IndexedFold Int (Layout f) (f Int)
 shapeIndexes g l = go (0::Int) (if eq1 l zero then Nothing else Just zero) where
   go i (Just x) = indexed g i x *> go (i + 1) (stepShape l x)
   go _ Nothing  = noEffect
-  {-# INLINE go #-}
 {-# INLINE shapeIndexes #-}
 
 -- | Indexed fold between the two indexes.
@@ -251,7 +250,6 @@ shapeIndexesBetween a b f l =
   go (0::Int) (if eq1 l a || not (inRange l b) then Nothing else Just a) where
     go i (Just x) = indexed f i x *> go (i + 1) (stepShapeBetween a b x)
     go _ Nothing  = noEffect
-    {-# INLINE go #-}
 {-# INLINE shapeIndexesBetween #-}
 
 ------------------------------------------------------------------------
