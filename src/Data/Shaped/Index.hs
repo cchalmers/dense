@@ -1,12 +1,13 @@
-{-# LANGUAGE MultiParamTypeClasses                  #-}
-{-# LANGUAGE TypeFamilies                  #-}
-{-# LANGUAGE FunctionalDependencies                  #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE LambdaCase           #-}
-{-# LANGUAGE Rank2Types           #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE DefaultSignatures    #-}
+{-# LANGUAGE DefaultSignatures      #-}
+{-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase             #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE Rank2Types             #-}
+{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE UndecidableInstances   #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Shaped.Mutable
