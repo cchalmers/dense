@@ -163,5 +163,6 @@ module Data.Shaped
   , _zx
   ) where
 
-import Data.Shaped.Generic
+import           Data.Shaped.Generic
+import           Linear              hiding (vector)
 

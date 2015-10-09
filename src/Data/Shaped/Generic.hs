@@ -178,22 +178,6 @@ module Data.Shaped.Generic
   , bundleGenerateM
   , bundleIndexes
 
-  -- * Common shapes
-  , V1 (..)
-  , V2 (..)
-  , V3 (..)
-  , V4 (..)
-  , R1 (..)
-  , R2 (..)
-  , R3 (..)
-  , R4 (..)
-
-  -- ** Extra planes
-  , _xz
-  , _yz
-  , _yx
-  , _zy
-  , _zx
   ) where
 
 
@@ -204,7 +188,7 @@ import           Data.Foldable                     (Foldable)
 
 import           Control.Comonad
 import           Control.Comonad.Store
-import           Control.Lens hiding (imap)
+import           Control.Lens                      hiding (imap)
 import           Control.Monad                     (liftM)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
@@ -232,8 +216,8 @@ import           Data.Shaped.Index
 import           Data.Shaped.Mutable               (MArray (..))
 import qualified Data.Shaped.Mutable               as M
 
-import           Prelude                           hiding (null, replicate,
-                                                    zipWith, zipWith3, map)
+import           Prelude                           hiding (map, null, replicate,
+                                                    zipWith, zipWith3)
 
 -- Aliases -------------------------------------------------------------
 

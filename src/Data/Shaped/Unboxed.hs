@@ -132,8 +132,8 @@ module Data.Shaped.Unboxed
   -- ** Generating delayed
 
   , delayed
-  , G.delay
-  , G.manifest
+  , delay
+  , manifest
   , manifestS
   , G.genDelayed
   , G.indexDelayed
@@ -152,22 +152,6 @@ module Data.Shaped.Unboxed
   , G.locale
   , G.shiftFocus
 
-  -- * Common layouts
-  , V1 (..)
-  , V2 (..)
-  , V3 (..)
-  , V4 (..)
-  , R1 (..)
-  , R2 (..)
-  , R3 (..)
-  , R4 (..)
-
-  -- ** Extra planes
-  , _xz
-  , _yz
-  , _yx
-  , _zy
-  , _zx
   ) where
 
 import           Control.Lens            hiding (imap)
@@ -615,7 +599,6 @@ unsafeThaw :: (PrimMonad m, Shape l, Unbox a)
 unsafeThaw = G.unsafeThaw
 {-# INLINE unsafeThaw #-}
 
-
 ------------------------------------------------------------------------
 -- Delayed
 ------------------------------------------------------------------------
@@ -626,6 +609,16 @@ delayed :: (Unbox a, Unbox b, Shape l, Shape k)
         => Iso (UArray l a) (UArray k b) (G.Delayed l a) (G.Delayed k b)
 delayed = G.delayed
 {-# INLINE delayed #-}
+
+-- | Turn a material array into a delayed one with the same shape.
+delay :: (Unbox a, Shape l) => UArray l a -> G.Delayed l a
+delay = G.delay
+{-# INLINE delay #-}
+
+-- | Parallel manifestation of a delayed array into a material one.
+manifest :: (Unbox a, Shape l) => G.Delayed l a -> UArray l a
+manifest = G.manifest
+{-# INLINE manifest #-}
 
 -- | Sequential manifestation of a delayed array.
 manifestS :: (Unbox a, Shape l) => G.Delayed l a -> UArray l a
