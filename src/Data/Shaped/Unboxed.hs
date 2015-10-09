@@ -160,7 +160,7 @@ import           Control.Monad.Primitive
 import           Control.Monad.ST
 import qualified Data.Foldable           as F
 import           Data.Vector.Unboxed     (Unbox, Vector)
-import           Linear
+import           Linear                  hiding (vector)
 
 import           Prelude                 hiding (map, null, replicate, zip,
                                           zip3, zipWith, zipWith3)
@@ -193,6 +193,14 @@ values' = G.values'
 flat :: (Unbox a, Unbox b) => Iso (UArray V1 a) (UArray V1 b) (Vector a) (Vector b)
 flat = G.flat
 {-# INLINE flat #-}
+
+-- | Indexed lens over the underlying vector of an array. The index is
+--   the 'extent' of the array. You must _not_ change the length of the
+--   vector, otherwise an error will be thrown (even for 'V1' layouts,
+--   use 'flat' for 'V1').
+vector :: (Unbox a, Unbox b) => IndexedLens (Layout l) (UArray l a) (UArray l b) (Vector a) (Vector b)
+vector = G.vector
+{-# INLINE vector #-}
 
 -- Constructing vectors ------------------------------------------------
 
