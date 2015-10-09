@@ -67,4 +67,5 @@ test-suite doctests
     binary,
     transformers-compat,
     transformers,
+    simple-reflect,
     doctest
