@@ -21,19 +21,28 @@ module Data.Shaped.Unboxed
   (
     -- * UArray types
     UArray
-  , Shape (..)
+  , Shape
+
+    -- * Layout of an array
+  , HasLayout (..)
+  , Layout
 
     -- ** Extracting size
   , extent
   , size
 
-    -- ** Lenses
-  , layout
+    -- ** Folds over indexes
+  , indexes
+  , indexesFrom
+  , indexesBetween
+
+    -- * Underlying vector
   , vector
 
     -- ** Traversals
   , values
   , values'
+  , valuesBetween
 
   -- * Construction
 
@@ -81,6 +90,8 @@ module Data.Shaped.Unboxed
   , unsafeLinearIndexM
 
   -- ** Modifying arrays
+
+  -- ** Bulk updates
   , (//)
 
   -- ** Accumulations
@@ -183,6 +194,15 @@ values' :: (Shape l, Unbox a, Unbox b)
        => IndexedTraversal (l Int) (UArray l a) (UArray l b) a b
 values' = G.values'
 {-# INLINE values' #-}
+
+-- | Same as 'values' but restrictive in the vector type.
+valuesBetween
+  :: (Shape l, Unbox a)
+  => l Int
+  -> l Int
+  -> IndexedTraversal' (l Int) (UArray l a) a
+valuesBetween = G.valuesBetween
+{-# INLINE valuesBetween #-}
 
 -- | 1D arrays are just vectors. You are free to change the length of
 --   the vector when going 'over' this 'Iso' (unlike 'linear').

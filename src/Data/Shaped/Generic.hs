@@ -37,6 +37,7 @@ module Data.Shaped.Generic
 
     -- ** Folds over indexes
   , indexes
+  , indexesFrom
   , indexesBetween
 
     -- * Underlying vector
@@ -45,6 +46,7 @@ module Data.Shaped.Generic
     -- ** Traversals
   , values
   , values'
+  , valuesBetween
 
   -- * Construction
 
@@ -73,16 +75,6 @@ module Data.Shaped.Generic
 
   -- * Functions on arrays
 
-  -- ** Bulk updates
-  , (//)
-
-  -- ** Accumulations
-  , accum
-
-  -- ** Mapping
-  , map
-  , imap
-
   -- ** Empty arrays
   , empty
   , null
@@ -100,6 +92,18 @@ module Data.Shaped.Generic
   , unsafeIndexM
   , linearIndexM
   , unsafeLinearIndexM
+
+  -- ** Modifying arrays
+
+  -- ** Bulk updates
+  , (//)
+
+  -- ** Accumulations
+  , accum
+
+  -- ** Mapping
+  , map
+  , imap
 
   -- * Zipping
   -- ** Tuples
@@ -225,13 +229,13 @@ import           Prelude                           hiding (map, null, replicate,
 -- | Boxed array.
 type BArray = Array B.Vector
 
--- | 'Unboxed' array.
+-- | 'Unbox'ed array.
 type UArray = Array U.Vector
 
 -- | 'Storeable' array.
 type SArray = Array S.Vector
 
--- | 'Primitive' array.
+-- | 'Prim' array.
 type PArray = Array P.Vector
 
 -- Lenses --------------------------------------------------------------
@@ -242,11 +246,16 @@ values' :: (Shape l, Vector v a, Vector v b)
 values' = values
 {-# INLINE values' #-}
 
+-- | Traverse over the 'values' between two indexes.
+valuesBetween :: (Shape l, Vector v a) => l Int -> l Int -> IndexedTraversal' (l Int) (Array v l a) a
+valuesBetween a b = unsafeOrdinals (toListOf (shapeIndexesFrom a) b)
+{-# INLINE valuesBetween #-}
+
 -- | 1D arrays are just vectors. You are free to change the length of
 --   the vector when going 'over' this 'Iso' (unlike 'linear').
 --
 --   Note that 'V1' arrays are an instance of 'Vector' so you can use
---   any of the functions in 'Data.Vector.Generic' on them without
+--   any of the functions in "Data.Vector.Generic" on them without
 --   needing to convert.
 flat :: (Vector v a, Vector w b) => Iso (Array v V1 a) (Array w V1 b) (v a) (w b)
 flat = iso (\(Array _ v) -> v) (\v -> Array (V1 $ G.length v) v)

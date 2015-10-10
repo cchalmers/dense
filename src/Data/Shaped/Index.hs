@@ -27,8 +27,9 @@ module Data.Shaped.Index
   ( -- * Shape class
     Layout
   , Shape (..)
-  , indexFor
+  , indexIso
   , shapeIndexes
+  , shapeIndexesFrom
   , shapeIndexesBetween
 
     -- * HasLayout
@@ -37,6 +38,7 @@ module Data.Shaped.Index
   , size
   , indexes
   , indexesBetween
+  , indexesFrom
 
     -- * Exceptions
 
@@ -97,12 +99,13 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   -- | Increment a shape by one. It is assumed that the provided index
   --   is 'inRange'.
   stepShape :: Layout f -> f Int -> Maybe (f Int)
-  stepShape l = guardPure (inRange l) . fromIndex l . (+1) . toIndex l
+  stepShape l = fmap (fromIndex l) . guardPure (< F.product l) . (+1) . toIndex l
   {-# INLINE stepShape #-}
 
   -- | Increment a shape by one between the two bounds
-  stepShapeBetween :: Layout f -> Layout f -> f Int -> Maybe (f Int)
-  stepShapeBetween = undefined
+  stepShapeBetween :: f Int -> Layout f -> f Int -> Maybe (f Int)
+  stepShapeBetween a l = fmap (^+^ a) . stepShape l . (^-^ a)
+  {-# INLINE stepShapeBetween #-}
 
   -- | @inRange ex i@ checks @i < ex@ for every coordinate of @f@.
   inRange :: Layout f -> f Int -> Bool
@@ -137,8 +140,8 @@ instance Shape V2 where
   {-# INLINE stepShape #-}
 
   stepShapeBetween (V2 _ia ja) (V2 ib jb) (V2 i j)
-    | j + 1 < jb  = Just (V2      i  (j + 1))
-    | i + 1 < ib  = Just (V2 (i + 1)     ja )
+    | j + 1 < jb = Just (V2      i  (j + 1))
+    | i + 1 < ib = Just (V2 (i + 1)     ja )
     | otherwise  = Nothing
   {-# INLINE stepShapeBetween #-}
 
@@ -177,9 +180,9 @@ instance Shape V4 where
 -- instance Dim n => Shape (V n)
 
 -- | @'toIndex' l@ and @'fromIndex' l@ form two halfs of an isomorphism.
-indexFor :: Shape f => Layout f -> Iso' (f Int) Int
-indexFor l = iso (toIndex l) (fromIndex l)
-{-# INLINE indexFor #-}
+indexIso :: Shape f => Layout f -> Iso' (f Int) Int
+indexIso l = iso (toIndex l) (fromIndex l)
+{-# INLINE indexIso #-}
 
 ------------------------------------------------------------------------
 -- HasLayout
@@ -195,11 +198,11 @@ class Shape f => HasLayout f a | a -> f where
   {-# INLINE layout #-}
   -- layout :: Shape f' => Lens' a a' (Layout f) (Layout f')
 
-instance HasLayout V0 (Layout V0)
-instance HasLayout V1 (Layout V1)
-instance HasLayout V2 (Layout V2)
-instance HasLayout V3 (Layout V3)
-instance HasLayout V4 (Layout V4)
+instance i ~ Int => HasLayout V0 (V0 i)
+instance i ~ Int => HasLayout V1 (V1 i)
+instance i ~ Int => HasLayout V2 (V2 i)
+instance i ~ Int => HasLayout V3 (V3 i)
+instance i ~ Int => HasLayout V4 (V4 i)
 
 -- | Get the extent of an array.
 --
@@ -239,7 +242,19 @@ shapeIndexes g l = go (0::Int) (if eq1 l zero then Nothing else Just zero) where
   go _ Nothing  = noEffect
 {-# INLINE shapeIndexes #-}
 
--- | Indexed fold between the two indexes.
+-- | Indexed fold starting starting from some point, where the index is
+--   the linear index for the original layout.
+indexesFrom :: HasLayout f a => f Int -> IndexedFold Int a (f Int)
+indexesFrom a = layout . shapeIndexesFrom a
+{-# INLINE indexesFrom #-}
+
+-- | 'indexesFrom' for a 'Shape'.
+shapeIndexesFrom :: Shape f => f Int -> IndexedFold Int (Layout f) (f Int)
+shapeIndexesFrom a f l = shapeIndexesBetween a l f l
+{-# INLINE shapeIndexesFrom #-}
+
+-- | Indexed fold between the two indexes where the index is the linear
+--   index for the original layout.
 indexesBetween :: HasLayout f a => f Int -> f Int -> IndexedFold Int a (f Int)
 indexesBetween a b = layout . shapeIndexesBetween a b
 {-# INLINE indexesBetween #-}
@@ -247,9 +262,9 @@ indexesBetween a b = layout . shapeIndexesBetween a b
 -- | 'indexesBetween' for a 'Shape'.
 shapeIndexesBetween :: Shape f => f Int -> f Int -> IndexedFold Int (Layout f) (f Int)
 shapeIndexesBetween a b f l =
-  go (0::Int) (if eq1 l a || not (inRange l b) then Nothing else Just a) where
-    go i (Just x) = indexed f i x *> go (i + 1) (stepShapeBetween a b x)
-    go _ Nothing  = noEffect
+  go (if eq1 l a || not (inRange l b) then Nothing else Just a) where
+    go (Just x) = indexed f (toIndex l x) x *> go (stepShapeBetween a b x)
+    go Nothing  = noEffect
 {-# INLINE shapeIndexesBetween #-}
 
 ------------------------------------------------------------------------
