@@ -56,7 +56,7 @@ mkImage arr = generateImage f x y where
   V2 x y = extent arr
   f i j | k > 1      = PixelRGB8 255 255 255
         | otherwise  = PixelRGB8   0   0   0
-    where k = norm (U.unsafeIndex (V2 i j) arr)
+    where k = norm (U.unsafeIndex arr (V2 i j))
 
 -- should be in linear
 instance Metric Complex

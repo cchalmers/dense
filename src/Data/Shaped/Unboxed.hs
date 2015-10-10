@@ -279,18 +279,18 @@ null = G.null
 {-# INLINE (!?) #-}
 
 -- | Index an element of an array without bounds checking.
-unsafeIndex :: (Shape l, Unbox a) => l Int -> UArray l a -> a
+unsafeIndex :: (Shape l, Unbox a) => UArray l a -> l Int -> a
 unsafeIndex = G.unsafeIndex
 {-# INLINE unsafeIndex #-}
 
 -- | Index an element of an array while ignoring its shape.
-linearIndex :: Unbox a => Int -> UArray l a -> a
+linearIndex :: Unbox a => UArray l a -> Int -> a
 linearIndex = G.linearIndex
 {-# INLINE linearIndex #-}
 
 -- | Index an element of an array while ignoring its shape, without
 --   bounds checking.
-unsafeLinearIndex :: Unbox a => Int -> UArray l a -> a
+unsafeLinearIndex :: Unbox a => UArray l a -> Int -> a
 unsafeLinearIndex = G.unsafeLinearIndex
 {-# INLINE unsafeLinearIndex #-}
 

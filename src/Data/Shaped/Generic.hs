@@ -330,19 +330,19 @@ Array l v !? i
 {-# INLINE (!?) #-}
 
 -- | Index an element of an array without bounds checking.
-unsafeIndex :: (Shape l, Vector v a) => l Int -> Array v l a -> a
-unsafeIndex i (Array l v) = G.unsafeIndex v (toIndex l i)
+unsafeIndex :: (Shape l, Vector v a) => Array v l a -> l Int -> a
+unsafeIndex (Array l v) i = G.unsafeIndex v (toIndex l i)
 {-# INLINE unsafeIndex #-}
 
 -- | Index an element of an array while ignoring its shape.
-linearIndex :: Vector v a => Int -> Array v l a -> a
-linearIndex i (Array _ v) = v G.! i
+linearIndex :: Vector v a => Array v l a -> Int -> a
+linearIndex (Array _ v) i = v G.! i
 {-# INLINE linearIndex #-}
 
 -- | Index an element of an array while ignoring its shape, without
 --   bounds checking.
-unsafeLinearIndex :: Vector v a => Int -> Array v l a -> a
-unsafeLinearIndex i (Array _ v) = G.unsafeIndex v i
+unsafeLinearIndex :: Vector v a => Array v l a -> Int -> a
+unsafeLinearIndex (Array _ v) i = G.unsafeIndex v i
 {-# INLINE unsafeLinearIndex #-}
 
 -- Monadic indexing ----------------------------------------------------
