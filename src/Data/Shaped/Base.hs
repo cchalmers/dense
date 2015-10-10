@@ -449,8 +449,8 @@ instance Shape l => Ixed (Delayed l a) where
 
 -- | Index a delayed array, returning a 'IndexOutOfBounds' exception if
 --   the index is out of range.
-indexDelayed :: Shape l => l Int -> Delayed l a -> a
-indexDelayed x (Delayed l ixF) =
+indexDelayed :: Shape l => Delayed l a -> l Int -> a
+indexDelayed (Delayed l ixF) x =
   boundsCheck l x $ ixF (toIndex l x)
 {-# INLINE indexDelayed #-}
 
@@ -501,7 +501,7 @@ instance Shape f => HasLayout f (Focused f a) where
 instance Shape l => Comonad (Focused l) where
   {-# INLINE extract #-}
   {-# INLINE extend  #-}
-  extract (Focused x d) = indexDelayed x d
+  extract (Focused x d) = indexDelayed d x
   extend f (Focused x d@(Delayed l _)) =
     Focused x (genDelayed l $ \i -> f (Focused i d))
 
@@ -512,8 +512,8 @@ instance Shape l => ComonadStore (l Int) (Focused l) where
   {-# INLINE seek  #-}
   {-# INLINE seeks #-}
   pos     (Focused x _) = x
-  peek  x (Focused _ d) = indexDelayed x d
-  peeks f (Focused x d) = indexDelayed (f x) d
+  peek  x (Focused _ d) = indexDelayed d x
+  peeks f (Focused x d) = indexDelayed d (f x)
   seek  x (Focused _ d) = Focused x d
   seeks f (Focused x d) = Focused (f x) d
 
