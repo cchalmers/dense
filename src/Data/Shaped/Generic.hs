@@ -153,7 +153,7 @@ module Data.Shaped.Generic
   , delayed
   , delay
   , manifest
-  , manifestS
+  , seqManifest
   , genDelayed
   , indexDelayed
 
@@ -840,9 +840,9 @@ delayed = iso delay manifest
 {-# INLINE delayed #-}
 
 -- | Sequential manifestation of a delayed array.
-manifestS :: (Vector v a, Shape l) => Delayed l a -> Array v l a
-manifestS (Delayed l f) = Array l (G.generate (F.product l) f)
-{-# INLINE manifestS #-}
+seqManifest :: (Vector v a, Shape l) => Delayed l a -> Array v l a
+seqManifest (Delayed l f) = Array l (G.generate (F.product l) f)
+{-# INLINE seqManifest #-}
 
 ------------------------------------------------------------------------
 -- Focused

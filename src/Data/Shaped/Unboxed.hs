@@ -21,6 +21,7 @@ module Data.Shaped.Unboxed
   (
     -- * UArray types
     UArray
+  , Unbox
   , Shape
 
     -- * Layout of an array
@@ -145,7 +146,7 @@ module Data.Shaped.Unboxed
   , delayed
   , delay
   , manifest
-  , manifestS
+  , seqManifest
   , G.genDelayed
   , G.indexDelayed
 
@@ -651,7 +652,7 @@ manifest = G.manifest
 {-# INLINE manifest #-}
 
 -- | Sequential manifestation of a delayed array.
-manifestS :: (Unbox a, Shape l) => G.Delayed l a -> UArray l a
-manifestS = G.manifestS
-{-# INLINE manifestS #-}
+seqManifest :: (Unbox a, Shape l) => G.Delayed l a -> UArray l a
+seqManifest = G.seqManifest
+{-# INLINE seqManifest #-}
 

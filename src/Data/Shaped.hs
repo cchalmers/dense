@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -17,7 +16,14 @@
 --
 -- This module provides a large subset of the full functionality of
 -- "shaped" without exporting names that conflict with names in prelude,
--- so it can often be imported unqualified.
+-- so it can often be imported unqualified. It also includes reexported
+-- classes and data types from other modules. Typical imports for shaped
+-- will look like this
+--
+-- @
+-- import 'Data.Shaped'
+-- import qualified 'Data.Shaped.Unboxed' as U
+-- @
 --
 -- For boxed-specific arrays (a la 'Data.Vector') see 'Data.Shaped.Boxed'.
 -----------------------------------------------------------------------------
@@ -32,6 +38,7 @@ module Data.Shaped
   , PArray
 
     -- ** Extracting size
+  , Layout
   , extent
   , size
 
@@ -127,13 +134,14 @@ module Data.Shaped
   , delayed
   , delay
   , manifest
-  , manifestS
+  , seqManifest
   , genDelayed
   , indexDelayed
 
   -- * Focused
 
   , Focused
+  , ComonadStore (..)
 
   -- ** Generating focused
 
@@ -155,6 +163,8 @@ module Data.Shaped
   , R2 (..)
   , R3 (..)
   , R4 (..)
+  , Additive (..)
+  , Metric (..)
 
   -- ** Extra planes
   , _xz
@@ -165,5 +175,6 @@ module Data.Shaped
   ) where
 
 import           Data.Shaped.Generic
+import           Control.Comonad.Store
 import           Linear              hiding (vector)
 
