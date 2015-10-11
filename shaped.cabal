@@ -38,6 +38,7 @@ library
     linear,
     deepseq,
     hashable,
+    semigroupoids,
     primitive,
     lens,
     cereal,

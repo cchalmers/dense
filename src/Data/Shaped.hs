@@ -19,85 +19,71 @@
 -- so it can often be imported unqualified. It also includes reexported
 -- classes and data types from other modules. However it does not
 -- contain much functions necessary to construct arrays, for that see
--- 'Data.Shaped.Generic' or one of the type specific modules intended to
--- be imported qualified. Typical imports for shaped will look like this
+-- "Data.Shaped.Generic" or one of the type specific modules intended to
+-- be imported qualified. Typical imports for shaped will look like this:
 --
 -- @
--- import           'Data.Shaped'
--- import qualified 'Data.Shaped.Unboxed' as U
+-- import           "Data.Shaped"
+-- import qualified "Data.Shaped.Unboxed" as U
 -- @
 --
--- For boxed-specific arrays (a la 'Data.Vector') see 'Data.Shaped.Boxed'.
+-- For boxed-specific arrays (a la "Data.Vector") see 'Data.Shaped.Boxed'.
 -----------------------------------------------------------------------------
 module Data.Shaped
   (
     -- * Array types
     Array
-  , Shape (..)
   , BArray
   , UArray
   , SArray
   , PArray
 
-    -- ** Extracting size
+    -- * Indexing
   , Layout
+  , HasLayout (..)
+  , Shape
   , extent
   , size
 
+    -- ** Folds over indexes
+  , indexes
+  , indexesBetween
+  , indexesFrom
+
     -- ** Lenses
-  , layout
   , vector
 
     -- ** Traversals
   , values
   , values'
+  , valuesBetween
 
   -- * Construction
 
   -- ** Flat arrays
   , flat
-  -- , fromList
 
   -- ** Shaped from lists
-  -- , fromListInto
-  -- , fromListInto_
+  , fromListInto
+  , fromListInto_
 
   -- ** Shaped from vectors
-  -- , fromVectorInto
-  -- , fromVectorInto_
+  , fromVectorInto
+  , fromVectorInto_
 
-  -- ** Initialisation
-  -- , replicate
-  -- , generate
-  -- , linearGenerate
-
-  -- ** Monadic initialisation
-  -- , create
-  -- , replicateM
-  -- , generateM
-  -- , linearGenerateM
+  -- ** Generating
+  -- | See "Data.Shaped.Generic".
 
   -- * Functions on arrays
 
   -- ** Empty arrays
-  -- | See 'Control.Lens.Empty.AsEmpty' class.
+  -- | See 'Control.Lens.Empty.AsEmpty' class or "Data.Shaped.Generic".
 
   -- ** Indexing
   -- | See 'Control.Lens.At.Ixed' class.
 
-  , unsafeIndex
-  , linearIndex
-  , unsafeLinearIndex
-
-  -- *** Monadic indexing
-  , indexM
-  , unsafeIndexM
-  , linearIndexM
-  , unsafeLinearIndexM
-
-  -- -- ** Modifying arrays
-  -- , (//)
-
+  -- ** Modifying arrays
+  -- | See "Data.Shaped.Generic".
 
   -- ** Slices
 
@@ -112,20 +98,12 @@ module Data.Shaped
   , planes
   , flattenPlane
 
-  -- *** Ordinals
-  , unsafeOrdinals
-
   -- * Mutable
   , MArray
   , BMArray
   , UMArray
   , SMArray
   , PMArray
-
-  , thaw
-  , freeze
-  , unsafeThaw
-  , unsafeFreeze
 
   -- * Delayed
 
@@ -140,10 +118,16 @@ module Data.Shaped
   , genDelayed
   , indexDelayed
 
+    -- ** Helpful reexports
+  , (*^)
+  , (^*)
+  , (^/)
+  , Additive (..)
+  , Metric (..)
+
   -- * Focused
 
   , Focused
-  , ComonadStore (..)
 
   -- ** Generating focused
 
@@ -156,6 +140,10 @@ module Data.Shaped
   , locale
   , shiftFocus
 
+    -- ** Helpful reexports
+  , Comonad (..)
+  , ComonadStore (..)
+
   -- * Common layouts
   , V1 (..)
   , V2 (..)
@@ -165,8 +153,6 @@ module Data.Shaped
   , R2 (..)
   , R3 (..)
   , R4 (..)
-  , Additive (..)
-  , Metric (..)
 
   -- ** Extra planes
   , _xz

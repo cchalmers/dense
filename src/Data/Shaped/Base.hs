@@ -73,7 +73,9 @@ import           Data.Binary                     as Binary
 import           Data.Bytes.Serial
 import           Data.Data
 import qualified Data.Foldable                   as F
+import           Data.Functor.Apply
 import           Data.Functor.Classes
+import           Data.Functor.Extend
 import           Data.Hashable
 import           Data.Serialize                  as Cereal
 import           Data.Traversable                (for)
@@ -99,7 +101,7 @@ import           System.IO.Unsafe                (unsafePerformIO)
 import           Prelude                         hiding (null, replicate,
                                                   zipWith, zipWith3)
 
--- | An 'Array' is a generic vector with a shape.
+-- | An 'Array' is a vector with a shape.
 data Array v l a = Array !(Layout l) !(v a)
   deriving Typeable
 
@@ -389,6 +391,14 @@ instance (Shape l, Show1 l) => Show1 (Delayed l) where
 instance Shape l => Traversable (Delayed l) where
   traverse f arr = delay <$> traversed f (manifest arr)
 
+instance Shape l => Apply (Delayed l) where
+  {-# INLINE (<.>) #-}
+  {-# INLINE (<. ) #-}
+  {-# INLINE ( .>) #-}
+  (<.>) = liftI2 id
+  (<. ) = liftI2 const
+  ( .>) = liftI2 (const id)
+
 instance Shape l => Additive (Delayed l) where
   zero = _Empty # ()
   {-# INLINE zero #-}
@@ -476,7 +486,8 @@ manifest (Delayed l ixF) = Array l v
     !threads = unsafePerformIO getNumCapabilities
 {-# INLINE manifest #-}
 
--- | Generate a 'Delayed' array using the given 'Layout' and construction function.
+-- | Generate a 'Delayed' array using the given 'Layout' and
+--   construction function.
 genDelayed :: Shape l => Layout l -> (l Int -> a) -> Delayed l a
 genDelayed l f = Delayed l (f . fromIndex l)
 {-# INLINE genDelayed #-}
@@ -504,6 +515,10 @@ instance Shape l => Comonad (Focused l) where
   extract (Focused x d) = indexDelayed d x
   extend f (Focused x d@(Delayed l _)) =
     Focused x (genDelayed l $ \i -> f (Focused i d))
+
+instance Shape l => Extend (Focused l) where
+  {-# INLINE extended #-}
+  extended = extend
 
 instance Shape l => ComonadStore (l Int) (Focused l) where
   {-# INLINE pos   #-}

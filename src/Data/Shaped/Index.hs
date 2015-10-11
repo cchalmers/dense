@@ -207,10 +207,10 @@ instance i ~ Int => HasLayout V4 (V4 i)
 -- | Get the extent of an array.
 --
 -- @
--- 'extent' :: 'Data.Shaped.Generic.Array' v f a    -> f 'Int'
+-- 'extent' :: 'Data.Shaped.Base.Array' v f a    -> f 'Int'
 -- 'extent' :: 'Data.Shaped.Mutable.MArray' v f s a -> f 'Int'
--- 'extent' :: 'Data.Shaped.Generic.Delayed' f a    -> f 'Int'
--- 'extent' :: 'Data.Shaped.Generic.Focused' f a    -> f 'Int'
+-- 'extent' :: 'Data.Shaped.Base.Delayed' f a    -> f 'Int'
+-- 'extent' :: 'Data.Shaped.Base.Focused' f a    -> f 'Int'
 -- @
 extent :: HasLayout f a => a -> f Int
 extent = view layout
@@ -219,10 +219,10 @@ extent = view layout
 -- | Get the total number of elements in an array.
 --
 -- @
--- 'size' :: 'Data.Shaped.Generic.Array' v f a    -> 'Int'
+-- 'size' :: 'Data.Shaped.Base.Array' v f a    -> 'Int'
 -- 'size' :: 'Data.Shaped.Mutable.MArray' v f s a -> 'Int'
--- 'size' :: 'Data.Shaped.Generic.Delayed' f a    -> 'Int'
--- 'size' :: 'Data.Shaped.Generic.Focused' f a    -> 'Int'
+-- 'size' :: 'Data.Shaped.Base.Delayed' f a    -> 'Int'
+-- 'size' :: 'Data.Shaped.Base.Focused' f a    -> 'Int'
 -- @
 size :: HasLayout f a => a -> Int
 size = F.product . view layout
