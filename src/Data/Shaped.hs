@@ -17,11 +17,13 @@
 -- This module provides a large subset of the full functionality of
 -- "shaped" without exporting names that conflict with names in prelude,
 -- so it can often be imported unqualified. It also includes reexported
--- classes and data types from other modules. Typical imports for shaped
--- will look like this
+-- classes and data types from other modules. However it does not
+-- contain much functions necessary to construct arrays, for that see
+-- 'Data.Shaped.Generic' or one of the type specific modules intended to
+-- be imported qualified. Typical imports for shaped will look like this
 --
 -- @
--- import 'Data.Shaped'
+-- import           'Data.Shaped'
 -- import qualified 'Data.Shaped.Unboxed' as U
 -- @
 --

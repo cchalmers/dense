@@ -20,10 +20,12 @@ library
   exposed-modules:
     Data.Shaped
     Data.Shaped.Base
+    Data.Shaped.Boxed
     Data.Shaped.Generic
-    Data.Shaped.Unboxed
-    Data.Shaped.Mutable
     Data.Shaped.Index
+    Data.Shaped.Mutable
+    Data.Shaped.Storable
+    Data.Shaped.Unboxed
   other-extensions:
     BangPatterns CPP ConstraintKinds DeriveDataTypeable DeriveFunctor
     DeriveGeneric FlexibleContexts FlexibleInstances
