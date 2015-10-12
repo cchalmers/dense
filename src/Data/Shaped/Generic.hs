@@ -862,7 +862,7 @@ seqManifest (Delayed l f) = Array l (G.generate (shapeSize l) f)
 {-# INLINE seqManifest #-}
 
 -- | 'manifest' an array to a 'UArray' and delay again. See
---   "Data.Shaped.Boxed" or 'Data.Shaped.Storable" to 'affirm' for other
+--   "Data.Shaped.Boxed" or "Data.Shaped.Storable" to 'affirm' for other
 --   types of arrays.
 affirm :: (Shape f, U.Unbox a) => Delayed f a -> Delayed f a
 affirm = delay . (manifest :: (U.Unbox a, Shape f) => Delayed f a -> UArray f a)
