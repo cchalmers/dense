@@ -144,6 +144,8 @@ module Data.Shaped.Unboxed
   , seqManifest
   , G.genDelayed
   , G.indexDelayed
+  , affirm
+  , seqAffirm
 
   -- * Focused
 
@@ -650,4 +652,14 @@ manifest = G.manifest
 seqManifest :: (Unbox a, Shape l) => G.Delayed l a -> UArray l a
 seqManifest = G.seqManifest
 {-# INLINE seqManifest #-}
+
+-- | 'manifest' an array to a 'UArray' and delay again.
+affirm :: (Shape l, Unbox a) => G.Delayed l a -> G.Delayed l a
+affirm = delay . manifest
+{-# INLINE affirm #-}
+
+-- | 'seqManifest' an array to a 'UArray' and delay again.
+seqAffirm :: (Shape l, Unbox a) => G.Delayed l a -> G.Delayed l a
+seqAffirm = delay . seqManifest
+{-# INLINE seqAffirm #-}
 

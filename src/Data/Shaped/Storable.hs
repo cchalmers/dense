@@ -141,6 +141,8 @@ module Data.Shaped.Storable
   , seqManifest
   , G.genDelayed
   , G.indexDelayed
+  , affirm
+  , seqAffirm
 
   -- * Focused
 
@@ -628,4 +630,14 @@ manifest = G.manifest
 seqManifest :: (Storable a, Shape l) => G.Delayed l a -> SArray l a
 seqManifest = G.seqManifest
 {-# INLINE seqManifest #-}
+
+-- | 'manifest' an array to a 'SArray' and delay again.
+affirm :: (Shape l, Storable a) => G.Delayed l a -> G.Delayed l a
+affirm = delay . manifest
+{-# INLINE affirm #-}
+
+-- | 'seqManifest' an array to a 'SArray' and delay again.
+seqAffirm :: (Shape l, Storable a) => G.Delayed l a -> G.Delayed l a
+seqAffirm = delay . seqManifest
+{-# INLINE seqAffirm #-}
 

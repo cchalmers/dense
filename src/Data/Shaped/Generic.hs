@@ -156,6 +156,8 @@ module Data.Shaped.Generic
   , seqManifest
   , genDelayed
   , indexDelayed
+  , affirm
+  , seqAffirm
 
   -- * Focused
 
@@ -858,6 +860,20 @@ delayed = iso delay manifest
 seqManifest :: (Vector v a, Shape l) => Delayed l a -> Array v l a
 seqManifest (Delayed l f) = Array l (G.generate (shapeSize l) f)
 {-# INLINE seqManifest #-}
+
+-- | 'manifest' an array to a 'UArray' and delay again. See
+--   "Data.Shaped.Boxed" or 'Data.Shaped.Storable" to 'affirm' for other
+--   types of arrays.
+affirm :: (Shape l, U.Unbox a) => Delayed l a -> Delayed l a
+affirm = delay . (manifest :: (U.Unbox a, Shape l) => Delayed l a -> UArray l a)
+{-# INLINE affirm #-}
+
+-- | 'seqManifest' an array to a 'UArray' and delay again. See
+--   "Data.Shaped.Boxed" or 'Data.Shaped.Storable" to 'affirm' for other
+--   types of arrays.
+seqAffirm :: (Shape l, U.Unbox a) => Delayed l a -> Delayed l a
+seqAffirm = delay . (seqManifest :: (U.Unbox a, Shape l) => Delayed l a -> UArray l a)
+{-# INLINE seqAffirm #-}
 
 ------------------------------------------------------------------------
 -- Focused

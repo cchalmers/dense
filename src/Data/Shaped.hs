@@ -117,6 +117,8 @@ module Data.Shaped
   , seqManifest
   , genDelayed
   , indexDelayed
+  , affirm
+  , seqAffirm
 
     -- ** Helpful reexports
   , (*^)
