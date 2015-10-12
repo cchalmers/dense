@@ -181,23 +181,23 @@ import           Data.Shaped.Mutable     (BMArray)
 -- Lenses --------------------------------------------------------------
 
 -- | Same as 'values' but restrictive in the vector type.
-values :: Shape l
-       => IndexedTraversal (l Int) (BArray l a) (BArray l b) a b
+values :: Shape f
+       => IndexedTraversal (f Int) (BArray f a) (BArray f b) a b
 values = G.values'
 {-# INLINE values #-}
 
 -- | Same as 'values' but restrictive in the vector type.
-values' :: Shape l
-       => IndexedTraversal (l Int) (BArray l a) (BArray l b) a b
+values' :: Shape f
+       => IndexedTraversal (f Int) (BArray f a) (BArray f b) a b
 values' = G.values'
 {-# INLINE values' #-}
 
 -- | Same as 'values' but restrictive in the vector type.
 valuesBetween
-  :: Shape l
-  => l Int
-  -> l Int
-  -> IndexedTraversal' (l Int) (BArray l a) a
+  :: Shape f
+  => f Int
+  -> f Int
+  -> IndexedTraversal' (f Int) (BArray f a) a
 valuesBetween = G.valuesBetween
 {-# INLINE valuesBetween #-}
 
@@ -215,7 +215,7 @@ flat = G.flat
 --   the 'extent' of the array. You must _not_ change the length of the
 --   vector, otherwise an error will be thrown (even for 'V1' layouts,
 --   use 'flat' for 'V1').
-vector :: IndexedLens (Layout l) (BArray l a) (BArray l b) (Vector a) (Vector b)
+vector :: IndexedLens (Layout f) (BArray f a) (BArray f b) (Vector a) (Vector b)
 vector = G.vector
 {-# INLINE vector #-}
 
@@ -230,35 +230,35 @@ fromList = G.fromList
 -- | O(n) Convert the first @n@ elements of a list to an BArrayith the
 --   given shape. Returns 'Nothing' if there are not enough elements in
 --   the list.
-fromListInto :: Shape l => Layout l -> [a] -> Maybe (BArray l a)
+fromListInto :: Shape f => Layout f -> [a] -> Maybe (BArray f a)
 fromListInto = G.fromListInto
 {-# INLINE fromListInto #-}
 
 -- | O(n) Convert the first @n@ elements of a list to an BArrayith the
 --   given shape. Throw an error if the list is not long enough.
-fromListInto_ :: Shape l => Layout l -> [a] -> BArray l a
+fromListInto_ :: Shape f => Layout f -> [a] -> BArray f a
 fromListInto_ = G.fromListInto_
 {-# INLINE fromListInto_ #-}
 
 -- | Create an array from a 'vector' and a 'layout'. Return 'Nothing' if
 --   the vector is not the right shape.
-fromVectorInto :: Shape l => Layout l -> Vector a -> Maybe (BArray l a)
+fromVectorInto :: Shape f => Layout f -> Vector a -> Maybe (BArray f a)
 fromVectorInto = G.fromVectorInto
 {-# INLINE fromVectorInto #-}
 
 -- | Create an array from a 'vector' and a 'layout'. Throws an error if
 --   the vector is not the right shape.
-fromVectorInto_ :: Shape l => Layout l -> Vector a -> BArray l a
+fromVectorInto_ :: Shape f => Layout f -> Vector a -> BArray f a
 fromVectorInto_ = G.fromVectorInto_
 {-# INLINE fromVectorInto_ #-}
 
 -- | The empty 'BArray' with a 'zero' shape.
-empty :: (Additive l) => BArray l a
+empty :: (Additive f) => BArray f a
 empty = G.empty
 {-# INLINE empty #-}
 
 -- | Test is if the array is 'empty'.
-null :: F.Foldable l => BArray l a -> Bool
+null :: F.Foldable f => BArray f a -> Bool
 null = G.null
 {-# INLINE null #-}
 
@@ -266,28 +266,28 @@ null = G.null
 
 -- | Index an element of an array. Throws 'IndexOutOfBounds' if the
 --   index is out of bounds.
-(!) :: Shape l => BArray l a -> l Int -> a
+(!) :: Shape f => BArray f a -> f Int -> a
 (!) = (G.!)
 {-# INLINE (!) #-}
 
 -- | Safe index of an element.
-(!?) :: Shape l => BArray l a -> l Int -> Maybe a
+(!?) :: Shape f => BArray f a -> f Int -> Maybe a
 (!?) = (G.!?)
 {-# INLINE (!?) #-}
 
 -- | Index an element of an array without bounds checking.
-unsafeIndex :: Shape l => BArray l a -> l Int -> a
+unsafeIndex :: Shape f => BArray f a -> f Int -> a
 unsafeIndex = G.unsafeIndex
 {-# INLINE unsafeIndex #-}
 
 -- | Index an element of an array while ignoring its shape.
-linearIndex :: BArray l a -> Int -> a
+linearIndex :: BArray f a -> Int -> a
 linearIndex = G.linearIndex
 {-# INLINE linearIndex #-}
 
 -- | Index an element of an array while ignoring its shape, without
 --   bounds checking.
-unsafeLinearIndex :: BArray l a -> Int -> a
+unsafeLinearIndex :: BArray f a -> Int -> a
 unsafeLinearIndex = G.unsafeLinearIndex
 {-# INLINE unsafeLinearIndex #-}
 
@@ -314,50 +314,50 @@ unsafeLinearIndex = G.unsafeLinearIndex
 --   the elements) is evaluated eagerly.
 --
 --   Throws an error if the index is out of range.
-indexM :: (Shape l, Monad m) => BArray l a -> l Int -> m a
+indexM :: (Shape f, Monad m) => BArray f a -> f Int -> m a
 indexM = G.indexM
 {-# INLINE indexM #-}
 
 -- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
 --   explanation of why this is useful.
-unsafeIndexM :: (Shape l, Monad m) => BArray l a -> l Int -> m a
+unsafeIndexM :: (Shape f, Monad m) => BArray f a -> f Int -> m a
 unsafeIndexM = G.unsafeIndexM
 {-# INLINE unsafeIndexM #-}
 
 -- | /O(1)/ Indexing in a monad. Throws an error if the index is out of
 --   range.
-linearIndexM :: (Shape l, Monad m) => BArray l a -> Int -> m a
+linearIndexM :: (Shape f, Monad m) => BArray f a -> Int -> m a
 linearIndexM = G.linearIndexM
 {-# INLINE linearIndexM #-}
 
 -- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
 --   explanation of why this is useful.
-unsafeLinearIndexM :: Monad m => BArray l a -> Int -> m a
+unsafeLinearIndexM :: Monad m => BArray f a -> Int -> m a
 unsafeLinearIndexM = G.unsafeLinearIndexM
 {-# INLINE unsafeLinearIndexM #-}
 
 -- Initialisation ------------------------------------------------------
 
 -- | Execute the monadic action and freeze the resulting array.
-create :: Shape l
-       => (forall s. ST s (BMArray l s a)) -> BArray l a
+create :: Shape f
+       => (forall s. ST s (BMArray f s a)) -> BArray f a
 create m = m `seq` runST (m >>= G.unsafeFreeze)
 {-# INLINE create #-}
 
 -- | O(n) BArray of the given shape with the same value in each position.
-replicate :: Shape l => l Int -> a -> BArray l a
+replicate :: Shape f => f Int -> a -> BArray f a
 replicate = G.replicate
 {-# INLINE replicate #-}
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-linearGenerate :: Shape l => Layout l -> (Int -> a) -> BArray l a
+linearGenerate :: Shape f => Layout f -> (Int -> a) -> BArray f a
 linearGenerate = G.linearGenerate
 {-# INLINE linearGenerate #-}
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-generate :: Shape l => Layout l -> (l Int -> a) -> BArray l a
+generate :: Shape f => Layout f -> (f Int -> a) -> BArray f a
 generate = G.generate
 {-# INLINE generate #-}
 
@@ -365,31 +365,31 @@ generate = G.generate
 
 -- | O(n) Construct an array of the given shape by filling each position
 --   with the monadic value.
-replicateM :: (Monad m, Shape l) => Layout l -> m a -> m (BArray l a)
+replicateM :: (Monad m, Shape f) => Layout f -> m a -> m (BArray f a)
 replicateM = G.replicateM
 {-# INLINE replicateM #-}
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-generateM :: (Monad m, Shape l) => Layout l -> (l Int -> m a) -> m (BArray l a)
+generateM :: (Monad m, Shape f) => Layout f -> (f Int -> m a) -> m (BArray f a)
 generateM = G.generateM
 {-# INLINE generateM #-}
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-linearGenerateM :: (Monad m, Shape l) => Layout l -> (Int -> m a) -> m (BArray l a)
+linearGenerateM :: (Monad m, Shape f) => Layout f -> (Int -> m a) -> m (BArray f a)
 linearGenerateM = G.linearGenerateM
 {-# INLINE linearGenerateM #-}
 
 -- Modifying -----------------------------------------------------------
 
 -- | /O(n)/ Map a function over an array
-map :: (a -> b) -> BArray l a -> BArray l b
+map :: (a -> b) -> BArray f a -> BArray f b
 map = G.map
 {-# INLINE map #-}
 
 -- | /O(n)/ Apply a function to every element of a vector and its index
-imap :: Shape l => (l Int -> a -> b) -> BArray l a -> BArray l b
+imap :: Shape f => (f Int -> a -> b) -> BArray f a -> BArray f b
 imap = G.imap
 {-# INLINE imap #-}
 
@@ -398,7 +398,7 @@ imap = G.imap
 
 -- | For each pair (i,a) from the list, replace the array element at
 --   position i by a.
-(//) :: Shape l => BArray l a -> [(l Int, a)] -> BArray l a
+(//) :: Shape f => BArray f a -> [(f Int, a)] -> BArray f a
 (//) = (G.//)
 {-# INLINE (//) #-}
 
@@ -407,11 +407,11 @@ imap = G.imap
 -- | /O(m+n)/ For each pair @(i,b)@ from the list, replace the array element
 --   @a@ at position @i@ by @f a b@.
 --
-accum :: Shape l
+accum :: Shape f
       => (a -> b -> a) -- ^ accumulating function @f@
-      -> BArray l a     -- ^ initial array
-      -> [(l Int, b)]  -- ^ list of index/value pairs (of length @n@)
-      -> BArray l a
+      -> BArray f a     -- ^ initial array
+      -> [(f Int, b)]  -- ^ list of index/value pairs (of length @n@)
+      -> BArray f a
 accum = G.accum
 {-# INLINE accum #-}
 
@@ -423,19 +423,19 @@ accum = G.accum
 
 -- | Zip two arrays element wise. If the array's don't have the same
 --   shape, the new array with be the intersection of the two shapes.
-zip :: Shape l
-    => BArray l a
-    -> BArray l b
-    -> BArray l (a,b)
+zip :: Shape f
+    => BArray f a
+    -> BArray f b
+    -> BArray f (a,b)
 zip = G.zip
 
 -- | Zip three arrays element wise. If the array's don't have the same
 --   shape, the new array with be the intersection of the two shapes.
-zip3 :: Shape l
-     => BArray l a
-     -> BArray l b
-     -> BArray l c
-     -> BArray l (a,b,c)
+zip3 :: Shape f
+     => BArray f a
+     -> BArray f b
+     -> BArray f c
+     -> BArray f (a,b,c)
 zip3 = G.zip3
 
 -- Zip with function ---------------------------------------------------
@@ -443,23 +443,23 @@ zip3 = G.zip3
 -- | Zip two arrays using the given function. If the array's don't have
 --   the same shape, the new array with be the intersection of the two
 --   shapes.
-zipWith :: Shape l
+zipWith :: Shape f
         => (a -> b -> c)
-        -> BArray l a
-        -> BArray l b
-        -> BArray l c
+        -> BArray f a
+        -> BArray f b
+        -> BArray f c
 zipWith = G.zipWith
 {-# INLINE zipWith #-}
 
 -- | Zip three arrays using the given function. If the array's don't
 --   have the same shape, the new array with be the intersection of the
 --   two shapes.
-zipWith3 :: Shape l
+zipWith3 :: Shape f
          => (a -> b -> c -> d)
-         -> BArray l a
-         -> BArray l b
-         -> BArray l c
-         -> BArray l d
+         -> BArray f a
+         -> BArray f b
+         -> BArray f c
+         -> BArray f d
 zipWith3 = G.zipWith3
 {-# INLINE zipWith3 #-}
 
@@ -468,23 +468,23 @@ zipWith3 = G.zipWith3
 -- | Zip two arrays using the given function with access to the index.
 --   If the array's don't have the same shape, the new array with be the
 --   intersection of the two shapes.
-izipWith :: Shape l
-         => (l Int -> a -> b -> c)
-         -> BArray l a
-         -> BArray l b
-         -> BArray l c
+izipWith :: Shape f
+         => (f Int -> a -> b -> c)
+         -> BArray f a
+         -> BArray f b
+         -> BArray f c
 izipWith = G.izipWith
 {-# INLINE izipWith #-}
 
 -- | Zip two arrays using the given function with access to the index.
 --   If the array's don't have the same shape, the new array with be the
 --   intersection of the two shapes.
-izipWith3 :: Shape l
-          => (l Int -> a -> b -> c -> d)
-          -> BArray l a
-          -> BArray l b
-          -> BArray l c
-          -> BArray l d
+izipWith3 :: Shape f
+          => (f Int -> a -> b -> c -> d)
+          -> BArray f a
+          -> BArray f b
+          -> BArray f c
+          -> BArray f d
 izipWith3 = G.izipWith3
 {-# INLINE izipWith3 #-}
 
@@ -589,35 +589,35 @@ flattenPlane = G.flattenPlane
 
 -- | This 'Traversal' should not have any duplicates in the list of
 --   indices.
-unsafeOrdinals :: Shape l => [l Int] -> IndexedTraversal' (l Int) (BArray l a) a
+unsafeOrdinals :: Shape f => [f Int] -> IndexedTraversal' (f Int) (BArray f a) a
 unsafeOrdinals = G.unsafeOrdinals
 {-# INLINE [0] unsafeOrdinals #-}
 
 -- Mutable -------------------------------------------------------------
 
 -- | O(n) Yield a mutable copy of the immutable vector.
-freeze :: (PrimMonad m, Shape l)
-       => BMArray l (PrimState m) a -> m (BArray l a)
+freeze :: (PrimMonad m, Shape f)
+       => BMArray f (PrimState m) a -> m (BArray f a)
 freeze = G.freeze
 {-# INLINE freeze #-}
 
 -- | O(n) Yield an immutable copy of the mutable array.
-thaw :: (PrimMonad m, Shape l)
-     => BArray l a -> m (BMArray l (PrimState m) a)
+thaw :: (PrimMonad m, Shape f)
+     => BArray f a -> m (BMArray f (PrimState m) a)
 thaw = G.thaw
 {-# INLINE thaw #-}
 
 -- | O(1) Unsafe convert a mutable array to an immutable one without
 -- copying. The mutable array may not be used after this operation.
-unsafeFreeze :: (PrimMonad m, Shape l)
-             => BMArray l (PrimState m) a -> m (BArray l a)
+unsafeFreeze :: (PrimMonad m, Shape f)
+             => BMArray f (PrimState m) a -> m (BArray f a)
 unsafeFreeze = G.unsafeFreeze
 {-# INLINE unsafeFreeze #-}
 
 -- | O(1) Unsafely convert an immutable array to a mutable one without
 --   copying. The immutable array may not be used after this operation.
-unsafeThaw :: (PrimMonad m, Shape l)
-           => BArray l a -> m (BMArray l (PrimState m) a)
+unsafeThaw :: (PrimMonad m, Shape f)
+           => BArray f a -> m (BMArray f (PrimState m) a)
 unsafeThaw = G.unsafeThaw
 {-# INLINE unsafeThaw #-}
 
@@ -627,33 +627,33 @@ unsafeThaw = G.unsafeThaw
 
 -- | Isomorphism between an array and it's delayed representation.
 --   Conversion to the array is done in parallel.
-delayed :: (Shape l, Shape k)
-        => Iso (BArray l a) (BArray k b) (G.Delayed l a) (G.Delayed k b)
+delayed :: (Shape f, Shape k)
+        => Iso (BArray f a) (BArray k b) (G.Delayed f a) (G.Delayed k b)
 delayed = G.delayed
 {-# INLINE delayed #-}
 
 -- | Turn a material array into a delayed one with the same shape.
-delay :: Shape l => BArray l a -> G.Delayed l a
+delay :: Shape f => BArray f a -> G.Delayed f a
 delay = G.delay
 {-# INLINE delay #-}
 
 -- | Parallel manifestation of a delayed array into a material one.
-manifest :: Shape l => G.Delayed l a -> BArray l a
+manifest :: Shape f => G.Delayed f a -> BArray f a
 manifest = G.manifest
 {-# INLINE manifest #-}
 
 -- | Sequential manifestation of a delayed array.
-seqManifest :: Shape l => G.Delayed l a -> BArray l a
+seqManifest :: Shape f => G.Delayed f a -> BArray f a
 seqManifest = G.seqManifest
 {-# INLINE seqManifest #-}
 
 -- | 'manifest' an array to a 'BArray' and delay again.
-affirm :: Shape l => G.Delayed l a -> G.Delayed l a
+affirm :: Shape f => G.Delayed f a -> G.Delayed f a
 affirm = delay . manifest
 {-# INLINE affirm #-}
 
 -- | 'seqManifest' an array to a 'BArray' and delay again.
-seqAffirm :: Shape l => G.Delayed l a -> G.Delayed l a
+seqAffirm :: Shape f => G.Delayed f a -> G.Delayed f a
 seqAffirm = delay . seqManifest
 {-# INLINE seqAffirm #-}
 

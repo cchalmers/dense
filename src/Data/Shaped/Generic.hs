@@ -243,13 +243,13 @@ type PArray = Array P.Vector
 -- Lenses --------------------------------------------------------------
 
 -- | Same as 'values' but restrictive in the vector type.
-values' :: (Shape l, Vector v a, Vector v b)
-       => IndexedTraversal (l Int) (Array v l a) (Array v l b) a b
+values' :: (Shape f, Vector v a, Vector v b)
+       => IndexedTraversal (f Int) (Array v f a) (Array v f b) a b
 values' = values
 {-# INLINE values' #-}
 
 -- | Traverse over the 'values' between two indexes.
-valuesBetween :: (Shape l, Vector v a) => l Int -> l Int -> IndexedTraversal' (l Int) (Array v l a) a
+valuesBetween :: (Shape f, Vector v a) => f Int -> f Int -> IndexedTraversal' (f Int) (Array v f a) a
 valuesBetween a b = unsafeOrdinals (toListOf (shapeIndexesFrom a) b)
 {-# INLINE valuesBetween #-}
 
@@ -274,7 +274,7 @@ fromList = G.fromList
 -- | O(n) Convert the first @n@ elements of a list to an Array with the
 --   given shape. Returns 'Nothing' if there are not enough elements in
 --   the list.
-fromListInto :: (Shape l, Vector v a) => Layout l -> [a] -> Maybe (Array v l a)
+fromListInto :: (Shape f, Vector v a) => Layout f -> [a] -> Maybe (Array v f a)
 fromListInto l as
   | G.length v == n = Just $ Array l v
   | otherwise       = Nothing
@@ -284,7 +284,7 @@ fromListInto l as
 
 -- | O(n) Convert the first @n@ elements of a list to an Array with the
 --   given shape. Throw an error if the list is not long enough.
-fromListInto_ :: (Shape l, Vector v a) => Layout l -> [a] -> Array v l a
+fromListInto_ :: (Shape f, Vector v a) => Layout f -> [a] -> Array v f a
 fromListInto_ l as = fromMaybe err $ fromListInto l as
   where
     err = error $ "fromListInto_: shape " ++ showShape l ++ " is too large for list"
@@ -292,7 +292,7 @@ fromListInto_ l as = fromMaybe err $ fromListInto l as
 
 -- | Create an array from a 'vector' and a 'layout'. Return 'Nothing' if
 --   the vector is not the right shape.
-fromVectorInto :: (Shape l, Vector v a) => Layout l -> v a -> Maybe (Array v l a)
+fromVectorInto :: (Shape f, Vector v a) => Layout f -> v a -> Maybe (Array v f a)
 fromVectorInto l v
   | shapeSize l == G.length v = Just $! Array l v
   | otherwise                 = Nothing
@@ -300,19 +300,19 @@ fromVectorInto l v
 
 -- | Create an array from a 'vector' and a 'layout'. Throws an error if
 --   the vector is not the right shape.
-fromVectorInto_ :: (Shape l, Vector v a) => Layout l -> v a -> Array v l a
+fromVectorInto_ :: (Shape f, Vector v a) => Layout f -> v a -> Array v f a
 fromVectorInto_ l as = fromMaybe err $ fromVectorInto l as
   where
     err = error $ "fromVectorInto_: shape " ++ showShape l ++ " is too large for the vector"
 {-# INLINE fromVectorInto_ #-}
 
 -- | The empty 'Array' with a 'zero' shape.
-empty :: (Vector v a, Additive l) => Array v l a
+empty :: (Vector v a, Additive f) => Array v f a
 empty = Array zero G.empty
 {-# INLINE empty #-}
 
 -- | Test is if the array is 'empty'.
-null :: Foldable l => Array v l a -> Bool
+null :: Foldable f => Array v f a -> Bool
 null (Array l _) = F.all (==0) l
 {-# INLINE null #-}
 
@@ -320,30 +320,30 @@ null (Array l _) = F.all (==0) l
 
 -- | Index an element of an array. Throws 'IndexOutOfBounds' if the
 --   index is out of bounds.
-(!) :: (Shape l, Vector v a) => Array v l a -> l Int -> a
+(!) :: (Shape f, Vector v a) => Array v f a -> f Int -> a
 Array l v ! i = boundsCheck l i $ G.unsafeIndex v (shapeToIndex l i)
 {-# INLINE (!) #-}
 
 -- | Safe index of an element.
-(!?) :: (Shape l, Vector v a) => Array v l a -> l Int -> Maybe a
+(!?) :: (Shape f, Vector v a) => Array v f a -> f Int -> Maybe a
 Array l v !? i
   | shapeInRange l i = Just $! G.unsafeIndex v (shapeToIndex l i)
   | otherwise   = Nothing
 {-# INLINE (!?) #-}
 
 -- | Index an element of an array without bounds checking.
-unsafeIndex :: (Shape l, Vector v a) => Array v l a -> l Int -> a
+unsafeIndex :: (Shape f, Vector v a) => Array v f a -> f Int -> a
 unsafeIndex (Array l v) i = G.unsafeIndex v (shapeToIndex l i)
 {-# INLINE unsafeIndex #-}
 
 -- | Index an element of an array while ignoring its shape.
-linearIndex :: Vector v a => Array v l a -> Int -> a
+linearIndex :: Vector v a => Array v f a -> Int -> a
 linearIndex (Array _ v) i = v G.! i
 {-# INLINE linearIndex #-}
 
 -- | Index an element of an array while ignoring its shape, without
 --   bounds checking.
-unsafeLinearIndex :: Vector v a => Array v l a -> Int -> a
+unsafeLinearIndex :: Vector v a => Array v f a -> Int -> a
 unsafeLinearIndex (Array _ v) i = G.unsafeIndex v i
 {-# INLINE unsafeLinearIndex #-}
 
@@ -370,38 +370,38 @@ unsafeLinearIndex (Array _ v) i = G.unsafeIndex v i
 --   the elements) is evaluated eagerly.
 --
 --   Throws an error if the index is out of range.
-indexM :: (Shape l, Vector v a, Monad m) => Array v l a -> l Int -> m a
+indexM :: (Shape f, Vector v a, Monad m) => Array v f a -> f Int -> m a
 indexM (Array l v) i = boundsCheck l i $ G.unsafeIndexM v (shapeToIndex l i)
 {-# INLINE indexM #-}
 
 -- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
 --   explanation of why this is useful.
-unsafeIndexM :: (Shape l, Vector v a, Monad m) => Array v l a -> l Int -> m a
+unsafeIndexM :: (Shape f, Vector v a, Monad m) => Array v f a -> f Int -> m a
 unsafeIndexM (Array l v) i = G.unsafeIndexM v (shapeToIndex l i)
 {-# INLINE unsafeIndexM #-}
 
 -- | /O(1)/ Indexing in a monad. Throws an error if the index is out of
 --   range.
-linearIndexM :: (Shape l, Vector v a, Monad m) => Array v l a -> Int -> m a
+linearIndexM :: (Shape f, Vector v a, Monad m) => Array v f a -> Int -> m a
 linearIndexM (Array l v) i = boundsCheck l (shapeFromIndex l i) $ G.unsafeIndexM v i
 {-# INLINE linearIndexM #-}
 
 -- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
 --   explanation of why this is useful.
-unsafeLinearIndexM :: (Vector v a, Monad m) => Array v l a -> Int -> m a
+unsafeLinearIndexM :: (Vector v a, Monad m) => Array v f a -> Int -> m a
 unsafeLinearIndexM (Array _ v) = G.unsafeIndexM v
 {-# INLINE unsafeLinearIndexM #-}
 
 -- Initialisation ------------------------------------------------------
 
 -- | Execute the monadic action and freeze the resulting array.
-create :: (Vector v a, Shape l)
-       => (forall s. ST s (MArray (G.Mutable v) l s a)) -> Array v l a
+create :: (Vector v a, Shape f)
+       => (forall s. ST s (MArray (G.Mutable v) f s a)) -> Array v f a
 create m = m `seq` runST (m >>= unsafeFreeze)
 {-# INLINE create #-}
 
 -- | O(n) Array of the given shape with the same value in each position.
-replicate :: (Shape l, Vector v a) => l Int -> a -> Array v l a
+replicate :: (Shape f, Vector v a) => f Int -> a -> Array v f a
 replicate l a
   | n > 0     = Array l $ G.replicate n a
   | otherwise = empty
@@ -410,7 +410,7 @@ replicate l a
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-linearGenerate :: (Shape l, Vector v a) => Layout l -> (Int -> a) -> Array v l a
+linearGenerate :: (Shape f, Vector v a) => Layout f -> (Int -> a) -> Array v f a
 linearGenerate l f
   | n > 0     = Array l $ G.generate n f
   | otherwise = empty
@@ -419,7 +419,7 @@ linearGenerate l f
 
 -- | O(n) Construct an array of the given shape by applying the
 --   function to each index.
-generate :: (Shape l, Vector v a) => Layout l -> (l Int -> a) -> Array v l a
+generate :: (Shape f, Vector v a) => Layout f -> (f Int -> a) -> Array v f a
 generate l f = Array l $ G.unstream (bundleGenerate l f)
 {-# INLINE generate #-}
 
@@ -427,7 +427,7 @@ generate l f = Array l $ G.unstream (bundleGenerate l f)
 
 -- | O(n) Construct an array of the given shape by filling each position
 --   with the monadic value.
-replicateM :: (Monad m, Shape l, Vector v a) => Layout l -> m a -> m (Array v l a)
+replicateM :: (Monad m, Shape f, Vector v a) => Layout f -> m a -> m (Array v f a)
 replicateM l a
   | n > 0     = Array l `liftM` G.replicateM n a
   | otherwise = return empty
@@ -436,13 +436,13 @@ replicateM l a
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-generateM :: (Monad m, Shape l, Vector v a) => Layout l -> (l Int -> m a) -> m (Array v l a)
+generateM :: (Monad m, Shape f, Vector v a) => Layout f -> (f Int -> m a) -> m (Array v f a)
 generateM l f = Array l `liftM` unstreamM (bundleGenerateM l f)
 {-# INLINE generateM #-}
 
 -- | O(n) Construct an array of the given shape by applying the monadic
 --   function to each index.
-linearGenerateM :: (Monad m, Shape l, Vector v a) => Layout l -> (Int -> m a) -> m (Array v l a)
+linearGenerateM :: (Monad m, Shape f, Vector v a) => Layout f -> (Int -> m a) -> m (Array v f a)
 linearGenerateM l f
   | n > 0     = Array l `liftM` G.generateM n f
   | otherwise = return empty
@@ -452,12 +452,12 @@ linearGenerateM l f
 -- Modifying -----------------------------------------------------------
 
 -- | /O(n)/ Map a function over an array
-map :: (Vector v a, Vector v b) => (a -> b) -> Array v l a -> Array v l b
+map :: (Vector v a, Vector v b) => (a -> b) -> Array v f a -> Array v f b
 map f (Array l a) = Array l (G.map f a)
 {-# INLINE map #-}
 
 -- | /O(n)/ Apply a function to every element of a vector and its index
-imap :: (Shape l, Vector v a, Vector v b) => (l Int -> a -> b) -> Array v l a -> Array v l b
+imap :: (Shape f, Vector v a, Vector v b) => (f Int -> a -> b) -> Array v f a -> Array v f b
 imap f (Array l v) =
   Array l $ (G.unstream . Bundle.inplace (Stream.zipWith f (streamIndexes l)) id . G.stream) v
 {-# INLINE imap #-}
@@ -466,7 +466,7 @@ imap f (Array l v) =
 
 -- | For each pair (i,a) from the list, replace the array element at
 --   position i by a.
-(//) :: (G.Vector v a, Shape l) => Array v l a -> [(l Int, a)] -> Array v l a
+(//) :: (G.Vector v a, Shape f) => Array v f a -> [(f Int, a)] -> Array v f a
 Array l v // xs = Array l $ v G.// over (each . _1) (shapeToIndex l) xs
 
 -- Accumilation --------------------------------------------------------
@@ -474,11 +474,11 @@ Array l v // xs = Array l $ v G.// over (each . _1) (shapeToIndex l) xs
 -- | /O(m+n)/ For each pair @(i,b)@ from the list, replace the array element
 --   @a@ at position @i@ by @f a b@.
 --
-accum :: (Shape l, Vector v a)
+accum :: (Shape f, Vector v a)
       => (a -> b -> a)  -- ^ accumulating function @f@
-      -> Array v l a    -- ^ initial array
-      -> [(l Int, b)]   -- ^ list of index/value pairs (of length @n@)
-      -> Array v l a
+      -> Array v f a    -- ^ initial array
+      -> [(f Int, b)]   -- ^ list of index/value pairs (of length @n@)
+      -> Array v f a
 accum f (Array l v) us = Array l $ G.accum f v (over (mapped . _1) (shapeToIndex l) us)
 {-# INLINE accum #-}
 
@@ -513,12 +513,12 @@ unstreamPrimM_ST = unstreamPrimM
 "unstreamM[ST]" unstreamM = unstreamPrimM_ST  #-}
 
 -- | Generate a stream from a 'Layout''s indices.
-streamGenerate :: (Monad m, Shape l) => Layout l -> (l Int -> a) -> Stream m a
+streamGenerate :: (Monad m, Shape f) => Layout f -> (f Int -> a) -> Stream m a
 streamGenerate l f = streamGenerateM l (return . f)
 {-# INLINE streamGenerate #-}
 
 -- | Generate a stream from a 'Layout''s indices.
-streamGenerateM :: (Monad m, Shape l) => Layout l -> (l Int -> m a) -> Stream m a
+streamGenerateM :: (Monad m, Shape f) => Layout f -> (f Int -> m a) -> Stream m a
 streamGenerateM l f = l `seq` Stream step (if eq1 l zero then Nothing else Just zero)
   where
     {-# INLINE [0] step #-}
@@ -530,17 +530,17 @@ streamGenerateM l f = l `seq` Stream step (if eq1 l zero then Nothing else Just 
 
 -- | Stream a sub-layout of an 'Array'. The layout should be shapeInRange of
 --   the array's layout, this is not checked.
-unsafeStreamSub :: (Monad m, Shape l, G.Vector v a) => Layout l -> Array v l a -> Stream m a
+unsafeStreamSub :: (Monad m, Shape f, G.Vector v a) => Layout f -> Array v f a -> Stream m a
 unsafeStreamSub l2 (Array l1 v) = streamGenerateM l2 $ \x -> G.basicUnsafeIndexM v (shapeToIndex l1 x)
 {-# INLINE unsafeStreamSub #-}
 
 -- | Stream a sub-layout of an 'Array'.
-streamSub :: (Monad m, Shape l, G.Vector v a) => Layout l -> Array v l a -> Stream m a
+streamSub :: (Monad m, Shape f, G.Vector v a) => Layout f -> Array v f a -> Stream m a
 streamSub l2 arr@(Array l1 _) = unsafeStreamSub (shapeIntersect l1 l2) arr
 {-# INLINE streamSub #-}
 
 -- | Make a stream of the indexes of a 'Layout'.
-streamIndexes :: (Monad m, Shape l) => Layout l -> Stream m (l Int)
+streamIndexes :: (Monad m, Shape f) => Layout f -> Stream m (f Int)
 streamIndexes l = Stream step (if eq1 l zero then Nothing else Just zero)
   where
     {-# INLINE [0] step #-}
@@ -553,16 +553,16 @@ streamIndexes l = Stream step (if eq1 l zero then Nothing else Just zero)
 ------------------------------------------------------------------------
 
 -- | Generate a bundle from 'Layout' indices.
-bundleGenerate :: (Monad m, Shape l) => Layout l -> (l Int -> a) -> MBundle m v a
+bundleGenerate :: (Monad m, Shape f) => Layout f -> (f Int -> a) -> MBundle m v a
 bundleGenerate l f = bundleGenerateM l (return . f)
 {-# INLINE bundleGenerate #-}
 
 -- | Generate a bundle from 'Layout' indices.
-bundleGenerateM :: (Monad m, Shape l) => Layout l -> (l Int -> m a) -> MBundle m v a
+bundleGenerateM :: (Monad m, Shape f) => Layout f -> (f Int -> m a) -> MBundle m v a
 bundleGenerateM l f = MBundle.fromStream (streamGenerateM l f) (Exact (shapeSize l))
 {-# INLINE [1] bundleGenerateM #-}
 
-bundleIndexes :: (Monad m, Shape l) => Layout l -> MBundle m v (l Int)
+bundleIndexes :: (Monad m, Shape f) => Layout f -> MBundle m v (f Int)
 bundleIndexes l = MBundle.fromStream (streamIndexes l) (Exact (shapeSize l))
 {-# INLINE [1] bundleIndexes #-}
 
@@ -574,19 +574,19 @@ bundleIndexes l = MBundle.fromStream (streamIndexes l) (Exact (shapeSize l))
 
 -- | Zip two arrays element wise. If the array's don't have the same
 --   shape, the new array with be the intersection of the two shapes.
-zip :: (Shape l, Vector v a, Vector v b, Vector v (a,b))
-    => Array v l a
-    -> Array v l b
-    -> Array v l (a,b)
+zip :: (Shape f, Vector v a, Vector v b, Vector v (a,b))
+    => Array v f a
+    -> Array v f b
+    -> Array v f (a,b)
 zip = zipWith (,)
 
 -- | Zip three arrays element wise. If the array's don't have the same
 --   shape, the new array with be the intersection of the two shapes.
-zip3 :: (Shape l, Vector v a, Vector v b, Vector v c, Vector v (a,b,c))
-     => Array v l a
-     -> Array v l b
-     -> Array v l c
-     -> Array v l (a,b,c)
+zip3 :: (Shape f, Vector v a, Vector v b, Vector v c, Vector v (a,b,c))
+     => Array v f a
+     -> Array v f b
+     -> Array v f c
+     -> Array v f (a,b,c)
 zip3 = zipWith3 (,,)
 
 -- Zip with function ---------------------------------------------------
@@ -594,11 +594,11 @@ zip3 = zipWith3 (,,)
 -- | Zip two arrays using the given function. If the array's don't have
 --   the same shape, the new array with be the intersection of the two
 --   shapes.
-zipWith :: (Shape l, Vector v a, Vector v b, Vector v c)
+zipWith :: (Shape f, Vector v a, Vector v b, Vector v c)
         => (a -> b -> c)
-        -> Array v l a
-        -> Array v l b
-        -> Array v l c
+        -> Array v f a
+        -> Array v f b
+        -> Array v f c
 zipWith f a1@(Array l1 v1) a2@(Array l2 v2)
   | eq1 l1 l1 = Array l1 $ G.zipWith f v1 v2
   | otherwise = Array l' $ G.unstream $
@@ -609,12 +609,12 @@ zipWith f a1@(Array l1 v1) a2@(Array l2 v2)
 -- | Zip three arrays using the given function. If the array's don't
 --   have the same shape, the new array with be the intersection of the
 --   two shapes.
-zipWith3 :: (Shape l, Vector v a, Vector v b, Vector v c, Vector v d)
+zipWith3 :: (Shape f, Vector v a, Vector v b, Vector v c, Vector v d)
          => (a -> b -> c -> d)
-         -> Array v l a
-         -> Array v l b
-         -> Array v l c
-         -> Array v l d
+         -> Array v f a
+         -> Array v f b
+         -> Array v f c
+         -> Array v f d
 zipWith3 f a1@(Array l1 v1) a2@(Array l2 v2) a3@(Array l3 v3)
   | eq1 l1 l2 &&
     eq1 l2 l3 = Array l1 $ G.zipWith3 f v1 v2 v3
@@ -628,11 +628,11 @@ zipWith3 f a1@(Array l1 v1) a2@(Array l2 v2) a3@(Array l3 v3)
 -- | Zip two arrays using the given function with access to the index.
 --   If the array's don't have the same shape, the new array with be the
 --   intersection of the two shapes.
-izipWith :: (Shape l, Vector v a, Vector v b, Vector v c)
-         => (l Int -> a -> b -> c)
-         -> Array v l a
-         -> Array v l b
-         -> Array v l c
+izipWith :: (Shape f, Vector v a, Vector v b, Vector v c)
+         => (f Int -> a -> b -> c)
+         -> Array v f a
+         -> Array v f b
+         -> Array v f c
 izipWith f a1@(Array l1 v1) a2@(Array l2 v2)
   | eq1 l1 l2 = Array l1 $ G.unstream $ Bundle.zipWith3 f (bundleIndexes l1) (G.stream v1) (G.stream v2)
   | otherwise = Array l' $ G.unstream $
@@ -643,12 +643,12 @@ izipWith f a1@(Array l1 v1) a2@(Array l2 v2)
 -- | Zip two arrays using the given function with access to the index.
 --   If the array's don't have the same shape, the new array with be the
 --   intersection of the two shapes.
-izipWith3 :: (Shape l, Vector v a, Vector v b, Vector v c, Vector v d)
-          => (l Int -> a -> b -> c -> d)
-          -> Array v l a
-          -> Array v l b
-          -> Array v l c
-          -> Array v l d
+izipWith3 :: (Shape f, Vector v a, Vector v b, Vector v c, Vector v d)
+          => (f Int -> a -> b -> c -> d)
+          -> Array v f a
+          -> Array v f b
+          -> Array v f c
+          -> Array v f d
 izipWith3 f a1@(Array l1 v1) a2@(Array l2 v2) a3@(Array l3 v3)
   | eq1 l1 l2 = Array l1 $ G.unstream $ Bundle.zipWith4 f (bundleIndexes l1) (G.stream v1) (G.stream v2) (G.stream v3)
   | otherwise =
@@ -811,36 +811,36 @@ flattenPlane l32 f a@(Array l _) = generate l' $ \x -> f (getVector x)
 
 -- | This 'Traversal' should not have any duplicates in the list of
 --   indices.
-unsafeOrdinals :: (Vector v a, Shape l) => [l Int] -> IndexedTraversal' (l Int) (Array v l a) a
+unsafeOrdinals :: (Vector v a, Shape f) => [f Int] -> IndexedTraversal' (f Int) (Array v f a) a
 unsafeOrdinals is f (Array l v) = Array l . (v G.//) <$> traverse g is
   where g x = let i = shapeToIndex l x in (,) i <$> indexed f x (G.unsafeIndex v i)
 {-# INLINE [0] unsafeOrdinals #-}
 
-setOrdinals :: (Indexable (l Int) p, Vector v a, Shape l) => [l Int] -> p a a -> Array v l a -> Array v l a
+setOrdinals :: (Indexable (f Int) p, Vector v a, Shape f) => [f Int] -> p a a -> Array v f a -> Array v f a
 setOrdinals is f (Array l v) = Array l $ G.unsafeUpd v (fmap g is)
   where g x = let i = shapeToIndex l x in (,) i $ indexed f x (G.unsafeIndex v i)
 {-# INLINE setOrdinals #-}
 
 {-# RULES
-"unsafeOrdinals/setOrdinals" forall (is :: [l Int]).
+"unsafeOrdinals/setOrdinals" forall (is :: [f Int]).
   unsafeOrdinals is = sets (setOrdinals is)
-    :: (Vector v a, Shape l) => ASetter' (Array v l a) a;
-"unsafeOrdinalts/isetOrdintals" forall (is :: [l Int]).
+    :: (Vector v a, Shape f) => ASetter' (Array v f a) a;
+"unsafeOrdinalts/isetOrdintals" forall (is :: [f Int]).
   unsafeOrdinals is = sets (setOrdinals is)
-    :: (Vector v a, Shape l) => AnIndexedSetter' (l Int) (Array v l a) a
+    :: (Vector v a, Shape f) => AnIndexedSetter' (f Int) (Array v f a) a
  #-}
 
 -- Mutable -------------------------------------------------------------
 
 -- | O(n) Yield a mutable copy of the immutable vector.
-freeze :: (PrimMonad m, Shape l, Vector v a)
-       => MArray (G.Mutable v) l (PrimState m) a -> m (Array v l a)
+freeze :: (PrimMonad m, Shape f, Vector v a)
+       => MArray (G.Mutable v) f (PrimState m) a -> m (Array v f a)
 freeze (MArray l mv) = Array l `liftM` G.freeze mv
 {-# INLINE freeze #-}
 
 -- | O(n) Yield an immutable copy of the mutable array.
-thaw :: (PrimMonad m, Shape l, Vector v a)
-     => Array v l a -> m (MArray (G.Mutable v) l (PrimState m) a)
+thaw :: (PrimMonad m, Shape f, Vector v a)
+     => Array v f a -> m (MArray (G.Mutable v) f (PrimState m) a)
 thaw (Array l v) = MArray l `liftM` G.thaw v
 {-# INLINE thaw #-}
 
@@ -851,28 +851,28 @@ thaw (Array l v) = MArray l `liftM` G.thaw v
 
 -- | Isomorphism between an array and it's delayed representation.
 --   Conversion to the array is done in parallel.
-delayed :: (Vector v a, Vector w b, Shape l, Shape k)
-        => Iso (Array v l a) (Array w k b) (Delayed l a) (Delayed k b)
+delayed :: (Vector v a, Vector w b, Shape f, Shape g)
+        => Iso (Array v f a) (Array w g b) (Delayed f a) (Delayed g b)
 delayed = iso delay manifest
 {-# INLINE delayed #-}
 
 -- | Sequential manifestation of a delayed array.
-seqManifest :: (Vector v a, Shape l) => Delayed l a -> Array v l a
+seqManifest :: (Vector v a, Shape f) => Delayed f a -> Array v f a
 seqManifest (Delayed l f) = Array l (G.generate (shapeSize l) f)
 {-# INLINE seqManifest #-}
 
 -- | 'manifest' an array to a 'UArray' and delay again. See
 --   "Data.Shaped.Boxed" or 'Data.Shaped.Storable" to 'affirm' for other
 --   types of arrays.
-affirm :: (Shape l, U.Unbox a) => Delayed l a -> Delayed l a
-affirm = delay . (manifest :: (U.Unbox a, Shape l) => Delayed l a -> UArray l a)
+affirm :: (Shape f, U.Unbox a) => Delayed f a -> Delayed f a
+affirm = delay . (manifest :: (U.Unbox a, Shape f) => Delayed f a -> UArray f a)
 {-# INLINE affirm #-}
 
 -- | 'seqManifest' an array to a 'UArray' and delay again. See
---   "Data.Shaped.Boxed" or 'Data.Shaped.Storable" to 'affirm' for other
+--   "Data.Shaped.Boxed" or "Data.Shaped.Storable" to 'affirm' for other
 --   types of arrays.
-seqAffirm :: (Shape l, U.Unbox a) => Delayed l a -> Delayed l a
-seqAffirm = delay . (seqManifest :: (U.Unbox a, Shape l) => Delayed l a -> UArray l a)
+seqAffirm :: (Shape f, U.Unbox a) => Delayed f a -> Delayed f a
+seqAffirm = delay . (seqManifest :: (U.Unbox a, Shape f) => Delayed f a -> UArray f a)
 {-# INLINE seqAffirm #-}
 
 ------------------------------------------------------------------------
@@ -880,23 +880,23 @@ seqAffirm = delay . (seqManifest :: (U.Unbox a, Shape l) => Delayed l a -> UArra
 ------------------------------------------------------------------------
 
 -- | Focus on a particular element of a delayed array.
-focusOn :: l Int -> Delayed l a -> Focused l a
+focusOn :: f Int -> Delayed f a -> Focused f a
 focusOn = Focused -- XXX do range checking
 {-# INLINE focusOn #-}
 
 -- | Discard the focus to retrieve the delayed array.
-unfocus :: Focused l a -> Delayed l a
+unfocus :: Focused f a -> Delayed f a
 unfocus (Focused _ d) = d
 {-# INLINE unfocus #-}
 
 -- | Indexed lens onto the delayed array, indexed at the focus.
-unfocused :: IndexedLens (l Int) (Focused l a) (Focused l b) (Delayed l a) (Delayed l b)
+unfocused :: IndexedLens (f Int) (Focused f a) (Focused f b) (Delayed f a) (Delayed f b)
 unfocused f (Focused x d) = Focused x <$> indexed f x d
 {-# INLINE unfocused #-}
 
 -- | Modify a 'Delayed' array by extracting a value from a 'Focused'
 --   each point.
-extendFocus :: Shape l => (Focused l a -> b) -> Delayed l a -> Delayed l b
+extendFocus :: Shape f => (Focused f a -> b) -> Delayed f a -> Delayed f b
 extendFocus f = unfocus . extend f . focusOn zero
 {-# INLINE extendFocus #-}
 
@@ -910,7 +910,7 @@ locale f w = (`seek` w) <$> f (pos w)
 {-# INLINE locale #-}
 
 -- | Focus on a neighbouring element, relative to the current focus.
-shiftFocus :: Applicative l => l Int -> Focused l a -> Focused l a
+shiftFocus :: Applicative f => f Int -> Focused f a -> Focused f a
 shiftFocus dx (Focused x d@(Delayed l _)) = Focused x' d
   where
     x' = f <$> l <*> x <*> dx
