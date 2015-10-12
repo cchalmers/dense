@@ -82,35 +82,43 @@ type Layout f = f Int
 -- | Class for types that can be converted to and from linear indexes.
 class (Eq1 f, Additive f, Traversable f) => Shape f where
   -- | Convert a shape to its linear index using the 'Layout'.
-  toIndex :: Layout f -> f Int -> Int
-  toIndex l x = F.foldl (\k (e, a) -> k * e + a) 0 (liftI2 (,) l x)
-  {-# INLINE toIndex #-}
+  shapeToIndex :: Layout f -> f Int -> Int
+  shapeToIndex l x = F.foldl (\k (e, a) -> k * e + a) 0 (liftI2 (,) l x)
+  {-# INLINE shapeToIndex #-}
 
   -- | Convert a linear index to a shape the 'Layout'.
-  fromIndex :: Layout f -> Int -> f Int
-  fromIndex l i = snd $ mapAccumR quotRem i l
-  {-# INLINE fromIndex #-}
+  shapeFromIndex :: Layout f -> Int -> f Int
+  shapeFromIndex l i = snd $ mapAccumR quotRem i l
+  {-# INLINE shapeFromIndex #-}
 
   -- | Calculate the intersection of two shapes.
-  intersectShape :: f Int -> f Int -> f Int
-  intersectShape = liftU2 min
-  {-# INLINE intersectShape #-}
+  shapeIntersect :: Layout f -> Layout f -> Layout f
+  shapeIntersect = liftU2 min
+  {-# INLINE shapeIntersect #-}
 
   -- | Increment a shape by one. It is assumed that the provided index
   --   is 'inRange'.
-  stepShape :: Layout f -> f Int -> Maybe (f Int)
-  stepShape l = fmap (fromIndex l) . guardPure (< F.product l) . (+1) . toIndex l
-  {-# INLINE stepShape #-}
+  shapeStep :: Layout f -> f Int -> Maybe (f Int)
+  shapeStep l = fmap (shapeFromIndex l)
+              . guardPure (< shapeSize l)
+              . (+1)
+              . shapeToIndex l
+  {-# INLINE shapeStep #-}
 
   -- | Increment a shape by one between the two bounds
-  stepShapeBetween :: f Int -> Layout f -> f Int -> Maybe (f Int)
-  stepShapeBetween a l = fmap (^+^ a) . stepShape l . (^-^ a)
-  {-# INLINE stepShapeBetween #-}
+  shapeStepBetween :: f Int -> Layout f -> f Int -> Maybe (f Int)
+  shapeStepBetween a l = fmap (^+^ a) . shapeStep l . (^-^ a)
+  {-# INLINE shapeStepBetween #-}
 
   -- | @inRange ex i@ checks @i < ex@ for every coordinate of @f@.
-  inRange :: Layout f -> f Int -> Bool
-  inRange l i = F.and $ liftI2 (\ii li -> ii >= 0 && ii < li) i l
-  {-# INLINE inRange #-}
+  shapeInRange :: Layout f -> f Int -> Bool
+  shapeInRange l i = F.and $ liftI2 (\ii li -> ii >= 0 && ii < li) i l
+  {-# INLINE shapeInRange #-}
+
+  -- | @inRange ex i@ checks @i < ex@ for every coordinate of @f@.
+  shapeSize :: Layout f -> Int
+  shapeSize = F.product
+  {-# INLINE shapeSize #-}
 
 guardPure :: Alternative f => (a -> Bool) -> a -> f a
 guardPure p a = if p a then pure a else empty
@@ -119,69 +127,69 @@ guardPure p a = if p a then pure a else empty
 instance Shape V0
 
 instance Shape V1 where
-  {-# INLINE toIndex #-}
-  {-# INLINE fromIndex #-}
-  {-# INLINE intersectShape #-}
-  {-# INLINE stepShape #-}
-  {-# INLINE inRange #-}
-  toIndex _ (V1 i) = i
-  fromIndex _ i = V1 i
-  intersectShape = min
-  stepShape l = guardPure (inRange l) . (+1)
-  stepShapeBetween _a b i = guardPure (> b) i'
+  {-# INLINE shapeToIndex #-}
+  {-# INLINE shapeFromIndex #-}
+  {-# INLINE shapeIntersect #-}
+  {-# INLINE shapeStep #-}
+  {-# INLINE shapeInRange #-}
+  shapeToIndex _ (V1 i) = i
+  shapeFromIndex _ i = V1 i
+  shapeIntersect = min
+  shapeStep l = guardPure (shapeInRange l) . (+1)
+  shapeStepBetween _a b i = guardPure (> b) i'
     where i' = i + 1
-  inRange m i = i >= 0 && i < m
+  shapeInRange m i = i >= 0 && i < m
 
 instance Shape V2 where
-  stepShape (V2 x y) (V2 i j)
+  shapeStep (V2 x y) (V2 i j)
     | j + 1 < y  = Just (V2      i  (j + 1))
     | i + 1 < x  = Just (V2 (i + 1)      0 )
     | otherwise  = Nothing
-  {-# INLINE stepShape #-}
+  {-# INLINE shapeStep #-}
 
-  stepShapeBetween (V2 _ia ja) (V2 ib jb) (V2 i j)
+  shapeStepBetween (V2 _ia ja) (V2 ib jb) (V2 i j)
     | j + 1 < jb = Just (V2      i  (j + 1))
     | i + 1 < ib = Just (V2 (i + 1)     ja )
     | otherwise  = Nothing
-  {-# INLINE stepShapeBetween #-}
+  {-# INLINE shapeStepBetween #-}
 
 instance Shape V3 where
-  stepShape (V3 x y z) (V3 i j k)
+  shapeStep (V3 x y z) (V3 i j k)
     | k + 1 < z  = Just (V3      i       j  (k + 1))
     | j + 1 < y  = Just (V3      i  (j + 1)      0 )
     | i + 1 < x  = Just (V3 (i + 1)      0       0 )
     | otherwise  = Nothing
-  {-# INLINE stepShape #-}
+  {-# INLINE shapeStep #-}
 
-  stepShapeBetween (V3 _ia ja ka) (V3 ib jb kb) (V3 i j k)
+  shapeStepBetween (V3 _ia ja ka) (V3 ib jb kb) (V3 i j k)
     | k < kb  = Just (V3      i       j  (k + 1))
     | j < jb  = Just (V3      i  (j + 1)     ka )
     | i < ib  = Just (V3 (i + 1)     ja      ka )
     | otherwise  = Nothing
-  {-# INLINE stepShapeBetween #-}
+  {-# INLINE shapeStepBetween #-}
 
 instance Shape V4 where
-  stepShape (V4 x y z w) (V4 i j k l)
+  shapeStep (V4 x y z w) (V4 i j k l)
     | l + 1 < w  = Just (V4      i       j       k  (l + 1))
     | k + 1 < z  = Just (V4      i       j  (k + 1)      0 )
     | j + 1 < y  = Just (V4      i  (j + 1)      0       0 )
     | i + 1 < x  = Just (V4 (i + 1)      0       0       0 )
     | otherwise  = Nothing
-  {-# INLINE stepShape #-}
+  {-# INLINE shapeStep #-}
 
-  stepShapeBetween (V4 _ia ja ka la) (V4 ib jb kb lb) (V4 i j k l)
+  shapeStepBetween (V4 _ia ja ka la) (V4 ib jb kb lb) (V4 i j k l)
     | l < lb  = Just (V4      i       j       k  (l + 1))
     | k < kb  = Just (V4      i       j  (k + 1)     la )
     | j < jb  = Just (V4      i  (j + 1)     ka      la )
     | i < ib  = Just (V4 (i + 1)     ja      ka      la )
     | otherwise  = Nothing
-  {-# INLINE stepShapeBetween #-}
+  {-# INLINE shapeStepBetween #-}
 
 -- instance Dim n => Shape (V n)
 
 -- | @'toIndex' l@ and @'fromIndex' l@ form two halfs of an isomorphism.
 indexIso :: Shape f => Layout f -> Iso' (f Int) Int
-indexIso l = iso (toIndex l) (fromIndex l)
+indexIso l = iso (shapeToIndex l) (shapeFromIndex l)
 {-# INLINE indexIso #-}
 
 ------------------------------------------------------------------------
@@ -225,7 +233,7 @@ extent = view layout
 -- 'size' :: 'Data.Shaped.Base.Focused' f a    -> 'Int'
 -- @
 size :: HasLayout f a => a -> Int
-size = F.product . view layout
+size = shapeSize . view layout
 {-# INLINE size #-}
 
 -- NB: lens already uses indices so we settle for indexes
@@ -238,7 +246,7 @@ indexes = layout . shapeIndexes
 -- | 'indexes' for a 'Shape'.
 shapeIndexes :: Shape f => IndexedFold Int (Layout f) (f Int)
 shapeIndexes g l = go (0::Int) (if eq1 l zero then Nothing else Just zero) where
-  go i (Just x) = indexed g i x *> go (i + 1) (stepShape l x)
+  go i (Just x) = indexed g i x *> go (i + 1) (shapeStep l x)
   go _ Nothing  = noEffect
 {-# INLINE shapeIndexes #-}
 
@@ -262,8 +270,8 @@ indexesBetween a b = layout . shapeIndexesBetween a b
 -- | 'indexesBetween' for a 'Shape'.
 shapeIndexesBetween :: Shape f => f Int -> f Int -> IndexedFold Int (Layout f) (f Int)
 shapeIndexesBetween a b f l =
-  go (if eq1 l a || not (inRange l b) then Nothing else Just a) where
-    go (Just x) = indexed f (toIndex l x) x *> go (stepShapeBetween a b x)
+  go (if eq1 l a || not (shapeInRange l b) then Nothing else Just a) where
+    go (Just x) = indexed f (shapeToIndex l x) x *> go (shapeStepBetween a b x)
     go Nothing  = noEffect
 {-# INLINE shapeIndexesBetween #-}
 
@@ -293,8 +301,8 @@ shapeIndexesBetween a b f l =
 -- Left (V1 20,V1 2)
 boundsCheck :: Shape l => Layout l-> l Int -> a -> a
 boundsCheck l i
-  | inRange l i = id
-  | otherwise   = throwing _IndexOutOfBounds $ "(" ++ showShape i ++ ", " ++ showShape l ++ ")"
+  | shapeInRange l i = id
+  | otherwise        = throwing _IndexOutOfBounds $ "(" ++ showShape i ++ ", " ++ showShape l ++ ")"
 {-# INLINE boundsCheck #-}
 
 -- Size missmatch ------------------------------------------------------

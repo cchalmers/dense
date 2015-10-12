@@ -144,7 +144,7 @@ module Data.Shaped
   , Comonad (..)
   , ComonadStore (..)
 
-  -- * Common layouts
+  -- * Common shapes
   , V1 (..)
   , V2 (..)
   , V3 (..)

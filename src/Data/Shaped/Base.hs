@@ -111,7 +111,7 @@ data Array v l a = Array !(Layout l) !(v a)
 --   current position in the array.
 values :: (Shape l, Vector v a, Vector w b)
        => IndexedTraversal (l Int) (Array v l a) (Array w l b) a b
-values = \f arr -> reindexed (fromIndex $ extent arr) (vector . vectorTraverse) f arr
+values = \f arr -> reindexed (shapeFromIndex $ extent arr) (vector . vectorTraverse) f arr
 {-# INLINE values #-}
 
 -- | Indexed lens over the underlying vector of an array. The index is
@@ -161,7 +161,7 @@ unsafeThaw (Array l v) = MArray l `liftM` G.unsafeThaw v
 -- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
 instance Shape f => HasLayout f (Array v f a) where
   layout f (Array l v) = f l <&> \l' ->
-    sizeMissmatch (F.product l) (F.product l')
+    sizeMissmatch (shapeSize l) (shapeSize l')
       ("layout (Array): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
       $ Array l' v
   {-# INLINE layout #-}
@@ -181,9 +181,9 @@ type instance IxValue (Array v l a) = a
 
 instance (Shape l, Vector v a) => Ixed (Array v l a) where
   ix x f (Array l v)
-    | inRange l x = f (G.unsafeIndex v i) <&>
+    | shapeInRange l x = f (G.unsafeIndex v i) <&>
         \a -> Array l (G.modify (\mv -> GM.unsafeWrite mv i a) v)
-      where i = toIndex l x
+      where i = shapeToIndex l x
   ix _ _ arr = pure arr
   {-# INLINE ix #-}
 
@@ -239,7 +239,7 @@ instance (Boxed v, Shape l) => TraversableWithIndex (l Int) (Array v l) where
   itraversed = values
   {-# INLINE itraversed #-}
 
-instance (Boxed v, Foldable l, Serial1 l) => Serial1 (Array v l) where
+instance (Boxed v, Shape l, Serial1 l) => Serial1 (Array v l) where
   serializeWith putF (Array l v) = do
     serializeWith serialize l
     F.traverse_ putF v
@@ -273,7 +273,7 @@ instance (Vector v a, l ~ V1) => Vector (Array v l) a where
 
 -- Serialise instances -------------------------------------------------
 
-instance (Vector v a, Foldable l, Serial1 l, Serial a) => Serial (Array v l a) where
+instance (Vector v a, Shape l, Serial1 l, Serial a) => Serial (Array v l a) where
   serialize (Array l v) = do
     serializeWith serialize l
     traverseOf_ vectorTraverse serialize v
@@ -281,7 +281,7 @@ instance (Vector v a, Foldable l, Serial1 l, Serial a) => Serial (Array v l a) w
   deserialize = genGet (deserializeWith deserialize) deserialize
   {-# INLINE deserialize #-}
 
-instance (Vector v a, Foldable l, Binary (l Int), Binary a) => Binary (Array v l a) where
+instance (Vector v a, Shape l, Binary (l Int), Binary a) => Binary (Array v l a) where
   put (Array l v) = do
     Binary.put l
     traverseOf_ vectorTraverse Binary.put v
@@ -289,7 +289,7 @@ instance (Vector v a, Foldable l, Binary (l Int), Binary a) => Binary (Array v l
   get = genGet Binary.get Binary.get
   {-# INLINE get #-}
 
-instance (Vector v a, Foldable l, Serialize (l Int), Serialize a) => Serialize (Array v l a) where
+instance (Vector v a, Shape l, Serialize (l Int), Serialize a) => Serialize (Array v l a) where
   put (Array l v) = do
     Cereal.put l
     traverseOf_ vectorTraverse Cereal.put v
@@ -297,10 +297,10 @@ instance (Vector v a, Foldable l, Serialize (l Int), Serialize a) => Serialize (
   get = genGet Cereal.get Cereal.get
   {-# INLINE get #-}
 
-genGet :: Monad m => (Vector v a, Foldable l) => m (l Int) -> m a -> m (Array v l a)
+genGet :: Monad m => (Vector v a, Shape l) => m (l Int) -> m a -> m (Array v l a)
 genGet getL getA = do
   l <- getL
-  let n       = F.product l
+  let n       = shapeSize l
       nv0     = New.create (GM.new n)
       f acc i = (\a -> New.modify (\mv -> GM.write mv i a) acc) `liftM` getA
   nv <- F.foldlM f nv0 [0 .. n - 1]
@@ -347,7 +347,7 @@ delay (Array l v) = Delayed l (G.unsafeIndex v)
 -- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
 instance Shape f => HasLayout f (Delayed f a) where
   layout f (Delayed l ixF) = f l <&> \l' ->
-    sizeMissmatch (F.product l) (F.product l')
+    sizeMissmatch (shapeSize l) (shapeSize l')
       ("layout (Delayed): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
       $ Delayed l' ixF
   {-# INLINE layout #-}
@@ -358,7 +358,7 @@ instance Shape l => Foldable (Delayed l) where
     go i
       | i >= n    = b
       | otherwise = f (ixF i) (go (i+1))
-    n = F.product l
+    n = shapeSize l
   {-# INLINE foldr #-}
 
   foldMap f (Delayed l ixF) = unsafePerformIO $ do
@@ -376,7 +376,7 @@ instance Shape l => Foldable (Delayed l) where
       return child
     F.fold <$> for childs takeMVar
     where
-    !n       = F.product l
+    !n       = shapeSize l
     !(q, r)  = n `quotRem` threads
     !threads = unsafePerformIO getNumCapabilities
   {-# INLINE foldMap #-}
@@ -406,20 +406,20 @@ instance Shape l => Additive (Delayed l) where
   liftU2 f (Delayed l ixF) (Delayed k ixG)
     | l `eq1` k = Delayed l (liftA2 f ixF ixG)
     | otherwise = Delayed (liftU2 max l k) $ \i ->
-        let x = fromIndex q i
-        in if | inRange q x -> liftA2 f ixF ixG i
-              | inRange l x -> ixF i
+        let x = shapeFromIndex q i
+        in if | shapeInRange q x -> liftA2 f ixF ixG i
+              | shapeInRange l x -> ixF i
               | otherwise   -> ixG i
-    where q = intersectShape l k
+    where q = shapeIntersect l k
   {-# INLINE liftU2 #-}
 
-  liftI2 f (Delayed l ixF) (Delayed k ixG) = Delayed (intersectShape l k) $ liftA2 f ixF ixG
+  liftI2 f (Delayed l ixF) (Delayed k ixG) = Delayed (shapeIntersect l k) $ liftA2 f ixF ixG
   {-# INLINE liftI2 #-}
 
 instance Shape l => Metric (Delayed l)
 
 instance Shape l => FunctorWithIndex (l Int) (Delayed l) where
-  imap f (Delayed l ixF) = Delayed l $ \i -> f (fromIndex l i) (ixF i)
+  imap f (Delayed l ixF) = Delayed l $ \i -> f (shapeFromIndex l i) (ixF i)
   {-# INLINE imap #-}
 
 instance Shape l => FoldableWithIndex (l Int) (Delayed l) where
@@ -449,19 +449,19 @@ type instance Index (Delayed l a) = l Int
 type instance IxValue (Delayed l a) = a
 instance Shape l => Ixed (Delayed l a) where
   ix x f arr@(Delayed l ixF)
-    | inRange l x = f (ixF i) <&> \a ->
+    | shapeInRange l x = f (ixF i) <&> \a ->
       let g j | j == i    = a
               | otherwise = ixF j
       in  Delayed l g
     | otherwise   = pure arr
-    where i = toIndex l x
+    where i = shapeToIndex l x
   {-# INLINE ix #-}
 
 -- | Index a delayed array, returning a 'IndexOutOfBounds' exception if
 --   the index is out of range.
 indexDelayed :: Shape l => Delayed l a -> l Int -> a
 indexDelayed (Delayed l ixF) x =
-  boundsCheck l x $ ixF (toIndex l x)
+  boundsCheck l x $ ixF (shapeToIndex l x)
 {-# INLINE indexDelayed #-}
 
 -- | Parallel manifestation of a delayed array into a material one.
@@ -481,7 +481,7 @@ manifest (Delayed l ixF) = Array l v
         return child
       F.for_ childs takeMVar
       G.unsafeFreeze mv
-    !n       = F.product l
+    !n       = shapeSize l
     !(q, r)  = n `quotRem` threads
     !threads = unsafePerformIO getNumCapabilities
 {-# INLINE manifest #-}
@@ -489,7 +489,7 @@ manifest (Delayed l ixF) = Array l v
 -- | Generate a 'Delayed' array using the given 'Layout' and
 --   construction function.
 genDelayed :: Shape l => Layout l -> (l Int -> a) -> Delayed l a
-genDelayed l f = Delayed l (f . fromIndex l)
+genDelayed l f = Delayed l (f . shapeFromIndex l)
 {-# INLINE genDelayed #-}
 
 ------------------------------------------------------------------------
@@ -504,7 +504,7 @@ data Focused l a = Focused !(l Int) !(Delayed l a)
 -- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
 instance Shape f => HasLayout f (Focused f a) where
   layout f (Focused x (Delayed l ixF)) = f l <&> \l' ->
-    sizeMissmatch (F.product l) (F.product l')
+    sizeMissmatch (shapeSize l) (shapeSize l')
       ("layout (Focused): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
       $ Focused x (Delayed l' ixF)
   {-# INLINE layout #-}
