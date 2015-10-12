@@ -828,6 +828,21 @@ setOrdinals is f (Array l v) = Array l $ G.unsafeUpd v (fmap g is)
     :: (Vector v a, Shape l) => AnIndexedSetter' (l Int) (Array v l a) a
  #-}
 
+-- Mutable -------------------------------------------------------------
+
+-- | O(n) Yield a mutable copy of the immutable vector.
+freeze :: (PrimMonad m, Shape l, Vector v a)
+       => MArray (G.Mutable v) l (PrimState m) a -> m (Array v l a)
+freeze (MArray l mv) = Array l `liftM` G.freeze mv
+{-# INLINE freeze #-}
+
+-- | O(n) Yield an immutable copy of the mutable array.
+thaw :: (PrimMonad m, Shape l, Vector v a)
+     => Array v l a -> m (MArray (G.Mutable v) l (PrimState m) a)
+thaw (Array l v) = MArray l `liftM` G.thaw v
+{-# INLINE thaw #-}
+
+
 ------------------------------------------------------------------------
 -- Delayed
 ------------------------------------------------------------------------
@@ -889,5 +904,4 @@ shiftFocus dx (Focused x d@(Delayed l _)) = Focused x' d
       | otherwise = i'
       where i' = i + di
 {-# INLINE shiftFocus #-}
-
 

@@ -23,6 +23,10 @@
 --
 -- Base module for shaped vectors. This module exports the constructors
 -- for the 'Shaped' data type.
+--
+-- Also, to prevent this module becomming too large, only the data types
+-- and the functions nessesary for the instances are defined here. All
+-- other functions are defined in "Data.Shaped.Generic".
 -----------------------------------------------------------------------------
 module Data.Shaped.Base
   (
@@ -30,14 +34,12 @@ module Data.Shaped.Base
     Array (..)
   , Boxed
 
-    -- * Lenses
+    -- ** Lenses
   , vector
   , values
 
-  -- * Functions on arrays
+  -- ** Conversion to/from mutable arrays
 
-  , thaw
-  , freeze
   , unsafeThaw
   , unsafeFreeze
 
@@ -127,18 +129,6 @@ vector f (Array l v) =
 {-# INLINE vector #-}
 
 -- Mutable conversion --------------------------------------------------
-
--- | O(n) Yield a mutable copy of the immutable vector.
-freeze :: (PrimMonad m, Shape l, Vector v a)
-       => MArray (G.Mutable v) l (PrimState m) a -> m (Array v l a)
-freeze (MArray l mv) = Array l `liftM` G.freeze mv
-{-# INLINE freeze #-}
-
--- | O(n) Yield an immutable copy of the mutable array.
-thaw :: (PrimMonad m, Shape l, Vector v a)
-     => Array v l a -> m (MArray (G.Mutable v) l (PrimState m) a)
-thaw (Array l v) = MArray l `liftM` G.thaw v
-{-# INLINE thaw #-}
 
 -- | O(1) Unsafe convert a mutable array to an immutable one without
 -- copying. The mutable array may not be used after this operation.
