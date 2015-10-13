@@ -166,5 +166,5 @@ module Data.Shaped
 
 import           Data.Shaped.Generic
 import           Control.Comonad.Store
-import           Linear              hiding (vector)
+import           Linear                hiding (vector)
 

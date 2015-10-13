@@ -494,7 +494,8 @@ izipWith3 = G.izipWith3
 
 -- $setup
 -- >>> import Debug.SimpleReflect
--- >>> let m = fromListInto_ (V2 3 4) [a,b,c,d,e,f,g,h,i,j,k,l] :: BBArray V2 Expr
+-- >>> import qualified Data.Vector as V
+-- >>> let m = fromListInto_ (V2 3 4) [a,b,c,d,e,f,g,h,i,j,k,l] :: BArray V2 Expr
 
 -- | Indexed traversal over the rows of a matrix. Each row is an
 --   efficient 'Data.Vector.Generic.slice' of the original vector.
@@ -517,12 +518,12 @@ rows = G.rows
 --   The row vector should remain the same size to satisfy traversal
 --   laws but give reasonable behaviour if the size differs:
 --
--- >>> traverseOf_ rows print $ m & ixRow 1 .~ B.fromList [0,1]
+-- >>> traverseOf_ rows print $ m & ixRow 1 .~ V.fromList [0,1]
 -- [a,b,c,d]
 -- [0,1,g,h]
 -- [i,j,k,l]
 --
--- >>> traverseOf_ rows print $ m & ixRow 1 .~ B.fromList [0..100]
+-- >>> traverseOf_ rows print $ m & ixRow 1 .~ V.fromList [0..100]
 -- [a,b,c,d]
 -- [0,1,2,3]
 -- [i,j,k,l]

@@ -472,16 +472,15 @@ izipWith3 = G.izipWith3
 ------------------------------------------------------------------------
 
 -- $setup
--- >>> import Debug.SimpleReflect
--- >>> let m = fromListInto_ (V2 3 4) [a,b,c,d,e,f,g,h,i,j,k,l] :: BSArray V2 Expr
+-- >>> import qualified Data.Vector.Storable as V
+-- >>> let m = fromListInto_ (V2 2 3) [1..] :: SArray V2 Int
 
 -- | Indexed traversal over the rows of a matrix. Each row is an
 --   efficient 'Data.Vector.Generic.slice' of the original vector.
 --
 -- >>> traverseOf_ rows print m
--- [a,b,c,d]
--- [e,f,g,h]
--- [i,j,k,l]
+-- [1,2,3]
+-- [4,5,6]
 rows :: (Storable a, Storable b)
      => IndexedTraversal Int (SArray V2 a) (SArray V2 b) (Vector a) (Vector b)
 rows = G.rows
@@ -489,23 +488,20 @@ rows = G.rows
 
 -- | Affine traversal over a single row in a matrix.
 --
--- >>> traverseOf_ rows print $ m & ixRow 1 . each *~ 2
--- [a,b,c,d]
--- [e * 2,f * 2,g * 2,h * 2]
--- [i,j,k,l]
+-- >>> traverseOf_ rows print $ m & ixRow 1 . each +~ 2
+-- [1,2,3]
+-- [6,7,8]
 --
 --   The row vector should remain the same size to satisfy traversal
 --   laws but give reasonable behaviour if the size differs:
 --
--- >>> traverseOf_ rows print $ m & ixRow 1 .~ B.fromList [0,1]
--- [a,b,c,d]
--- [0,1,g,h]
--- [i,j,k,l]
+-- >>> traverseOf_ rows print $ m & ixRow 1 .~ V.fromList [0,1]
+-- [1,2,3]
+-- [0,1,6]
 --
--- >>> traverseOf_ rows print $ m & ixRow 1 .~ B.fromList [0..100]
--- [a,b,c,d]
--- [0,1,2,3]
--- [i,j,k,l]
+-- >>> traverseOf_ rows print $ m & ixRow 1 .~ V.fromList [0..100]
+-- [1,2,3]
+-- [0,1,2]
 ixRow :: Storable a => Int -> IndexedTraversal' Int (SArray V2 a) (Vector a)
 ixRow = G.ixRow
 {-# INLINE ixRow #-}
@@ -514,15 +510,13 @@ ixRow = G.ixRow
 --   column is a new separate vector.
 --
 -- >>> traverseOf_ columns print m
--- [a,e,i]
--- [b,f,j]
--- [c,g,k]
--- [d,h,l]
+-- [1,4]
+-- [2,5]
+-- [3,6]
 --
 -- >>> traverseOf_ rows print $ m & columns . indices odd . each .~ 0
--- [a,0,c,0]
--- [e,0,g,0]
--- [i,0,k,0]
+-- [1,0,3]
+-- [4,0,6]
 --
 --   The vectors should be the same size to be a valid traversal. If the
 --   vectors are different sizes, the number of rows in the new array
@@ -534,10 +528,9 @@ columns = G.columns
 
 -- | Affine traversal over a single column in a matrix.
 --
--- >>> traverseOf_ rows print $ m & ixColumn 2 . each +~ 1
--- [a,b,c + 1,d]
--- [e,f,g + 1,h]
--- [i,j,k + 1,l]
+-- >>> traverseOf_ rows print $ m & ixColumn 2 . each *~ 10
+-- [1,2,30]
+-- [4,5,60]
 ixColumn :: Storable a => Int -> IndexedTraversal' Int (SArray V2 a) (Vector a)
 ixColumn = G.ixColumn
 {-# INLINE ixColumn #-}
