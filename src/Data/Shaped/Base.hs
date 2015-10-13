@@ -399,7 +399,7 @@ instance Shape l => Additive (Delayed l) where
         let x = shapeFromIndex q i
         in if | shapeInRange q x -> liftA2 f ixF ixG i
               | shapeInRange l x -> ixF i
-              | otherwise   -> ixG i
+              | otherwise        -> ixG i
     where q = shapeIntersect l k
   {-# INLINE liftU2 #-}
 
@@ -463,8 +463,8 @@ manifest (Delayed l ixF) = Array l v
       childs <- for [0 .. threads - 1] $ \c -> do
         child <- newEmptyMVar
         _ <- forkOn c $ do
-          let k | c == 0    = q + r
-                | otherwise = q
+          let k | c == threads - 1 = q + r
+                | otherwise        = q
               x = c * q
           F.for_ [x .. x + k - 1] $ \i -> GM.unsafeWrite mv i $! ixF i
           putMVar child ()
