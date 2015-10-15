@@ -40,7 +40,7 @@ parallel via `manifest`:
 > manifest . fmap (+100) . delay
 ```
 
-or equivilently used the `delayed` isomorphism:
+or equivilently using the `delayed` isomorphism:
 
 ```.haskell
 > delayed +~ 100

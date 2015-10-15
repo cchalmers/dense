@@ -371,6 +371,11 @@ instance Shape f => Foldable (Delayed f) where
     !threads = unsafePerformIO getNumCapabilities
   {-# INLINE foldMap #-}
 
+#if __GLASGOW_HASKELL__ >= 710
+  length = size
+  {-# INLINE length #-}
+#endif
+
 instance (Shape f, Show1 f, Show a) => Show (Delayed f a) where
   showsPrec p arr@(Delayed l _) = showParen (p > 10) $
     showString "Delayed " . showsPrec1 11 l . showChar ' ' . showsPrec 11 (F.toList arr)
@@ -535,6 +540,14 @@ type instance IxValue (Focused f a) = a
 instance Shape f => Foldable (Focused f) where
   foldr f b (Focused _ d) = F.foldr f b d
   {-# INLINE foldr #-}
+
+  foldMap f (Focused _ d) = F.foldMap f d
+  {-# INLINE foldMap #-}
+
+#if __GLASGOW_HASKELL__ >= 710
+  length = size
+  {-# INLINE length #-}
+#endif
 
 instance Shape f => Traversable (Focused f) where
   traverse f (Focused u d) = Focused u <$> traverse f d
