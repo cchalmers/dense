@@ -96,6 +96,15 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
 
   -- | Increment a shape by one. It is assumed that the provided index
   --   is 'inRange'.
+  unsafeShapeStep :: Layout f -> f Int -> f Int
+  unsafeShapeStep l
+    = shapeFromIndex l
+    . (+1)
+    . shapeToIndex l
+  {-# INLINE unsafeShapeStep #-}
+
+  -- | Increment a shape by one. It is assumed that the provided index
+  --   is 'inRange'.
   shapeStep :: Layout f -> f Int -> Maybe (f Int)
   shapeStep l = fmap (shapeFromIndex l)
               . guardPure (< shapeSize l)
@@ -139,11 +148,23 @@ instance Shape V1 where
   shapeInRange m i = i >= 0 && i < m
 
 instance Shape V2 where
+  shapeToIndex (V2 _x y) (V2 i j) = y*i + j
+  {-# INLINE shapeToIndex #-}
+
+  shapeFromIndex (V2 _x y) n = V2 i j
+    where (i, j) = n `quotRem` y
+  {-# INLINE shapeFromIndex #-}
+
   shapeStep (V2 x y) (V2 i j)
     | j + 1 < y  = Just (V2      i  (j + 1))
     | i + 1 < x  = Just (V2 (i + 1)      0 )
     | otherwise  = Nothing
   {-# INLINE shapeStep #-}
+
+  unsafeShapeStep (V2 x y) (V2 i j)
+    | j + 1 < y  = V2      i  (j + 1)
+    | otherwise  = V2 (i + 1)      0
+  {-# INLINE unsafeShapeStep #-}
 
   shapeStepBetween (V2 _ia ja) (V2 ib jb) (V2 i j)
     | j + 1 < jb = Just (V2      i  (j + 1))

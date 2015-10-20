@@ -845,7 +845,6 @@ thaw :: (PrimMonad m, Shape f, Vector v a)
 thaw (Array l v) = MArray l `liftM` G.thaw v
 {-# INLINE thaw #-}
 
-
 ------------------------------------------------------------------------
 -- Delayed
 ------------------------------------------------------------------------
@@ -859,7 +858,7 @@ delayed = iso delay manifest
 
 -- | Sequential manifestation of a delayed array.
 seqManifest :: (Vector v a, Shape f) => Delayed f a -> Array v f a
-seqManifest (Delayed l f) = Array l (G.generate (shapeSize l) f)
+seqManifest (Delayed l f) = generate l f
 {-# INLINE seqManifest #-}
 
 -- | 'manifest' an array to a 'UArray' and delay again. See

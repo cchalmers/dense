@@ -69,7 +69,8 @@ import           Control.Comonad
 import           Control.Comonad.Store
 import           Control.DeepSeq
 import           Control.Lens
-import           Control.Monad                   (liftM)
+import           Control.Lens.Internal           (noEffect)
+import           Control.Monad                   (guard, liftM)
 import           Control.Monad.Primitive
 import           Data.Binary                     as Binary
 import           Data.Bytes.Serial
@@ -326,12 +327,12 @@ deriving instance (Typeable f, Typeable v, Typeable a, Data (f Int), Data (v a))
 
 -- | A delayed representation of an array. This useful for mapping over
 --   an array in parallel.
-data Delayed f a = Delayed !(Layout f) (Int -> a)
+data Delayed f a = Delayed !(Layout f) (f Int -> a)
   deriving (Typeable, Functor)
 
 -- | Turn a material array into a delayed one with the same shape.
 delay :: (Vector v a, Shape f) => Array v f a -> Delayed f a
-delay (Array l v) = Delayed l (G.unsafeIndex v)
+delay (Array l v) = Delayed l (G.unsafeIndex v . shapeToIndex l)
 {-# INLINE delay #-}
 
 -- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
@@ -344,32 +345,10 @@ instance Shape f => HasLayout f (Delayed f a) where
 
 -- | 'foldMap' in parallel.
 instance Shape f => Foldable (Delayed f) where
-  foldr f b (Delayed l ixF) = go 0 where
-    go i
-      | i >= n    = b
-      | otherwise = f (ixF i) (go (i+1))
-    n = shapeSize l
+  foldr f b (Delayed l ixF) = foldrOf shapeIndexes (\x -> f (ixF x)) b l
   {-# INLINE foldr #-}
 
-  foldMap f (Delayed l ixF) = unsafePerformIO $ do
-    childs <- for [0 .. threads - 1] $ \c -> do
-      child <- newEmptyMVar
-      _ <- forkOn c $ do
-        let k | c == threads - 1 = q + r
-              | otherwise        = q
-            x = c * q
-            m = x + k
-            go i !acc
-              | i >= m    = acc
-              | otherwise = go (i+1) (acc `mappend` f (ixF i))
-        putMVar child $! go x mempty
-      return child
-    F.fold <$> for childs takeMVar
-    where
-    !n       = shapeSize l
-    !(q, r)  = n `quotRem` threads
-    !threads = unsafePerformIO getNumCapabilities
-  {-# INLINE foldMap #-}
+  foldMap = foldDelayed . const
 
 #if __GLASGOW_HASKELL__ >= 710
   length = size
@@ -398,15 +377,25 @@ instance Shape f => Additive (Delayed f) where
   zero = _Empty # ()
   {-# INLINE zero #-}
 
+  -- This can only be satisfied on if one array is larger than the other
+  -- in all dimensions, otherwise there will be gaps in the array
   liftU2 f (Delayed l ixF) (Delayed k ixG)
-    | l `eq1` k = Delayed l (liftA2 f ixF ixG)
-    | otherwise = Delayed (liftU2 max l k) $ \i ->
-        let x = shapeFromIndex q i
-        in if | shapeInRange q x -> liftA2 f ixF ixG i
-              | shapeInRange l x -> ixF i
-              | otherwise        -> ixG i
-    where q = shapeIntersect l k
-  {-# INLINE liftU2 #-}
+    | l `eq1` k       = Delayed l (liftA2 f ixF ixG)
+
+    -- l > k
+    | all (>= EQ) cmp = Delayed l $ \x ->
+        if | shapeInRange l x -> liftA2 f ixF ixG x
+           | otherwise        -> ixF x
+
+    -- k > l
+    | all (<= EQ) cmp = Delayed k $ \x ->
+        if | shapeInRange k x -> liftA2 f ixF ixG x
+           | otherwise        -> ixG x
+
+    -- not possible to union array sizes because there would be gaps,
+    -- just intersect them instead
+    | otherwise       = Delayed (shapeIntersect l k) $ liftA2 f ixF ixG
+    where cmp = liftI2 compare l k
 
   liftI2 f (Delayed l ixF) (Delayed k ixG) = Delayed (shapeIntersect l k) $ liftA2 f ixF ixG
   {-# INLINE liftI2 #-}
@@ -414,17 +403,18 @@ instance Shape f => Additive (Delayed f) where
 instance Shape f => Metric (Delayed f)
 
 instance Shape f => FunctorWithIndex (f Int) (Delayed f) where
-  imap f (Delayed l ixF) = Delayed l $ \i -> f (shapeFromIndex l i) (ixF i)
+  imap f (Delayed l ixF) = Delayed l $ \x -> f x (ixF x)
   {-# INLINE imap #-}
 
+-- | 'ifoldMap' in parallel.
 instance Shape f => FoldableWithIndex (f Int) (Delayed f) where
-  ifoldr f b (Delayed l ixF) = ifoldrOf shapeIndexes (\i x -> f x (ixF i)) b l
+  ifoldr f b (Delayed l ixF) = foldrOf shapeIndexes (\x -> f x (ixF x)) b l
   {-# INLINE ifoldr #-}
 
   ifolded = ifoldring ifoldr
   {-# INLINE ifolded #-}
 
-  ifoldMap = ifoldMapOf ifolded
+  ifoldMap = foldDelayed
   {-# INLINE ifoldMap #-}
 
 instance Shape f => TraversableWithIndex (f Int) (Delayed f) where
@@ -444,20 +434,42 @@ type instance Index (Delayed f a) = f Int
 type instance IxValue (Delayed f a) = a
 instance Shape f => Ixed (Delayed f a) where
   ix x f arr@(Delayed l ixF)
-    | shapeInRange l x = f (ixF i) <&> \a ->
-      let g j | j == i    = a
-              | otherwise = ixF j
+    | shapeInRange l x = f (ixF x) <&> \a ->
+      let g y | eq1 x y   = a
+              | otherwise = ixF x
       in  Delayed l g
-    | otherwise   = pure arr
-    where i = shapeToIndex l x
+    | otherwise        = pure arr
   {-# INLINE ix #-}
 
 -- | Index a delayed array, returning a 'IndexOutOfBounds' exception if
 --   the index is out of range.
 indexDelayed :: Shape f => Delayed f a -> f Int -> a
 indexDelayed (Delayed l ixF) x =
-  boundsCheck l x $ ixF (shapeToIndex l x)
+  boundsCheck l x $ ixF x
 {-# INLINE indexDelayed #-}
+
+foldDelayed :: (Shape f, Monoid m) => (f Int -> a -> m) -> (Delayed f a) -> m
+foldDelayed f (Delayed l ixF) = unsafePerformIO $ do
+  childs <- for [0 .. threads - 1] $ \c -> do
+    child <- newEmptyMVar
+    _ <- forkOn c $ do
+      let k | c == threads - 1 = q + r
+            | otherwise        = q
+          x = c * q
+          m = x + k
+          go i (Just s) acc
+            | i >= m       = acc
+            | otherwise    = let !acc' = acc `mappend` f s (ixF s)
+                             in  go (i+1) (shapeStep l s) acc'
+          go _ Nothing acc = acc
+      putMVar child $! go x (Just $ shapeFromIndex l x) mempty
+    return child
+  F.fold <$> for childs takeMVar
+  where
+  !n       = shapeSize l
+  !(q, r)  = n `quotRem` threads
+  !threads = unsafePerformIO getNumCapabilities
+{-# INLINE foldDelayed #-}
 
 -- | Parallel manifestation of a delayed array into a material one.
 manifest :: (Vector v a, Shape f) => Delayed f a -> Array v f a
@@ -471,7 +483,9 @@ manifest (Delayed l ixF) = Array l v
           let k | c == threads - 1 = q + r
                 | otherwise        = q
               x = c * q
-          F.for_ [x .. x + k - 1] $ \i -> GM.unsafeWrite mv i $! ixF i
+          -- F.for_ [x .. x + k - 1] $ \i -> GM.unsafeWrite mv i $! ixF i
+          iforOf_ (linearIndexesBetween x k) l $ \i s ->
+            GM.unsafeWrite mv i (ixF s)
           putMVar child ()
         return child
       F.for_ childs takeMVar
@@ -481,10 +495,24 @@ manifest (Delayed l ixF) = Array l v
     !threads = unsafePerformIO getNumCapabilities
 {-# INLINE manifest #-}
 
+-- linearIndexesBetween :: Shape f => Int -> Int -> IndexedFold Int (Layout f) (f Int)
+-- linearIndexesBetween i0 k g l = go i0 (shapeFromIndex l i0) where
+--   go i x
+--     | i < k     = indexed g i x *> go (i+1) (unsafeShapeStep l x)
+--     | otherwise = noEffect
+-- {-# INLINE [0] linearIndexesBetween #-}
+
+linearIndexesBetween :: Shape f => Int -> Int -> IndexedFold Int (Layout f) (f Int)
+linearIndexesBetween i0 k g l = go i0 (Just $ shapeFromIndex l i0)
+  where
+  go i (Just x) = indexed g i x *> go (i+1) (guard (i+1 < k) *> shapeStep l x)
+  go _ _        = noEffect
+{-# INLINE linearIndexesBetween #-}
+
 -- | Generate a 'Delayed' array using the given 'Layout' and
 --   construction function.
 genDelayed :: Shape f => Layout f -> (f Int -> a) -> Delayed f a
-genDelayed l f = Delayed l (f . shapeFromIndex l)
+genDelayed = Delayed
 {-# INLINE genDelayed #-}
 
 ------------------------------------------------------------------------
@@ -529,7 +557,7 @@ instance Shape f => ComonadStore (f Int) (Focused f) where
 
 instance (Shape f, Show1 f, Show a) => Show (Focused f a) where
   showsPrec p (Focused l d) = showParen (p > 10) $
-    showString "Focused " . showsPrec1 11 l . showsPrec 11 d
+    showString "Focused " . showsPrec1 11 l . showChar ' ' . showsPrec 11 d
 
 instance (Shape f, Show1 f) => Show1 (Focused f) where
   showsPrec1 = showsPrec
@@ -566,7 +594,7 @@ instance Shape f => FoldableWithIndex (f Int) (Focused f) where
   ifolded = ifoldring ifoldr
   {-# INLINE ifolded #-}
 
-  ifoldMap = ifoldMapOf ifolded
+  ifoldMap f (Focused u d) = ifoldMap (f . (^-^) u) d
   {-# INLINE ifoldMap #-}
 
 -- | Index relative to focus.
