@@ -49,8 +49,7 @@ module Data.Shaped.Index
 
     -- (* Size missmatch
   , SizeMissmatch (..)
-  , AsSizeMissmatch
-  , _SizeMissmatch
+  , AsSizeMissmatch (..)
   , sizeMissmatch
 
     -- * Utilities
@@ -306,6 +305,7 @@ boundsCheck l i
 
 -- Size missmatch ------------------------------------------------------
 
+-- | Thrown when two sizes that should match, don't.
 data SizeMissmatch = SizeMissmatch String
   deriving Typeable
 

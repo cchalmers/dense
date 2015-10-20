@@ -228,16 +228,16 @@ import           Prelude                           hiding (map, null, replicate,
 
 -- Aliases -------------------------------------------------------------
 
--- | Boxed array.
+-- | 'Boxed' array.
 type BArray = Array B.Vector
 
--- | 'Unbox'ed array.
+-- | 'Data.Vector.Unboxed.Unbox'ed array.
 type UArray = Array U.Vector
 
--- | 'Storeable' array.
+-- | 'Foreign.Storable.Storeable' array.
 type SArray = Array S.Vector
 
--- | 'Prim' array.
+-- | 'Data.Primitive.Types.Prim' array.
 type PArray = Array P.Vector
 
 -- Lenses --------------------------------------------------------------
@@ -562,6 +562,7 @@ bundleGenerateM :: (Monad m, Shape f) => Layout f -> (f Int -> m a) -> MBundle m
 bundleGenerateM l f = MBundle.fromStream (streamGenerateM l f) (Exact (shapeSize l))
 {-# INLINE [1] bundleGenerateM #-}
 
+-- | Generate a bundle of indexes for the given 'Layout'.
 bundleIndexes :: (Monad m, Shape f) => Layout f -> MBundle m v (f Int)
 bundleIndexes l = MBundle.fromStream (streamIndexes l) (Exact (shapeSize l))
 {-# INLINE [1] bundleIndexes #-}

@@ -202,6 +202,7 @@ linearSwap :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int ->
 linearSwap (MArray _ v) = GM.swap v
 {-# INLINE linearSwap #-}
 
+-- | Modify a mutable array at element @i@ by applying a function.
 linearModify :: (PrimMonad m, MVector v a) => MArray v l (PrimState m) a -> Int -> (a -> a) -> m ()
 linearModify (MArray _ v) i f = GM.read v i >>= GM.unsafeWrite v i . f
 {-# INLINE linearModify #-}
