@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances     #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE MultiWayIf            #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE RankNTypes            #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE TypeFamilies          #-}</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- Module      :  Data.Shaped</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Copyright   :  (c) Christopher Chalmers</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- License     :  BSD3</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- Maintainer  :  Christopher Chalmers</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Stability   :  provisional</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Portability :  non-portable</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- This module provides a large subset of the full functionality of</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- &quot;shaped&quot; without exporting names that conflict with names in prelude,</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- so it can often be imported unqualified. It also includes reexported</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- classes and data types from other modules. However it does not</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- contain much functions necessary to construct arrays, for that see</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-- &quot;Data.Shaped.Generic&quot; or one of the type specific modules intended to</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-- be imported qualified. Typical imports for shaped will look like this:</span><span>
+</span><a name="line-24"></a><span class="hs-comment">--</span><span>
+</span><a name="line-25"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- import           &quot;Data.Shaped&quot;</span><span>
+</span><a name="line-27"></a><span class="hs-comment">-- import qualified &quot;Data.Shaped.Unboxed&quot; as U</span><span>
+</span><a name="line-28"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-29"></a><span class="hs-comment">--</span><span>
+</span><a name="line-30"></a><span class="hs-comment">-- For boxed-specific arrays (a la &quot;Data.Vector&quot;) see 'Data.Shaped.Boxed'.</span><span>
+</span><a name="line-31"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-32"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Shaped</span><span>
+</span><a name="line-33"></a><span>  </span><span class="hs-special">(</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-comment">-- * Array types</span><span>
+</span><a name="line-35"></a><span>    </span><a href="Data.Shaped.Base.html#Array"><span class="hs-identifier hs-type">Array</span></a><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#BArray"><span class="hs-identifier hs-type">BArray</span></a><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#UArray"><span class="hs-identifier hs-type">UArray</span></a><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#SArray"><span class="hs-identifier hs-type">SArray</span></a><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#PArray"><span class="hs-identifier hs-type">PArray</span></a><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-comment">-- * Indexing</span><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Index.html#Layout"><span class="hs-identifier hs-type">Layout</span></a><span>
+</span><a name="line-43"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Index.html#HasLayout"><span class="hs-identifier hs-type">HasLayout</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-44"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Index.html#Shape"><span class="hs-identifier hs-type">Shape</span></a><span>
+</span><a name="line-45"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Index.html#extent"><span class="hs-identifier hs-var">extent</span></a><span>
+</span><a name="line-46"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Index.html#size"><span class="hs-identifier hs-var">size</span></a><span>
+</span><a name="line-47"></a><span>
+</span><a name="line-48"></a><span>    </span><span class="hs-comment">-- ** Folds over indexes</span><span>
+</span><a name="line-49"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Index.html#indexes"><span class="hs-identifier hs-var">indexes</span></a><span>
+</span><a name="line-50"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Index.html#indexesBetween"><span class="hs-identifier hs-var">indexesBetween</span></a><span>
+</span><a name="line-51"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Index.html#indexesFrom"><span class="hs-identifier hs-var">indexesFrom</span></a><span>
+</span><a name="line-52"></a><span>
+</span><a name="line-53"></a><span>    </span><span class="hs-comment">-- ** Lenses</span><span>
+</span><a name="line-54"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Base.html#vector"><span class="hs-identifier hs-var">vector</span></a><span>
+</span><a name="line-55"></a><span>
+</span><a name="line-56"></a><span>    </span><span class="hs-comment">-- ** Traversals</span><span>
+</span><a name="line-57"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Base.html#values"><span class="hs-identifier hs-var">values</span></a><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#values%27"><span class="hs-identifier hs-var">values'</span></a><span>
+</span><a name="line-59"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#valuesBetween"><span class="hs-identifier hs-var">valuesBetween</span></a><span>
+</span><a name="line-60"></a><span>
+</span><a name="line-61"></a><span>  </span><span class="hs-comment">-- * Construction</span><span>
+</span><a name="line-62"></a><span>
+</span><a name="line-63"></a><span>  </span><span class="hs-comment">-- ** Flat arrays</span><span>
+</span><a name="line-64"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#flat"><span class="hs-identifier hs-var">flat</span></a><span>
+</span><a name="line-65"></a><span>
+</span><a name="line-66"></a><span>  </span><span class="hs-comment">-- ** Shaped from lists</span><span>
+</span><a name="line-67"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#fromListInto"><span class="hs-identifier hs-var">fromListInto</span></a><span>
+</span><a name="line-68"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#fromListInto_"><span class="hs-identifier hs-var">fromListInto_</span></a><span>
+</span><a name="line-69"></a><span>
+</span><a name="line-70"></a><span>  </span><span class="hs-comment">-- ** Shaped from vectors</span><span>
+</span><a name="line-71"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#fromVectorInto"><span class="hs-identifier hs-var">fromVectorInto</span></a><span>
+</span><a name="line-72"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#fromVectorInto_"><span class="hs-identifier hs-var">fromVectorInto_</span></a><span>
+</span><a name="line-73"></a><span>
+</span><a name="line-74"></a><span>  </span><span class="hs-comment">-- ** Generating</span><span>
+</span><a name="line-75"></a><span>  </span><span class="hs-comment">-- | See &quot;Data.Shaped.Generic&quot;.</span><span>
+</span><a name="line-76"></a><span>
+</span><a name="line-77"></a><span>  </span><span class="hs-comment">-- * Functions on arrays</span><span>
+</span><a name="line-78"></a><span>
+</span><a name="line-79"></a><span>  </span><span class="hs-comment">-- ** Empty arrays</span><span>
+</span><a name="line-80"></a><span>  </span><span class="hs-comment">-- | See 'Control.Lens.Empty.AsEmpty' class or &quot;Data.Shaped.Generic&quot;.</span><span>
+</span><a name="line-81"></a><span>
+</span><a name="line-82"></a><span>  </span><span class="hs-comment">-- ** Indexing</span><span>
+</span><a name="line-83"></a><span>  </span><span class="hs-comment">-- | See 'Control.Lens.At.Ixed' class.</span><span>
+</span><a name="line-84"></a><span>
+</span><a name="line-85"></a><span>  </span><span class="hs-comment">-- ** Modifying arrays</span><span>
+</span><a name="line-86"></a><span>  </span><span class="hs-comment">-- | See &quot;Data.Shaped.Generic&quot;.</span><span>
+</span><a name="line-87"></a><span>
+</span><a name="line-88"></a><span>  </span><span class="hs-comment">-- ** Slices</span><span>
+</span><a name="line-89"></a><span>
+</span><a name="line-90"></a><span>  </span><span class="hs-comment">-- *** Matrix</span><span>
+</span><a name="line-91"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#ixRow"><span class="hs-identifier hs-var">ixRow</span></a><span>
+</span><a name="line-92"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#rows"><span class="hs-identifier hs-var">rows</span></a><span>
+</span><a name="line-93"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#ixColumn"><span class="hs-identifier hs-var">ixColumn</span></a><span>
+</span><a name="line-94"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#columns"><span class="hs-identifier hs-var">columns</span></a><span>
+</span><a name="line-95"></a><span>
+</span><a name="line-96"></a><span>  </span><span class="hs-comment">-- *** 3D</span><span>
+</span><a name="line-97"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#ixPlane"><span class="hs-identifier hs-var">ixPlane</span></a><span>
+</span><a name="line-98"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#planes"><span class="hs-identifier hs-var">planes</span></a><span>
+</span><a name="line-99"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#flattenPlane"><span class="hs-identifier hs-var">flattenPlane</span></a><span>
+</span><a name="line-100"></a><span>
+</span><a name="line-101"></a><span>  </span><span class="hs-comment">-- * Mutable</span><span>
+</span><a name="line-102"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Mutable.html#MArray"><span class="hs-identifier hs-type">MArray</span></a><span>
+</span><a name="line-103"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Mutable.html#BMArray"><span class="hs-identifier hs-type">BMArray</span></a><span>
+</span><a name="line-104"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Mutable.html#UMArray"><span class="hs-identifier hs-type">UMArray</span></a><span>
+</span><a name="line-105"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Mutable.html#SMArray"><span class="hs-identifier hs-type">SMArray</span></a><span>
+</span><a name="line-106"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Mutable.html#PMArray"><span class="hs-identifier hs-type">PMArray</span></a><span>
+</span><a name="line-107"></a><span>
+</span><a name="line-108"></a><span>  </span><span class="hs-comment">-- * Delayed</span><span>
+</span><a name="line-109"></a><span>
+</span><a name="line-110"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Base.html#Delayed"><span class="hs-identifier hs-type">Delayed</span></a><span>
+</span><a name="line-111"></a><span>
+</span><a name="line-112"></a><span>  </span><span class="hs-comment">-- ** Generating delayed</span><span>
+</span><a name="line-113"></a><span>
+</span><a name="line-114"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#delayed"><span class="hs-identifier hs-var">delayed</span></a><span>
+</span><a name="line-115"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Base.html#delay"><span class="hs-identifier hs-var">delay</span></a><span>
+</span><a name="line-116"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Base.html#manifest"><span class="hs-identifier hs-var">manifest</span></a><span>
+</span><a name="line-117"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#seqManifest"><span class="hs-identifier hs-var">seqManifest</span></a><span>
+</span><a name="line-118"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Base.html#genDelayed"><span class="hs-identifier hs-var">genDelayed</span></a><span>
+</span><a name="line-119"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Base.html#indexDelayed"><span class="hs-identifier hs-var">indexDelayed</span></a><span>
+</span><a name="line-120"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#affirm"><span class="hs-identifier hs-var">affirm</span></a><span>
+</span><a name="line-121"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#seqAffirm"><span class="hs-identifier hs-var">seqAffirm</span></a><span>
+</span><a name="line-122"></a><span>
+</span><a name="line-123"></a><span>    </span><span class="hs-comment">-- ** Helpful reexports</span><span>
+</span><a name="line-124"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator hs-var">*^</span><span class="hs-special">)</span><span>
+</span><a name="line-125"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator hs-var">^*</span><span class="hs-special">)</span><span>
+</span><a name="line-126"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator hs-var">^/</span><span class="hs-special">)</span><span>
+</span><a name="line-127"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Additive</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-128"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Metric</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-129"></a><span>
+</span><a name="line-130"></a><span>  </span><span class="hs-comment">-- * Focused</span><span>
+</span><a name="line-131"></a><span>
+</span><a name="line-132"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Base.html#Focused"><span class="hs-identifier hs-type">Focused</span></a><span>
+</span><a name="line-133"></a><span>
+</span><a name="line-134"></a><span>  </span><span class="hs-comment">-- ** Generating focused</span><span>
+</span><a name="line-135"></a><span>
+</span><a name="line-136"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#focusOn"><span class="hs-identifier hs-var">focusOn</span></a><span>
+</span><a name="line-137"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#unfocus"><span class="hs-identifier hs-var">unfocus</span></a><span>
+</span><a name="line-138"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#unfocused"><span class="hs-identifier hs-var">unfocused</span></a><span>
+</span><a name="line-139"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#extendFocus"><span class="hs-identifier hs-var">extendFocus</span></a><span>
+</span><a name="line-140"></a><span>
+</span><a name="line-141"></a><span>  </span><span class="hs-comment">-- ** Focus location</span><span>
+</span><a name="line-142"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#locale"><span class="hs-identifier hs-var">locale</span></a><span>
+</span><a name="line-143"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Shaped.Generic.html#shiftFocus"><span class="hs-identifier hs-var">shiftFocus</span></a><span>
+</span><a name="line-144"></a><span>
+</span><a name="line-145"></a><span>    </span><span class="hs-comment">-- ** Helpful reexports</span><span>
+</span><a name="line-146"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Comonad</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-147"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">ComonadStore</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-148"></a><span>
+</span><a name="line-149"></a><span>  </span><span class="hs-comment">-- * Common shapes</span><span>
+</span><a name="line-150"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">V1</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-151"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">V2</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-152"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">V3</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-153"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">V4</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-154"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">R1</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-155"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">R2</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-156"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">R3</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-157"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">R4</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-158"></a><span>
+</span><a name="line-159"></a><span>  </span><span class="hs-comment">-- ** Extra planes</span><span>
+</span><a name="line-160"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">_xz</span><span>
+</span><a name="line-161"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">_yz</span><span>
+</span><a name="line-162"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">_yx</span><span>
+</span><a name="line-163"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">_zy</span><span>
+</span><a name="line-164"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">_zx</span><span>
+</span><a name="line-165"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-166"></a><span>
+</span><a name="line-167"></a><span class="hs-keyword">import</span><span>           </span><a href="Data.Shaped.Generic.html"><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Shaped</span><span class="hs-operator">.</span><span class="hs-identifier">Generic</span></a><span>
+</span><a name="line-168"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control</span><span class="hs-operator">.</span><span class="hs-identifier">Comonad</span><span class="hs-operator">.</span><span class="hs-identifier">Store</span><span>
+</span><a name="line-169"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Linear</span><span>                </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">vector</span><span class="hs-special">)</span><span>
+</span><a name="line-170"></a><span>
+</span><a name="line-171"></a></pre></body></html>
