@@ -1,6 +1,7 @@
 ## shaped
 
 [![Build Status](https://travis-ci.org/cchalmers/shaped.svg)](https://travis-ci.org/cchalmers/shaped)
+[![Haddock](https://rawgit.com/cchalmers/shaped/gh-pages/haddock.svg)](https://cchalmers.github.io/shaped/)
 [![Hackage](https://img.shields.io/hackage/v/shaped.svg?style=flat)](https://hackage.haskell.org/package/shaped)
 
 `shaped` is a high level multi-dimensional arrays library with support
