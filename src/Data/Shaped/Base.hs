@@ -104,6 +104,8 @@ import           System.IO.Unsafe                (unsafePerformIO)
 import           Prelude                         hiding (null, replicate,
                                                   zipWith, zipWith3)
 
+import GHC.Types (SPEC (..))
+
 -- | An 'Array' is a vector with a shape.
 data Array v f a = Array !(Layout f) !(v a)
   deriving Typeable
@@ -483,8 +485,7 @@ manifest (Delayed l ixF) = Array l v
           let k | c == threads - 1 = q + r
                 | otherwise        = q
               x = c * q
-          -- F.for_ [x .. x + k - 1] $ \i -> GM.unsafeWrite mv i $! ixF i
-          iforOf_ (linearIndexesBetween x k) l $ \i s ->
+          iforOf_ (linearIndexesBetween x (x+k)) l $ \i s ->
             GM.unsafeWrite mv i (ixF s)
           putMVar child ()
         return child
@@ -495,18 +496,11 @@ manifest (Delayed l ixF) = Array l v
     !threads = unsafePerformIO getNumCapabilities
 {-# INLINE manifest #-}
 
--- linearIndexesBetween :: Shape f => Int -> Int -> IndexedFold Int (Layout f) (f Int)
--- linearIndexesBetween i0 k g l = go i0 (shapeFromIndex l i0) where
---   go i x
---     | i < k     = indexed g i x *> go (i+1) (unsafeShapeStep l x)
---     | otherwise = noEffect
--- {-# INLINE [0] linearIndexesBetween #-}
-
 linearIndexesBetween :: Shape f => Int -> Int -> IndexedFold Int (Layout f) (f Int)
-linearIndexesBetween i0 k g l = go i0 (Just $ shapeFromIndex l i0)
+linearIndexesBetween i0 k g l = go SPEC i0 (Just $ shapeFromIndex l i0)
   where
-  go i (Just x) = indexed g i x *> go (i+1) (guard (i+1 < k) *> shapeStep l x)
-  go _ _        = noEffect
+  go !_ i (Just x) = indexed g i x *> go SPEC (i+1) (guard (i+1 < k) *> shapeStep l x)
+  go !_ _ _        = noEffect
 {-# INLINE linearIndexesBetween #-}
 
 -- | Generate a 'Delayed' array using the given 'Layout' and
