@@ -159,6 +159,11 @@ module Data.Shaped.Storable
   , G.locale
   , G.shiftFocus
 
+  -- ** Pointers
+
+  , unsafeWithPtr
+  , unsafeToForeignPtr
+  , unsafeFromForeignPtr
   ) where
 
 import           Control.Lens            hiding (imap)
@@ -166,11 +171,14 @@ import           Control.Monad.Primitive
 import           Control.Monad.ST
 import qualified Data.Foldable           as F
 import           Data.Vector.Storable    (Storable, Vector)
+import qualified Data.Vector.Storable    as S
 import           Linear                  hiding (vector)
+import           Foreign (Ptr, ForeignPtr)
 
 import           Prelude                 hiding (map, null, replicate, zip,
                                           zip3, zipWith, zipWith3)
 
+import           Data.Shaped.Base        (Array (..))
 import           Data.Shaped.Generic     (SArray)
 import qualified Data.Shaped.Generic     as G
 import           Data.Shaped.Index
@@ -633,4 +641,27 @@ affirm = delay . manifest
 seqAffirm :: (Shape f, Storable a) => G.Delayed f a -> G.Delayed f a
 seqAffirm = delay . seqManifest
 {-# INLINE seqAffirm #-}
+
+-- Pointer operations --------------------------------------------------
+
+-- | Pass a pointer to the array's data to the IO action. Modifying
+--   data through the 'Ptr' is unsafe.
+unsafeWithPtr :: Storable a => SArray f a -> (Ptr a -> IO b) -> IO b
+unsafeWithPtr (Array _ v) = S.unsafeWith v
+{-# INLINE unsafeWithPtr #-}
+
+-- | Yield the underlying ForeignPtr. Modifying the data through the
+--   'ForeignPtr' is unsafe.
+unsafeToForeignPtr :: (Shape f, Storable a) => SArray f a -> ForeignPtr a
+unsafeToForeignPtr (Array _ v) = fp
+  where (fp, _, _) = S.unsafeToForeignPtr v
+{-# INLINE unsafeToForeignPtr #-}
+
+-- | O(1) Create an array from a layout and 'ForeignPtr'. It is
+--   assumed the pointer points directly to the data (no offset).
+--   Modifying data through the 'ForeignPtr' afterwards is unsafe.
+unsafeFromForeignPtr
+  :: (Shape f, Storable a) => Layout f -> ForeignPtr a -> SArray f a
+unsafeFromForeignPtr l fp = Array l (S.unsafeFromForeignPtr0 fp (shapeSize l))
+{-# INLINE unsafeFromForeignPtr #-}
 
