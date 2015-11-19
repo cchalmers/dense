@@ -1,6 +1,8 @@
+{-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE RankNTypes            #-}
@@ -174,6 +176,13 @@ module Data.Shaped.Generic
   , locale
   , shiftFocus
 
+  -- ** Boundary
+  , Boundary (..)
+  , peekB
+  , peeksB
+  , peekRelativeB
+
+
   -- * Fusion
   -- ** Streams
   , streamGenerate
@@ -203,6 +212,7 @@ import qualified Data.Foldable                     as F
 import           Data.Functor.Classes
 import qualified Data.List                         as L
 import           Data.Maybe                        (fromMaybe)
+import           Data.Typeable
 import qualified Data.Vector                       as B
 import           Data.Vector.Fusion.Bundle         (MBundle)
 import qualified Data.Vector.Fusion.Bundle         as Bundle
@@ -321,7 +331,7 @@ null (Array l _) = F.all (==0) l
 -- | Index an element of an array. Throws 'IndexOutOfBounds' if the
 --   index is out of bounds.
 (!) :: (Shape f, Vector v a) => Array v f a -> f Int -> a
-Array l v ! i = boundsCheck l i $ G.unsafeIndex v (shapeToIndex l i)
+(!) (Array l v) i = boundsCheck l i $ G.unsafeIndex v (shapeToIndex l i)
 {-# INLINE (!) #-}
 
 -- | Safe index of an element.
@@ -920,4 +930,81 @@ shiftFocus dx (Focused x d@(Delayed l _)) = Focused x' d
       | otherwise = i'
       where i' = i + di
 {-# INLINE shiftFocus #-}
+
+-- Boundary conditions -------------------------------------------------
+
+data Boundary
+  = Clamp  -- ^ clamp coordinates to the extent of the array
+  | Mirror -- ^ mirror coordinates beyond the array extent
+  | Wrap   -- ^ wrap coordinates around on each dimension
+  deriving (Show, Read, Typeable)
+
+-- Peeking -------------------------------------------------------------
+
+-- | Index a focused using a 'Boundary' condition.
+peekB :: Shape f => Boundary -> f Int -> Focused f a -> a
+peekB = \b x -> peeksB b (const x)
+{-# INLINE peekB #-}
+
+-- | Index an element relative to the current focus using a 'Boundary'
+--   condition.
+peekRelativeB :: Shape f => Boundary -> f Int -> Focused f a -> a
+peekRelativeB = \b i -> peeksB b (^+^ i)
+{-# INLINE peekRelativeB #-}
+
+-- | Index an element by applying a function the current position, using
+--   a boundary condition.
+peeksB :: Shape f => Boundary -> (f Int -> f Int) -> Focused f a -> a
+peeksB = \case
+  Clamp  -> clampPeeks
+  Wrap   -> wrapPeeks
+  Mirror -> mirrorPeeks
+{-# INLINE peeksB #-}
+
+-- After much testing, this seems to be the most reliable method to get
+-- stencilSum to inline properly.
+
+-- Wrap
+
+wrapPeeks :: Shape f => (f Int -> f Int) -> Focused f a -> a
+wrapPeeks f (Focused x (Delayed l ixF)) = ixF $! wrapIndex l (f x)
+{-# INLINE wrapPeeks #-}
+
+wrapIndex :: Shape f => Layout f -> f Int -> f Int
+wrapIndex !l !x = liftI2 f l x where
+  f n i
+    | i < 0     = n + i
+    | i < n     = i
+    | otherwise = i - n
+{-# INLINE wrapIndex #-}
+
+-- Clamp
+
+clampPeeks :: Shape f => (f Int -> f Int) -> Focused f a -> a
+clampPeeks f (Focused x (Delayed l ixF)) = ixF $! clampIndex l (f x)
+{-# INLINE clampPeeks #-}
+
+clampIndex :: Shape f => Layout f -> f Int -> f Int
+clampIndex !l !x = liftI2 f l x where
+  f n i
+    | i < 0     = 0
+    | i >= n    = n - 1
+    | otherwise = i
+{-# INLINE clampIndex #-}
+
+-- Mirror
+
+mirrorPeeks :: Shape f => (f Int -> f Int) -> Focused f a -> a
+mirrorPeeks f (Focused x (Delayed l ixF)) = ixF $! mirrorIndex l (f x)
+{-# INLINE mirrorPeeks #-}
+
+mirrorIndex :: Shape f => Layout f -> f Int -> f Int
+mirrorIndex !l !x = liftI2 f l x where
+  f n i
+    | i < 0     = - i
+    | i < n     = i
+    | otherwise = i - n
+    -- | i < n+n   = i - n
+    -- | otherwise = f n (i `quot` (n+n))
+{-# INLINE mirrorIndex #-}
 

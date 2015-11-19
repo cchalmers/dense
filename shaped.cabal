@@ -23,6 +23,7 @@ library
     Data.Shaped.Boxed
     Data.Shaped.Generic
     Data.Shaped.Index
+    Data.Shaped.Stencil
     Data.Shaped.Mutable
     Data.Shaped.Storable
     Data.Shaped.Unboxed
@@ -46,6 +47,7 @@ library
     comonad,
     binary,
     transformers-compat,
+    template-haskell,
     transformers
   hs-source-dirs:   src
   ghc-options:      -Wall
