@@ -112,6 +112,7 @@ module Data.Shaped
   -- ** Generating delayed
 
   , delayed
+  , seqDelayed
   , delay
   , manifest
   , seqManifest
@@ -141,6 +142,12 @@ module Data.Shaped
   -- ** Focus location
   , locale
   , shiftFocus
+
+  -- ** Boundary
+  , Boundary (..)
+  , peekB
+  , peeksB
+  , peekRelativeB
 
     -- ** Helpful reexports
   , Comonad (..)

@@ -153,6 +153,7 @@ module Data.Shaped.Generic
   -- ** Generating delayed
 
   , delayed
+  , seqDelayed
   , delay
   , manifest
   , seqManifest
@@ -859,12 +860,19 @@ thaw (Array l v) = MArray l `liftM` G.thaw v
 -- Delayed
 ------------------------------------------------------------------------
 
--- | Isomorphism between an array and it's delayed representation.
+-- | Isomorphism between an array and its delayed representation.
 --   Conversion to the array is done in parallel.
 delayed :: (Vector v a, Vector w b, Shape f, Shape g)
         => Iso (Array v f a) (Array w g b) (Delayed f a) (Delayed g b)
 delayed = iso delay manifest
 {-# INLINE delayed #-}
+
+-- | Isomorphism between an array and its delayed representation.
+--   Conversion to the array is done in parallel.
+seqDelayed :: (Vector v a, Vector w b, Shape f, Shape g)
+        => Iso (Array v f a) (Array w g b) (Delayed f a) (Delayed g b)
+seqDelayed = iso delay seqManifest
+{-# INLINE seqDelayed #-}
 
 -- | Sequential manifestation of a delayed array.
 seqManifest :: (Vector v a, Shape f) => Delayed f a -> Array v f a

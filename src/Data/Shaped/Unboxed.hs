@@ -139,6 +139,7 @@ module Data.Shaped.Unboxed
   -- ** Generating delayed
 
   , delayed
+  , seqDelayed
   , delay
   , manifest
   , seqManifest
@@ -624,12 +625,19 @@ unsafeThaw = G.unsafeThaw
 -- Delayed
 ------------------------------------------------------------------------
 
--- | Isomorphism between an array and it's delayed representation.
+-- | Isomorphism between an array and its delayed representation.
 --   Conversion to the array is done in parallel.
 delayed :: (Unbox a, Unbox b, Shape f, Shape k)
         => Iso (UArray f a) (UArray k b) (G.Delayed f a) (G.Delayed k b)
 delayed = G.delayed
 {-# INLINE delayed #-}
+
+-- | Isomorphism between an array and its delayed representation.
+--   Conversion to the array is done in sequence.
+seqDelayed :: (Unbox a, Unbox b, Shape f, Shape k)
+        => Iso (UArray f a) (UArray k b) (G.Delayed f a) (G.Delayed k b)
+seqDelayed = G.seqDelayed
+{-# INLINE seqDelayed #-}
 
 -- | Turn a material array into a delayed one with the same shape.
 delay :: (Unbox a, Shape f) => UArray f a -> G.Delayed f a

@@ -136,6 +136,7 @@ module Data.Shaped.Storable
   -- ** Generating delayed
 
   , delayed
+  , seqDelayed
   , delay
   , manifest
   , seqManifest
@@ -610,12 +611,19 @@ unsafeThaw = G.unsafeThaw
 -- Delayed
 ------------------------------------------------------------------------
 
--- | Isomorphism between an array and it's delayed representation.
+-- | Isomorphism between an array and its delayed representation.
 --   Conversion to the array is done in parallel.
 delayed :: (Storable a, Storable b, Shape f, Shape k)
         => Iso (SArray f a) (SArray k b) (G.Delayed f a) (G.Delayed k b)
 delayed = G.delayed
 {-# INLINE delayed #-}
+
+-- | Isomorphism between an array and its delayed representation.
+--   Conversion to the array is done in sequence.
+seqDelayed :: (Storable a, Storable b, Shape f, Shape k)
+        => Iso (SArray f a) (SArray k b) (G.Delayed f a) (G.Delayed k b)
+seqDelayed = G.seqDelayed
+{-# INLINE seqDelayed #-}
 
 -- | Turn a material array into a delayed one with the same shape.
 delay :: (Storable a, Shape f) => SArray f a -> G.Delayed f a
