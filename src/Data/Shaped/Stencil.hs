@@ -86,8 +86,9 @@ instance Functor (Stencil f) where
 --
 --   If the list is staticlly known this should expand at compile time
 --   via rewrite rules, similar to 'makeStencilTH' but less reliable. If
---   that does not happen this could be slow. If the list is not know at
---   compile time, 'mkStencilUnboxed' can be signifcantly faster.
+--   that does not happen the resulting could be slow. If the list is
+--   not know at compile time, 'mkStencilUnboxed' can be signifcantly
+--   faster (but isn't subject expending via rewrite rules).
 mkStencil :: [(f Int, a)] -> Stencil f a
 mkStencil l = Stencil $ \g z -> myfoldr (\(i,a) b -> g i a b) z l
 {-# INLINE mkStencil #-}
@@ -393,8 +394,7 @@ parseFractional = operated <|> num
 --
 --   at compile time. Since there are no loops and all target indexes
 --   are known at compile time, this can lead to more optimisations and
---   faster execution times. In some cases this can lead to 20-30x
---   speedups.
+--   faster execution times. This usually leads to around a 2x speed up.
 --
 -- @
 -- $('makeStencilTH' (as :: [(f 'Int', a)])) :: 'Stencil' f a

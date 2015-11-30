@@ -183,7 +183,6 @@ module Data.Shaped.Generic
   , peeksB
   , peekRelativeB
 
-
   -- * Fusion
   -- ** Streams
   , streamGenerate
