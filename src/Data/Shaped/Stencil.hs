@@ -55,6 +55,7 @@ import           Text.ParserCombinators.ReadP
 import           Text.Read.Lex                (Lexeme (..))
 import qualified Text.Read.Lex                as Lex
 import           Text.Show
+import qualified Data.List                    as List
 
 import           Data.Ratio
 import           Linear
@@ -128,9 +129,8 @@ stencilSum bnd s = \w ->
 
 -- | Class of shapes that can be 'lift'ed.
 --
---   This is to prevent orphans for the 'Lift' class. Generating these
---   instances correctly requires TemplateHaskell so these currently are
---   no defined in "linear".
+--   This is to prevent orphans for the 'Lift' class. (I may make a PR
+--   for 'Lift' instances to be in `linear`.)
 class Shape f => ShapeLift f where
   -- | 'lift' for 'Shape's.
   liftShape :: Lift a => f a -> Q Exp
@@ -255,8 +255,8 @@ parseStencilList' str =
                       Just a' -> [| (zero,a') |]
                       Nothing -> [| (zero,a) |]
     Just [[as]]  -> run $ parse1D as
-    Just [ass]   -> run $ parse2D ass
-    Just asss    -> run $ parse3D asss
+    Just [ass]   -> run $ parse2D (List.transpose ass)
+    Just asss    -> run $ parse3D (map List.transpose asss)
   where
     ps              = paragraphs str
     run (Left err)  = error err
@@ -308,7 +308,6 @@ parse2D as
   | null as            = err "empty list"
   | even x             = err "x is even (it must be odd)"
   | even y             = err "y is even (it must be odd)"
-  | even y             = err "y is even (it must be odd)"
   | Just (i,a) <- badX =
       err $ "number of columns not consistent. Should be " ++
             show x ++ " columns but row " ++ show i ++ " has " ++ show a
@@ -324,23 +323,32 @@ parse2D as
 -- | Parse a 3D stencil. If the system is not valid, return a string
 --   with error message. 0 elements are not yet removed.
 parse3D :: [[[Rational]]] -> Either String [(V3 Int, Rational)]
-parse3D = error "3D stencil parser not yet implemented"
-  -- | even x    = Left "x is even (it must be odd)"
-  -- | even y    = Left "y is even (it must be odd)"
-  -- | even y    = Left "y is even (it must be odd)"
-  -- | otherwise = un
-  --  where
-  --   xs = map words (lines str)
-  --   integrals = mapM (mapM readMaybe) xs :: Maybe [[Integer]]
-  --   fractions = mapM (mapM readMaybe) xs :: Maybe [[Double]]
+parse3D as -- = error "3D stencil parser not yet implemented"
+  | even x    = Left "x is even (it must be odd)"
+  | even y    = Left "y is even (it must be odd)"
+  | even z    = Left "z is even (it must be odd)"
+  -- | Just (i,a) <- badX =
+  --     err $ "number of columns not consistent. Should be " ++
+  --           show x ++ " columns but row " ++ show i ++ " has " ++ show a
+  --           ++ "columns."
+  -- | Just (i,a) <- badY =
+  --     err $ "number of rows not consistent. First column has " ++
+  --           show x ++ " rows but column " ++ show i ++ " has " ++ show a
+  --           ++ "rows."
+  | otherwise = Right $ zip (stencilIxes (V3 x y z)) (concatMap concat as)
+   where
+    -- xs = map words (lines str)
+    -- integrals = mapM (mapM (mapM readMaybe)) xs :: Maybe [[[Integer]]]
+    -- fractions = mapM (mapM (mapM readMaybe)) xs :: Maybe [[[Double]]]
 
-  --   y = length xs
-  --   x = length (head xs)
-  --   consistent = odd x && odd y && all ((==x) . length) xs
-  --   ixs = stencilIxes (V2 x y)
+    y = length as
+    x = length (head as)
+    z = length (head (head as))
+    -- consistent = odd x && odd y && odd z && all ((==x) . length) as
+    -- ixs = stencilIxes (V3 x y z)
 
-  --   addIndexes :: (Num a, Eq a) => [[a]] -> [(V2 Int, a)]
-  --   addIndexes = filter ((/=0) . snd) . zip ixs . concat
+    -- addIndexes :: (Num a, Eq a) => [[a]] -> [(V2 Int, a)]
+    -- addIndexes = filter ((/=0) . snd) . zip ixs . concat
 
 -- | A list of ordered indexes with the centre element at 'zero'.
 stencilIxes :: Shape f => f Int -> [f Int]
