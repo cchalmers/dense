@@ -25,6 +25,7 @@ library
     Data.Shaped.Index
     Data.Shaped.Stencil
     Data.Shaped.Mutable
+    Data.Shaped.TH
     Data.Shaped.Storable
     Data.Shaped.Unboxed
   other-extensions:
