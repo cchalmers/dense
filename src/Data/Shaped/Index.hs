@@ -161,7 +161,7 @@ instance Shape V2 where
     | otherwise  = Nothing
   {-# INLINE shapeStep #-}
 
-  unsafeShapeStep (V2 x y) (V2 i j)
+  unsafeShapeStep (V2 _ y) (V2 i j)
     | j + 1 < y  = V2      i  (j + 1)
     | otherwise  = V2 (i + 1)      0
   {-# INLINE unsafeShapeStep #-}

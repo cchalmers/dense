@@ -59,9 +59,9 @@ module Data.Shaped.Base
 
 
 #if __GLASGOW_HASKELL__ <= 708
-import           Control.Applicative             (pure)
+import           Control.Applicative             (pure, (*>))
 import           Data.Foldable                   (Foldable)
-import           Data.Monoid                     (mappend, mempty)
+import           Data.Monoid                     (Monoid, mappend, mempty)
 #endif
 
 import           Control.Applicative             (liftA2)
