@@ -1011,7 +1011,5 @@ mirrorIndex !l !x = liftI2 f l x where
     | i < 0     = - i
     | i < n     = i
     | otherwise = i - n
-    -- | i < n+n   = i - n
-    -- | otherwise = f n (i `quot` (n+n))
 {-# INLINE mirrorIndex #-}
 

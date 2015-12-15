@@ -32,6 +32,7 @@ module Data.Shaped.TH
   , stencil
 
     -- ** Stencils from lists
+  , ShapeLift (..)
   , mkStencilTH
   , mkStencilTHWith
 
@@ -59,44 +60,56 @@ import           Data.Shaped.Generic          (empty, fromListInto_)
 import           Data.Shaped.Index
 import           Data.Shaped.Stencil
 
-
--- | QuasiQuoter for producing a dense arrays using a versatile parser
---   for 1D, 2D and 3D stencils.
+-- | QuasiQuoter for producing a dense arrays using a custom parser.
+--   Values are space separated, while also allowing infix expressions
+--   (like @5/7@). If you want to apply a function, it should be done in
+--   brackets. Supports 1D, 2D and 3D arrays.
 --
---     - 1D stencils are of the form
---       @
---       ['dense'| 5 3 1 3 5 |] :: ('Vector' v a, 'Num' a) => 'Array' v 'V1' a
---       @
+--   The number of rows/columns must be consistent thought out the
+--   array.
 --
---     - 2D stencils are of the form
---       @
---       ['dense'|
---         \'a\' \'b\' \'c\'
---         \'d\' \'e\' \'f\'
---         \'g\' \'h\' \'i\' |] :: ('Vector' v a, 'Num' a) => 'Array' v 'V2' a
---       @
+-- === __Examples__
 --
---     - 3D stencils are of the form
---       @
---       [dense|
---         1/20 3/10 1/20
---         3/10  1   3/10
---         1/20 3/10 1/20
+--   - 1D arrays are of the following form form. Note these can be
+--     used as 'V1', 'V2' or 'V3' arrays.
 --
---         3/10  1   3/10
---          1   1/10  1
---         3/10  1   3/10
+-- @
+-- ['dense'| 5 -3 1 -3 5 |] :: ('R1' f, 'Vector.Vector' v a, 'Num' a) => 'Data.Shaped.Array' v f a
+-- @
 --
---         1/20 3/10 1/20
---         3/10  1   3/10
---         1/20 3/10 1/20
---       |] :: ('Vector' v a, 'Num' a) => 'Array' v 'V2' a
---       @
 --
---   The formating of the stencil quite strict. This is to help prevent
---   typos in creating the stencil. The number of rows/columns must
---   stay remain the same and be odd. Any values with @0@ are ignored so
---   asymmetric shapes can still be represented.
+--   - 2D arrays are of the following form. Note these can be used as
+--     'V2' or 'V3' arrays.
+--
+-- @
+-- chars :: 'Data.Shaped.UArray' 'V2' 'Char'
+-- chars :: ['dense'|
+--   \'a\' \'b\' \'c\'
+--   \'d\' \'e\' \'f\'
+--   \'g\' \'h\' \'i\'
+-- |]
+-- @
+--
+--   - 3D arrays are of the following form. Note the order in which
+--     'dense' formats the array. The array @a@ is such that @a ! 'V3'
+--     x y z = "xyz"@
+--
+-- @
+-- a :: 'Data.Shaped.BArray' 'V3' 'String'
+-- a = ['dense'|
+--   "000" "100" "200"
+--   "010" "110" "210"
+--   "020" "120" "220"
+--
+--   "001" "101" "201"
+--   "011" "111" "211"
+--   "021" "121" "221"
+--
+--   "002" "102" "202"
+--   "012" "112" "212"
+--   "022" "122" "222"
+-- |]
+-- @
 --
 dense :: QuasiQuoter
 dense = QuasiQuoter
@@ -141,6 +154,40 @@ mkArray l as = do
 -- V n a
 ------------------------------------------------------------------------
 
+-- | Type safe 'QuasiQuoter' for fixed length vectors 'V.V'. Values are
+--   space separated. Can be used as expressions or patterns.
+--
+-- @
+-- [v| x y z w q r |] :: 'V.V' 6 a
+-- @
+--
+--   Note this requires @DataKinds@. Also requires @ViewPatterns@ if 'v'
+--   is used as a pattern.
+--
+-- === __Examples__
+--
+-- @
+-- >>> let a = [v| 1 2 3 4 5 |]
+-- >>> :t a
+-- a :: Num a => V 5 a
+-- >>> a
+-- V {toVector = [1,2,3,4,5]}
+-- >>> let f [v| a b c d e |] = (a,b,c,d,e)
+-- >>> :t f
+-- f :: V 5 t -> (t, t, t, t, t)
+-- >>> f a
+-- (1,2,3,4,5)
+-- @
+--
+-- Variables and infix expressions are also allowed. Negative values can
+-- be expressed by a leading @-@ with a space before but no space
+-- after.
+--
+-- @
+-- >>> let b x = [v| 1\/x 2 \/ x (succ x)**2 x-2 x - 3 -x |]
+-- >>> b Debug.SimpleReflect.a
+-- V {toVector = [1 \/ a,2 \/ a,succ a**2,a - 2,a - 3,negate a]}
+-- @
 v :: QuasiQuoter
 v = QuasiQuoter
   { quoteExp  = parseV
@@ -198,51 +245,60 @@ mkStencilE l as = do
   mkStencilTHWith pure xs
 
 -- | QuasiQuoter for producing a static stencil definition. This is a
---   versatile parser for 1D, 2D and 3D stencils.
+--   versatile parser for 1D, 2D and 3D stencils. The parsing is similar
+--   to 'dense' but 'stencil' also supports @_@, which means ignore this
+--   element. Also, stencils should have an odd length in all dimensions
+--   so there is always a center element (which is used as 'zero').
+--
+-- === __Examples__
 --
 --     - 1D stencils are of the form
---       @
---       [stencil| 5 3 1 3 5 |] :: Num a => Stencil V1 a
---       @
+--
+-- @
+-- ['stencil'| 5 -3 1 -3 5 |] :: 'Num' a => 'Stencil' 'V1' a
+-- @
 --
 --     - 2D stencils are of the form
---       @
---       [stencil|
---         0 1 0
---         1 0 1
---         0 1 0 |] :: Num a => Stencil V2 a
---       @
 --
---     - 3D stencils are of the form
---       @
---       [stencil|
---         1/20 3/10 1/20
---         3/10  1   3/10
---         1/20 3/10 1/20
+-- @
+-- myStencil2 :: 'Num' a => 'Stencil' 'V2' a
+-- myStencil2 = ['stencil'|
+--   0 1 0
+--   1 0 1
+--   0 1 0
+-- |]
+-- @
 --
---         3/10  1   3/10
---          1   1/10  1
---         3/10  1   3/10
+--     - 3D stencils have gaps between planes.
 --
---         1/20 3/10 1/20
---         3/10  1   3/10
---         1/20 3/10 1/20
---       |] :: Fractional a => Stencil V3 a
---       @
+-- @
+-- myStencil3 :: 'Fractional' a => 'Stencil' 'V3' a
+-- myStencil3 :: ['stencil'|
+--   1\/20 3\/10 1\/20
+--   3\/10  1   3\/10
+--   1\/20 3\/10 1\/20
 --
---   There are two different numbers that can be represented:
+--   3\/10  1   3\/10
+--    1    _    1
+--   3\/10  1   3\/10
 --
---     - @'Num' a => 'Stencil' f a@ for when each number in the stencil
---       is an integral.
+--   1\/20 3\/10 1\/20
+--   3\/10  1   3\/10
+--   1\/20 3\/10 1\/20
+-- |]
+-- @
 --
---     - @'Fractional' a => 'Stencil' f a@ if the integral parse fails,
---       it will fall back to a fractional parser. Fractional numbers
---       can either be written as @1.5@, @15e-1$, @3/2@ or $3 % 2@.
+--  Variables can also be used
 --
---   The formating of the stencil quite strict. This is to help prevent
---   typos in creating the stencil. The number of rows/columns must
---   stay remain the same and be odd. Any values with @0@ are ignored so
---   asymmetric shapes can still be represented.
+-- @
+-- myStencil2' :: a -> a -> a -> 'Stencil' 'V2' a
+-- myStencil2' a b c = ['stencil'|
+--   c b c
+--   b a b
+--   c b c
+-- |]
+-- @
+--
 --
 stencil :: QuasiQuoter
 stencil = QuasiQuoter
@@ -256,7 +312,7 @@ stencil = QuasiQuoter
 --   example
 --
 -- @
--- 'ifoldr' f b $('makeStencilTH' [('V1' (-1), 5), ('V1' 0, 3), ('V1' 1, 5)])
+-- 'ifoldr' f b $('mkStencilTH' [('V1' (-1), 5), ('V1' 0, 3), ('V1' 1, 5)])
 -- @
 --
 --   will be get turned into
@@ -271,7 +327,7 @@ stencil = QuasiQuoter
 --   compared to folding over unboxed vectors.
 --
 -- @
--- $('makeStencilTH' (as :: [(f 'Int', a)])) :: 'Stencil' f a
+-- $('mkStencilTH' (as :: [(f 'Int', a)])) :: 'Stencil' f a
 -- @
 mkStencilTH :: (ShapeLift f, Lift a) => [(f Int, a)] -> Q Exp
 mkStencilTH = mkStencilTHWith lift
@@ -279,8 +335,9 @@ mkStencilTH = mkStencilTHWith lift
 -- | 'mkStencilTH' with a custom 'lift' function for @a@.
 mkStencilTHWith :: ShapeLift f => (a -> Q Exp) -> [(f Int, a)] -> Q Exp
 mkStencilTHWith liftA as = do
-  f <- newName "f"
-  b <- newName "b"
+  -- See Note [mkName-capturing]
+  f <- newName "mkStencilTHWith_f"
+  b <- newName "mkStencilTHWith_b"
   let appF (i,a) e = do
         iE <- liftShape' i
         aE <- liftA a
@@ -288,6 +345,33 @@ mkStencilTHWith liftA as = do
 
   e <- foldrM appF (VarE b) as
   pure $ AppE (ConE 'Stencil) (LamE [VarP f,VarP b] e)
+
+{-
+~~~~ Note [mkName-capturing]
+
+Since 'newName' will capture any other names below it with the same
+name. So if we simply used @newName "b"@, [stencil| a b c |] where
+a=1; b=2; c=3 would convert @b@ to @b_a5y0@ (or w/e the top level b
+is) and fail. To prevent this I've used a name that's unlikely
+conflict.
+
+Another solution would be to use lookupValueName on all variables.
+But this would either require traversing over all 'Name's in every
+'Exp' (shown below) or parse in the Q monad.
+
+-- | Lookup and replace all names made with 'mkName' using
+--   'lookupValueName'; failing if not in scope.
+replaceMkName :: Exp -> Q Exp
+replaceMkName = template f where
+  f (Name (OccName s) NameS) =
+    lookupValueName s >>= \case
+      Just nm -> pure nm
+      -- Sometimes a variable may not be in scope yet because it's
+      -- generated in a TH splice that hasn't been run yet.
+      Nothing -> fail $ "Not in scope: ‘" ++ s ++ "’"
+  f nm = pure nm
+
+-}
 
 ------------------------------------------------------------------------
 -- Parsing expressions
@@ -336,7 +420,8 @@ noAppExpression = do
 -- | Parse an express without any top level application. Infix functions
 --   are still permitted.
 --
---   This is only a small subset of the full haskell syntax. The following syntax is supported:
+--   This is only a small subset of the full haskell syntax. The
+--   following syntax is supported:
 --
 --     - Variables/constructors: @a@, @'Just'@ etc.
 --     - Numbers: @3@, @-6@, @7.8@, @1e-6@, @0x583fa@
@@ -521,13 +606,14 @@ vTuple n
 
 -- Parsing specific dimensions -----------------------------------------
 
--- | Parse a 1D stencil. If the system is not valid, return a string
---   with error message. 0 elements are not yet removed.
+-- | Parse a 1D list. If the system is not valid, return a string
+--   with error message.
 parse1D :: [a] -> (V1 Int, [a])
 parse1D as = (V1 x, as) where
   x = length as
 
--- | Parse a 2D stencil. If the system is not valid, returns an error
+-- | Parse a 2D list of lists. If the system is not valid, returns an
+--   error
 parse2D :: [[a]] -> (V2 Int, [a])
 parse2D as
   | Just e <- badX = error ("parse2D: " ++ errMsg e)
@@ -542,8 +628,8 @@ parse2D as
       "row " ++ show i ++ " has " ++ show j ++ " columns but the first"
       ++ " row has " ++ show x ++ " columns"
 
--- | Parse a 3D stencil. If the system is not valid, return a string
---   with error message. 0 elements are not yet removed.
+-- | Parse a 3D list of list of lists. If the system is not valid,
+--  return a string with error message.
 --
 --   The element are reordered in the appropriate way for the array:
 --
