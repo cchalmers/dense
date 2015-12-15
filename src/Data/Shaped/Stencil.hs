@@ -28,16 +28,6 @@ module Data.Shaped.Stencil
     -- ** Using stencils
   , stencilSum
 
-    -- * Template haskell
-
-    -- -- ** Stencils
-  -- , stencil
-  -- , stencilList
-
-  -- -- ** Unrolling lists
-  -- , ShapeLift (..)
-  -- , mkStencilTH
-  -- , mkStencilTHWith
   ) where
 
 import           Control.Lens

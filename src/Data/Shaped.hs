@@ -153,6 +153,17 @@ module Data.Shaped
   , Comonad (..)
   , ComonadStore (..)
 
+    -- * Stencils
+  , Stencil
+
+    -- ** Constructing stencils
+  , stencil
+  , mkStencil
+  , mkStencilTH
+
+    -- ** Using stencils
+  , stencilSum
+
   -- * Common shapes
   , V1 (..)
   , V2 (..)
@@ -174,4 +185,6 @@ module Data.Shaped
 import           Data.Shaped.Generic
 import           Control.Comonad.Store
 import           Linear                hiding (vector)
+import           Data.Shaped.TH
+import           Data.Shaped.Stencil
 
