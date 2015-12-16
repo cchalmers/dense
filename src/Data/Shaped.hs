@@ -27,7 +27,7 @@
 -- import qualified "Data.Shaped.Unboxed" as U
 -- @
 --
--- For boxed-specific arrays (a la "Data.Vector") see 'Data.Shaped.Boxed'.
+-- For boxed-specific arrays (a la "Data.Vector") see "Data.Shaped.Boxed".
 -----------------------------------------------------------------------------
 module Data.Shaped
   (
