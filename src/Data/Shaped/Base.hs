@@ -385,12 +385,12 @@ instance Shape f => Additive (Delayed f) where
     | l `eq1` k       = Delayed l (liftA2 f ixF ixG)
 
     -- l > k
-    | all (>= EQ) cmp = Delayed l $ \x ->
+    | F.all (>= EQ) cmp = Delayed l $ \x ->
         if | shapeInRange l x -> liftA2 f ixF ixG x
            | otherwise        -> ixF x
 
     -- k > l
-    | all (<= EQ) cmp = Delayed k $ \x ->
+    | F.all (<= EQ) cmp = Delayed k $ \x ->
         if | shapeInRange k x -> liftA2 f ixF ixG x
            | otherwise        -> ixG x
 
