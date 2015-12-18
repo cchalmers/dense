@@ -235,7 +235,7 @@ parseStencil str =
 
 mkStencilE :: ShapeLift f => Layout f -> [Maybe Exp] -> Q Exp
 mkStencilE l as = do
-  when (any even l) $ reportWarning
+  when (F.any even l) $ reportWarning
     "stencil has an even size in some dimension, the centre element may be incorrect"
 
   let ixes = map (^-^ fmap (`div` 2) l) (toListOf shapeIndexes l)
@@ -617,7 +617,7 @@ parse1D as = (V1 x, as) where
 parse2D :: [[a]] -> (V2 Int, [a])
 parse2D as
   | Just e <- badX = error ("parse2D: " ++ errMsg e)
-  | otherwise      = (V2 x y, concat $ List.transpose as)
+  | otherwise      = (V2 x y, F.concat $ List.transpose as)
   where
     x  = head xs
     y  = length as
@@ -650,7 +650,7 @@ parse3D as
     x  = length (head (head as))
 
     -- reorder and concatenate so it's the correct order for the array
-    as' = concatMap concat (List.transpose $ map List.transpose $ List.transpose as)
+    as' = F.concatMap F.concat (List.transpose $ map List.transpose $ List.transpose as)
 
     -- check for inconsistencies
     badY = ifind (const (/= y)) (map length as)
