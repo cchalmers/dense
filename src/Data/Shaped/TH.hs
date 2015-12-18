@@ -38,11 +38,11 @@ module Data.Shaped.TH
 
   ) where
 
-import           Control.Applicative          ((<|>))
+import           Control.Applicative          hiding (many, empty)
 import           Control.Lens
 import           Control.Monad
 import           Data.Char
-import           Data.Foldable
+import           Data.Foldable                as F
 import           Data.Function                (on)
 import qualified Data.List                    as List
 import           Data.Maybe
@@ -334,13 +334,13 @@ mkStencilTH = mkStencilTHWith lift
 
 -- | 'mkStencilTH' with a custom 'lift' function for @a@.
 mkStencilTHWith :: ShapeLift f => (a -> Q Exp) -> [(f Int, a)] -> Q Exp
-mkStencilTHWith liftA as = do
+mkStencilTHWith aLift as = do
   -- See Note [mkName-capturing]
   f <- newName "mkStencilTHWith_f"
   b <- newName "mkStencilTHWith_b"
   let appF (i,a) e = do
         iE <- liftShape' i
-        aE <- liftA a
+        aE <- aLift a
         pure $ AppE (AppE (AppE (VarE f) iE) aE) e
 
   e <- foldrM appF (VarE b) as
@@ -446,7 +446,7 @@ expression :: ReadP Exp
 expression = do
   f    <- anExpr True
   args <- many (anExpr False)
-  let aE = foldl AppE f args
+  let aE = F.foldl AppE f args
 
   option aE $ do
     -- if the next lex isn't a symbol, we move on to the next statement
