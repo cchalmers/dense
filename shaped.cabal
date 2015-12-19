@@ -75,4 +75,5 @@ test-suite doctests
     template-haskell,
     transformers,
     transformers-compat,
-    vector
+    vector,
+    doctest
