@@ -76,4 +76,5 @@ test-suite doctests
     transformers,
     transformers-compat,
     vector,
-    doctest
+    doctest,
+    simple-reflect
