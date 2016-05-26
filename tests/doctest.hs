@@ -1,11 +1,11 @@
 import Test.DocTest
 
 main = doctest
-  [ "src/Data/Shaped/Index.hs"
-  , "src/Data/Shaped/Mutable.hs"
-  , "src/Data/Shaped/Unboxed.hs"
-  , "src/Data/Shaped/Storable.hs"
-  , "src/Data/Shaped/Boxed.hs"
-  , "src/Data/Shaped/Generic.hs"
-  , "src/Data/Shaped/Base.hs"
+  [ "src/Data/Dense/Index.hs"
+  , "src/Data/Dense/Mutable.hs"
+  , "src/Data/Dense/Unboxed.hs"
+  , "src/Data/Dense/Storable.hs"
+  , "src/Data/Dense/Boxed.hs"
+  , "src/Data/Dense/Generic.hs"
+  , "src/Data/Dense/Base.hs"
   ]
