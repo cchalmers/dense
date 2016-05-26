@@ -100,7 +100,7 @@ mkStencilUnboxed l = Stencil $ \g z -> U.foldr (\(i,a) b -> g i a b) z v
 -- | Sum the elements around a 'Focused' using a 'Boundary' condition
 --   and a 'Stencil'.
 --
---   This is often used in conjunction with 'extendFocus'.
+--   This is often used in conjunction with 'Data.Dense.extendFocus'.
 stencilSum :: (Shape f, Num a) => Boundary -> Stencil f a -> Focused f a -> a
 stencilSum bnd s = \w ->
   let f i b a = b + a * peekRelativeB bnd i w
