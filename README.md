@@ -1,13 +1,13 @@
-## shaped
+## dense
 
-[![Build Status](https://travis-ci.org/cchalmers/shaped.svg)](https://travis-ci.org/cchalmers/shaped)
-[![Haddock](https://rawgit.com/cchalmers/shaped/gh-pages/haddock.svg)](https://cchalmers.github.io/shaped/)
-[![Hackage](https://img.shields.io/hackage/v/shaped.svg?style=flat)](https://hackage.haskell.org/package/shaped)
+[![Build Status](https://travis-ci.org/cchalmers/dense.svg)](https://travis-ci.org/cchalmers/shaped)
+[![Haddock](https://rawgit.com/cchalmers/dense/gh-pages/haddock.svg)](https://cchalmers.github.io/shaped/)
+[![Hackage](https://img.shields.io/hackage/v/dense.svg?style=flat)](https://hackage.haskell.org/package/shaped)
 
-`shaped` is a high level multi-dimensional arrays library with support
-for mutable arrays and parallel computation.
+`dense` is a high level multidimensional arrays library with support for
+mutable arrays, stencils and parallel computation.
 
-### Shaped array
+### Array type
 
 Arrays are just vectors (from
 [`vector`](http://hackage.haskell.org/package/vector)) with a shape:
@@ -58,6 +58,11 @@ or equivilently using the `delayed` isomorphism:
 
 `shaped` has similar mutable capabilities to `vector`, supporting
 mutable operations over a `PrimMonad`.
+
+### Stencils
+
+`dense` has good stencil support, allowing constuction of 1D, 2D or 3D
+stencils using template haskell.
 
 ### Performance
 
