@@ -8,7 +8,7 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Shaped.TH
+-- Module      :  Data.Dense.TH
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -21,7 +21,7 @@
 --
 -- The parser for the QuasiQuotes is still a work in progress.
 -----------------------------------------------------------------------------
-module Data.Shaped.TH
+module Data.Dense.TH
   ( -- * Creating dense arrays
     dense
 
@@ -34,7 +34,7 @@ module Data.Shaped.TH
     -- ** Stencils from lists
   , ShapeLift (..)
   , mkStencilTH
-  , mkStencilTHWith
+  , mkStencilTHBy
 
   ) where
 
@@ -56,9 +56,9 @@ import qualified Linear.V                     as V
 import           Text.ParserCombinators.ReadP
 import qualified Text.Read.Lex                as Lex
 
-import           Data.Shaped.Generic          (empty, fromListInto_)
-import           Data.Shaped.Index
-import           Data.Shaped.Stencil
+import           Data.Dense.Generic          (empty, fromListInto_)
+import           Data.Dense.Index
+import           Data.Dense.Stencil
 
 -- | QuasiQuoter for producing a dense arrays using a custom parser.
 --   Values are space separated, while also allowing infix expressions
@@ -74,7 +74,7 @@ import           Data.Shaped.Stencil
 --     used as 'V1', 'V2' or 'V3' arrays.
 --
 -- @
--- ['dense'| 5 -3 1 -3 5 |] :: ('R1' f, 'Vector.Vector' v a, 'Num' a) => 'Data.Shaped.Array' v f a
+-- ['dense'| 5 -3 1 -3 5 |] :: ('R1' f, 'Vector.Vector' v a, 'Num' a) => 'Data.Dense.Array' v f a
 -- @
 --
 --
@@ -82,7 +82,7 @@ import           Data.Shaped.Stencil
 --     'V2' or 'V3' arrays.
 --
 -- @
--- chars :: 'Data.Shaped.UArray' 'V2' 'Char'
+-- chars :: 'Data.Dense.UArray' 'V2' 'Char'
 -- chars :: ['dense'|
 --   \'a\' \'b\' \'c\'
 --   \'d\' \'e\' \'f\'
@@ -95,7 +95,7 @@ import           Data.Shaped.Stencil
 --     x y z = "xyz"@
 --
 -- @
--- a :: 'Data.Shaped.BArray' 'V3' 'String'
+-- a :: 'Data.Dense.BArray' 'V3' 'String'
 -- a = ['dense'|
 --   "000" "100" "200"
 --   "010" "110" "210"
@@ -114,9 +114,9 @@ import           Data.Shaped.Stencil
 dense :: QuasiQuoter
 dense = QuasiQuoter
   { quoteExp  = parseDense
-  , quotePat  = error "stencil can't be used in pattern"
-  , quoteType = error "stencil can't be used in type"
-  , quoteDec  = error "stencil can't be used in dec"
+  , quotePat  = error "dense can't be used in pattern"
+  , quoteType = error "dense can't be used in type"
+  , quoteDec  = error "dense can't be used in dec"
   }
 
 -- | List of expressions forming a stencil. To be either turned into
@@ -192,8 +192,8 @@ v :: QuasiQuoter
 v = QuasiQuoter
   { quoteExp  = parseV
   , quotePat  = patternV
-  , quoteType = error "stencil can't be used as type"
-  , quoteDec  = error "stencil can't be used as dec"
+  , quoteType = error "v can't be used as type"
+  , quoteDec  = error "v can't be used as dec"
   }
 
 parseV :: String -> Q Exp
@@ -242,7 +242,7 @@ mkStencilE l as = do
       -- indexes zipped with expressions, discarding 'Nothing's
       xs = mapMaybe (sequenceOf _2) (zip ixes as)
 
-  mkStencilTHWith pure xs
+  mkStencilTHBy pure xs
 
 -- | QuasiQuoter for producing a static stencil definition. This is a
 --   versatile parser for 1D, 2D and 3D stencils. The parsing is similar
@@ -323,21 +323,21 @@ stencil = QuasiQuoter
 --
 --   at compile time. Since there are no loops and all target indexes
 --   are known at compile time, this can lead to more optimisations and
---   faster execution times. This usually leads to around a 2x speed up
+--   faster execution times. This can lead to around a 2x speed up
 --   compared to folding over unboxed vectors.
 --
 -- @
 -- $('mkStencilTH' (as :: [(f 'Int', a)])) :: 'Stencil' f a
 -- @
 mkStencilTH :: (ShapeLift f, Lift a) => [(f Int, a)] -> Q Exp
-mkStencilTH = mkStencilTHWith lift
+mkStencilTH = mkStencilTHBy lift
 
 -- | 'mkStencilTH' with a custom 'lift' function for @a@.
-mkStencilTHWith :: ShapeLift f => (a -> Q Exp) -> [(f Int, a)] -> Q Exp
-mkStencilTHWith aLift as = do
+mkStencilTHBy :: ShapeLift f => (a -> Q Exp) -> [(f Int, a)] -> Q Exp
+mkStencilTHBy aLift as = do
   -- See Note [mkName-capturing]
-  f <- newName "mkStencilTHWith_f"
-  b <- newName "mkStencilTHWith_b"
+  f <- newName "mkStencilTHBy_f"
+  b <- newName "mkStencilTHBy_b"
   let appF (i,a) e = do
         iE <- liftShape' i
         aE <- aLift a

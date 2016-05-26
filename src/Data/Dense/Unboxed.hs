@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes            #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Shaped.Unboxed
+-- Module      :  Data.Dense.Unboxed
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -10,9 +10,9 @@
 -- Stability   :  provisional
 -- Portability :  non-portable
 --
--- Unboxed shaped vectors.
+-- Unboxed multidimensional arrays.
 -----------------------------------------------------------------------------
-module Data.Shaped.Unboxed
+module Data.Dense.Unboxed
   (
     -- * UArray types
     UArray
@@ -46,11 +46,11 @@ module Data.Shaped.Unboxed
   , flat
   , fromList
 
-  -- ** Shaped from lists
+  -- ** From lists
   , fromListInto
   , fromListInto_
 
-  -- ** Shaped from vectors
+  -- ** From vectors
   , fromVectorInto
   , fromVectorInto_
 
@@ -175,10 +175,10 @@ import           Linear                  hiding (vector)
 import           Prelude                 hiding (map, null, replicate, zip,
                                           zip3, zipWith, zipWith3)
 
-import           Data.Shaped.Generic     (UArray)
-import qualified Data.Shaped.Generic     as G
-import           Data.Shaped.Index
-import           Data.Shaped.Mutable     (UMArray)
+import           Data.Dense.Generic     (UArray)
+import qualified Data.Dense.Generic     as G
+import           Data.Dense.Index
+import           Data.Dense.Mutable     (UMArray)
 
 -- Lenses --------------------------------------------------------------
 

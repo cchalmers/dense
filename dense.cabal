@@ -1,6 +1,6 @@
-name:                shaped
+name:                dense
 version:             0.1.0.0
-synopsis:            Mutable and immutable arrays with multi-dimensional indexing
+synopsis:            Mutable and immutable dense arrays with multi-dimensional indexing
 description:
   Provides multi-dimentional arrays by adding a shape to a vector from
   the vector package using indicies from the linear package. Supports
@@ -18,16 +18,16 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-    Data.Shaped
-    Data.Shaped.Base
-    Data.Shaped.Boxed
-    Data.Shaped.Generic
-    Data.Shaped.Index
-    Data.Shaped.Stencil
-    Data.Shaped.Mutable
-    Data.Shaped.TH
-    Data.Shaped.Storable
-    Data.Shaped.Unboxed
+    Data.Dense
+    Data.Dense.Base
+    Data.Dense.Boxed
+    Data.Dense.Generic
+    Data.Dense.Index
+    Data.Dense.Stencil
+    Data.Dense.Mutable
+    Data.Dense.TH
+    Data.Dense.Storable
+    Data.Dense.Unboxed
   other-extensions:
     BangPatterns CPP ConstraintKinds DeriveDataTypeable DeriveFunctor
     DeriveGeneric FlexibleContexts FlexibleInstances

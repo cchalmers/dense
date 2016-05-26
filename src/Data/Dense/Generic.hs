@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Shaped.Generic
+-- Module      :  Data.Dense.Generic
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -18,9 +18,9 @@
 -- Stability   :  provisional
 -- Portability :  non-portable
 --
--- This module provides generic functions over shaped vectors.
+-- This module provides generic functions over multidimensional arrays.
 -----------------------------------------------------------------------------
-module Data.Shaped.Generic
+module Data.Dense.Generic
   (
     -- * Array types
     Array
@@ -57,11 +57,11 @@ module Data.Shaped.Generic
   , flat
   , fromList
 
-  -- ** Shaped from lists
+  -- ** From lists
   , fromListInto
   , fromListInto_
 
-  -- ** Shaped from vectors
+  -- ** From vectors
   , fromVectorInto
   , fromVectorInto_
 
@@ -110,8 +110,8 @@ module Data.Shaped.Generic
 
   -- * Zipping
   -- ** Tuples
-  , Data.Shaped.Generic.zip
-  , Data.Shaped.Generic.zip3
+  , Data.Dense.Generic.zip
+  , Data.Dense.Generic.zip3
 
   -- ** Zip with function
   , zipWith
@@ -229,10 +229,10 @@ import qualified Data.Vector.Storable              as S
 import qualified Data.Vector.Unboxed               as U
 import           Linear                            hiding (vector)
 
-import           Data.Shaped.Base
-import           Data.Shaped.Index
-import           Data.Shaped.Mutable               (MArray (..))
-import qualified Data.Shaped.Mutable               as M
+import           Data.Dense.Base
+import           Data.Dense.Index
+import           Data.Dense.Mutable               (MArray (..))
+import qualified Data.Dense.Mutable               as M
 
 import           Prelude                           hiding (map, null, replicate,
                                                     zipWith, zipWith3)
@@ -880,14 +880,14 @@ seqManifest (Delayed l f) = generate l f
 {-# INLINE seqManifest #-}
 
 -- | 'manifest' an array to a 'UArray' and delay again. See
---   "Data.Shaped.Boxed" or "Data.Shaped.Storable" to 'affirm' for other
+--   "Data.Dense.Boxed" or "Data.Dense.Storable" to 'affirm' for other
 --   types of arrays.
 affirm :: (Shape f, U.Unbox a) => Delayed f a -> Delayed f a
 affirm = delay . (manifest :: (U.Unbox a, Shape f) => Delayed f a -> UArray f a)
 {-# INLINE affirm #-}
 
 -- | 'seqManifest' an array to a 'UArray' and delay again. See
---   "Data.Shaped.Boxed" or "Data.Shaped.Storable" to 'affirm' for other
+--   "Data.Dense.Boxed" or "Data.Dense.Storable" to 'affirm' for other
 --   types of arrays.
 seqAffirm :: (Shape f, U.Unbox a) => Delayed f a -> Delayed f a
 seqAffirm = delay . (seqManifest :: (U.Unbox a, Shape f) => Delayed f a -> UArray f a)

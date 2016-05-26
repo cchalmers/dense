@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes            #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Shaped.Storable
+-- Module      :  Data.Dense.Storable
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -10,9 +10,9 @@
 -- Stability   :  provisional
 -- Portability :  non-portable
 --
--- Storableed shaped vectors.
+-- 'Storeable' multidimentional arrays.
 -----------------------------------------------------------------------------
-module Data.Shaped.Storable
+module Data.Dense.Storable
   (
     -- * SArray types
     SArray
@@ -46,11 +46,11 @@ module Data.Shaped.Storable
   , flat
   , fromList
 
-  -- ** Shaped from lists
+  -- ** From lists
   , fromListInto
   , fromListInto_
 
-  -- ** Shaped from vectors
+  -- ** From vectors
   , fromVectorInto
   , fromVectorInto_
 
@@ -179,11 +179,11 @@ import           Foreign (Ptr, ForeignPtr)
 import           Prelude                 hiding (map, null, replicate, zip,
                                           zip3, zipWith, zipWith3)
 
-import           Data.Shaped.Base        (Array (..))
-import           Data.Shaped.Generic     (SArray)
-import qualified Data.Shaped.Generic     as G
-import           Data.Shaped.Index
-import           Data.Shaped.Mutable     (SMArray)
+import           Data.Dense.Base        (Array (..))
+import           Data.Dense.Generic     (SArray)
+import qualified Data.Dense.Generic     as G
+import           Data.Dense.Index
+import           Data.Dense.Mutable     (SMArray)
 
 -- Lenses --------------------------------------------------------------
 

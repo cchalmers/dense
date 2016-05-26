@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Shaped.Mutable
+-- Module      :  Data.Dense.Mutable
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -12,9 +12,10 @@
 -- Stability   :  provisional
 -- Portability :  non-portable
 --
--- This module provides generic functions over mutable shaped vectors.
+-- This module provides generic functions over mutable multidimensional
+-- arrays.
 -----------------------------------------------------------------------------
-module Data.Shaped.Mutable
+module Data.Dense.Mutable
   (
     -- * Mutable array
     MArray (..)
@@ -84,7 +85,7 @@ import qualified Data.Vector.Storable.Mutable  as S
 import qualified Data.Vector.Unboxed.Mutable   as U
 import           Linear.V1
 
-import           Data.Shaped.Index
+import           Data.Dense.Index
 
 import           Prelude                       hiding (read, replicate)
 
@@ -129,18 +130,18 @@ mvector f (MArray l v) =
 {-# INLINE mvector #-}
 
 -- | New mutable array with shape @l@.
-new :: (PrimMonad m, Shape l, MVector v a) => Layout l-> m (MArray v l (PrimState m) a)
+new :: (PrimMonad m, Shape l, MVector v a) => Layout l -> m (MArray v l (PrimState m) a)
 new l = MArray l `liftM` GM.new (F.product l)
 {-# INLINE new #-}
 
 -- | New mutable array with shape @l@ filled with element @a@.
-replicate :: (PrimMonad m, Shape l, MVector v a) => Layout l-> a -> m (MArray v l (PrimState m) a)
+replicate :: (PrimMonad m, Shape l, MVector v a) => Layout l -> a -> m (MArray v l (PrimState m) a)
 replicate l a = MArray l `liftM` GM.replicate (F.product l) a
 {-# INLINE replicate #-}
 
 -- | New mutable array with shape @l@ filled with result of monadic
 --   action @a@.
-replicateM :: (PrimMonad m, Shape l, MVector v a) => Layout l-> m a -> m (MArray v l (PrimState m) a)
+replicateM :: (PrimMonad m, Shape l, MVector v a) => Layout l -> m a -> m (MArray v l (PrimState m) a)
 replicateM l a = MArray l `liftM` GM.replicateM (F.product l) a
 {-# INLINE replicateM #-}
 

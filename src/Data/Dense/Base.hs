@@ -1,19 +1,19 @@
 {-# LANGUAGE BangPatterns          #-}
-{-# LANGUAGE MultiWayIf            #-}
-{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE CPP                   #-}
+{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TypeFamilies          #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Vector.Shaped
+-- Module      :  Data.Dense.Base
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -21,14 +21,14 @@
 -- Stability   :  provisional
 -- Portability :  non-portable
 --
--- Base module for shaped vectors. This module exports the constructors
--- for the 'Shaped' data type.
+-- Base module for multidimensional arrays. This module exports the
+-- constructors for the 'Array' data type.
 --
 -- Also, to prevent this module becomming too large, only the data types
 -- and the functions nessesary for the instances are defined here. All
--- other functions are defined in "Data.Shaped.Generic".
+-- other functions are defined in "Data.Dense.Generic".
 -----------------------------------------------------------------------------
-module Data.Shaped.Base
+module Data.Dense.Base
   (
     -- * Array types
     Array (..)
@@ -93,8 +93,8 @@ import           Linear                          hiding (vector)
 import           Text.ParserCombinators.ReadPrec (readS_to_Prec)
 import qualified Text.Read                       as Read
 
-import           Data.Shaped.Index
-import           Data.Shaped.Mutable             (MArray (..))
+import           Data.Dense.Index
+import           Data.Dense.Mutable              (MArray (..))
 
 import           Control.Concurrent              (forkOn, getNumCapabilities,
                                                   newEmptyMVar, putMVar,
@@ -104,7 +104,7 @@ import           System.IO.Unsafe                (unsafePerformIO)
 import           Prelude                         hiding (null, replicate,
                                                   zipWith, zipWith3)
 
-import GHC.Types (SPEC (..))
+import           GHC.Types                       (SPEC (..))
 
 -- | An 'Array' is a vector with a shape.
 data Array v f a = Array !(Layout f) !(v a)

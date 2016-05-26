@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes            #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Shaped.Boxed
+-- Module      :  Data.Dense.Boxed
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -10,9 +10,9 @@
 -- Stability   :  provisional
 -- Portability :  non-portable
 --
--- Boxed shaped vectors.
+-- Boxed multidimensional arrays.
 -----------------------------------------------------------------------------
-module Data.Shaped.Boxed
+module Data.Dense.Boxed
   (
     -- * BArray types
     BArray
@@ -45,11 +45,11 @@ module Data.Shaped.Boxed
   , flat
   , fromList
 
-  -- ** Shaped from lists
+  -- ** From lists
   , fromListInto
   , fromListInto_
 
-  -- ** Shaped from vectors
+  -- ** From vectors
   , fromVectorInto
   , fromVectorInto_
 
@@ -174,10 +174,10 @@ import           Linear                  hiding (vector)
 import           Prelude                 hiding (map, null, replicate, zip,
                                           zip3, zipWith, zipWith3)
 
-import           Data.Shaped.Generic     (BArray)
-import qualified Data.Shaped.Generic     as G
-import           Data.Shaped.Index
-import           Data.Shaped.Mutable     (BMArray)
+import           Data.Dense.Generic     (BArray)
+import qualified Data.Dense.Generic     as G
+import           Data.Dense.Index
+import           Data.Dense.Mutable     (BMArray)
 
 -- Lenses --------------------------------------------------------------
 

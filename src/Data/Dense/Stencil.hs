@@ -8,7 +8,7 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Shaped.Stencil
+-- Module      :  Data.Dense.Stencil
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -19,7 +19,7 @@
 -- Stencils can be used to sum (or any fold) over neighbouring sites to
 -- the current position on a 'Focused'.
 -----------------------------------------------------------------------------
-module Data.Shaped.Stencil
+module Data.Dense.Stencil
   ( -- * The Stencil type
     Stencil (..)
   , mkStencil
@@ -30,18 +30,24 @@ module Data.Shaped.Stencil
 
   ) where
 
-import qualified Data.Foldable                as F
 import           Control.Lens
+import           Data.Dense.Base
+import           Data.Dense.Generic   (Boundary (..), peekRelativeB)
+import           Data.Dense.Index
+import qualified Data.Foldable        as F
 import           Data.Functor.Classes
-import           Data.Shaped.Base
-import           Data.Shaped.Generic          (Boundary (..), peekRelativeB)
-import           Data.Shaped.Index
-import qualified Data.Vector.Unboxed          as U
+import qualified Data.Vector.Unboxed  as U
 import           Text.Show
 
 -- Types ---------------------------------------------------------------
 
--- | Stencils are used to fold over neighbouring array sites.
+-- | Stencils are used to fold over neighbouring array sites. To
+--   construct a stencil use 'mkStencil', 'mkStencilUnboxed'. For
+--   static sized stencils you can use the quasiquoter
+--   'Data.Dense.TH.stencil'.
+--
+--   To use a stencil you can use 'stencilSum' or use the 'Foldable' and
+--   'FoldableWithIndex' instances.
 newtype Stencil f a = Stencil (forall b. (f Int -> a -> b -> b) -> b -> b)
 
 instance (Show1 f, Show a) => Show (Stencil f a) where
@@ -65,7 +71,7 @@ instance Functor (Stencil f) where
 -- | Make a stencil folding over a list.
 --
 --   If the list is staticlly known this should expand at compile time
---   via rewrite rules, similar to 'makeStencilTH' but less reliable. If
+--   via rewrite rules, similar to 'Data.Dense.TH.makeStencilTH' but less reliable. If
 --   that does not happen the resulting could be slow. If the list is
 --   not know at compile time, 'mkStencilUnboxed' can be signifcantly
 --   faster (but isn't subject expending via rewrite rules).

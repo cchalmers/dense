@@ -10,7 +10,7 @@
 {-# LANGUAGE UndecidableInstances   #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Shaped.Mutable
+-- Module      :  Data.Dense.Mutable
 -- Copyright   :  (c) Christopher Chalmers
 -- License     :  BSD3
 --
@@ -23,7 +23,7 @@
 --
 -- The default instances are defined in row-major order.
 -----------------------------------------------------------------------------
-module Data.Shaped.Index
+module Data.Dense.Index
   ( -- * Shape class
     Layout
   , Shape (..)
@@ -234,10 +234,10 @@ instance i ~ Int => HasLayout V4 (V4 i)
 -- | Get the extent of an array.
 --
 -- @
--- 'extent' :: 'Data.Shaped.Base.Array' v f a    -> f 'Int'
--- 'extent' :: 'Data.Shaped.Mutable.MArray' v f s a -> f 'Int'
--- 'extent' :: 'Data.Shaped.Base.Delayed' f a    -> f 'Int'
--- 'extent' :: 'Data.Shaped.Base.Focused' f a    -> f 'Int'
+-- 'extent' :: 'Data.Dense.Base.Array' v f a    -> f 'Int'
+-- 'extent' :: 'Data.Dense.Mutable.MArray' v f s a -> f 'Int'
+-- 'extent' :: 'Data.Dense.Base.Delayed' f a    -> f 'Int'
+-- 'extent' :: 'Data.Dense.Base.Focused' f a    -> f 'Int'
 -- @
 extent :: HasLayout f a => a -> f Int
 extent = view layout
@@ -246,10 +246,10 @@ extent = view layout
 -- | Get the total number of elements in an array.
 --
 -- @
--- 'size' :: 'Data.Shaped.Base.Array' v f a    -> 'Int'
--- 'size' :: 'Data.Shaped.Mutable.MArray' v f s a -> 'Int'
--- 'size' :: 'Data.Shaped.Base.Delayed' f a    -> 'Int'
--- 'size' :: 'Data.Shaped.Base.Focused' f a    -> 'Int'
+-- 'size' :: 'Data.Dense.Base.Array' v f a    -> 'Int'
+-- 'size' :: 'Data.Dense.Mutable.MArray' v f s a -> 'Int'
+-- 'size' :: 'Data.Dense.Base.Delayed' f a    -> 'Int'
+-- 'size' :: 'Data.Dense.Base.Focused' f a    -> 'Int'
 -- @
 size :: HasLayout f a => a -> Int
 size = shapeSize . view layout
