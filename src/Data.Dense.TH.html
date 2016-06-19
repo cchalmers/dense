@@ -1,0 +1,730 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DeriveFunctor         #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances     #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE LambdaCase            #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE QuasiQuotes           #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE RankNTypes            #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE TemplateHaskell       #-}</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- Module      :  Data.Dense.TH</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- Copyright   :  (c) Christopher Chalmers</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- License     :  BSD3</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Maintainer  :  Christopher Chalmers</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- Portability :  non-portable</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- Contains QuasiQuotes and TemplateHaskell utilities for creating dense</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- arrays, stencils and fixed length vectors.</span><span>
+</span><a name="line-21"></a><span class="hs-comment">--</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-- The parser for the QuasiQuotes is still a work in progress.</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-24"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Dense</span><span class="hs-operator">.</span><span class="hs-identifier">TH</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- * Creating dense arrays</span><span>
+</span><a name="line-26"></a><span>    </span><a href="Data.Dense.TH.html#dense"><span class="hs-identifier hs-var">dense</span></a><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-comment">-- * Fixed length vector</span><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Dense.TH.html#v"><span class="hs-identifier hs-var">v</span></a><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-comment">-- * Stencils</span><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Dense.TH.html#stencil"><span class="hs-identifier hs-var">stencil</span></a><span>
+</span><a name="line-33"></a><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-comment">-- ** Stencils from lists</span><span>
+</span><a name="line-35"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Dense.TH.html#ShapeLift"><span class="hs-identifier hs-type">ShapeLift</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Dense.TH.html#mkStencilTH"><span class="hs-identifier hs-var">mkStencilTH</span></a><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Dense.TH.html#mkStencilTHBy"><span class="hs-identifier hs-var">mkStencilTHBy</span></a><span>
+</span><a name="line-38"></a><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control</span><span class="hs-operator">.</span><span class="hs-identifier">Applicative</span><span>          </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">many</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">empty</span><span class="hs-special">)</span><span>
+</span><a name="line-42"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control</span><span class="hs-operator">.</span><span class="hs-identifier">Lens</span><span>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control</span><span class="hs-operator">.</span><span class="hs-identifier">Monad</span><span>
+</span><a name="line-44"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Char</span><span>
+</span><a name="line-45"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Foldable</span><span>                </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">F</span><span>
+</span><a name="line-46"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Function</span><span>                </span><span class="hs-special">(</span><span class="hs-identifier hs-var">on</span><span class="hs-special">)</span><span>
+</span><a name="line-47"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">List</span><span>                    </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">List</span><span>
+</span><a name="line-48"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Maybe</span><span>
+</span><a name="line-49"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Monoid</span><span>                  </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Endo</span><span class="hs-special">)</span><span>
+</span><a name="line-50"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Vector</span><span>                  </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Vector</span><span>
+</span><a name="line-51"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Language</span><span class="hs-operator">.</span><span class="hs-identifier">Haskell</span><span class="hs-operator">.</span><span class="hs-identifier">TH</span><span>
+</span><a name="line-52"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Language</span><span class="hs-operator">.</span><span class="hs-identifier">Haskell</span><span class="hs-operator">.</span><span class="hs-identifier">TH</span><span class="hs-operator">.</span><span class="hs-identifier">Quote</span><span>
+</span><a name="line-53"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Language</span><span class="hs-operator">.</span><span class="hs-identifier">Haskell</span><span class="hs-operator">.</span><span class="hs-identifier">TH</span><span class="hs-operator">.</span><span class="hs-identifier">Syntax</span><span>
+</span><a name="line-54"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Linear</span><span>
+</span><a name="line-55"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Linear</span><span class="hs-operator">.</span><span class="hs-identifier">V</span><span>                     </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">V</span><span>
+</span><a name="line-56"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Text</span><span class="hs-operator">.</span><span class="hs-identifier">ParserCombinators</span><span class="hs-operator">.</span><span class="hs-identifier">ReadP</span><span>
+</span><a name="line-57"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Text</span><span class="hs-operator">.</span><span class="hs-identifier">Read</span><span class="hs-operator">.</span><span class="hs-identifier">Lex</span><span>                </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Lex</span><span>
+</span><a name="line-58"></a><span>
+</span><a name="line-59"></a><span class="hs-keyword">import</span><span>           </span><a href="Data.Dense.Generic.html"><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Dense</span><span class="hs-operator">.</span><span class="hs-identifier">Generic</span></a><span>          </span><span class="hs-special">(</span><a href="Data.Dense.Generic.html#empty"><span class="hs-identifier hs-var">empty</span></a><span class="hs-special">,</span><span> </span><a href="Data.Dense.Generic.html#fromListInto_"><span class="hs-identifier hs-var">fromListInto_</span></a><span class="hs-special">)</span><span>
+</span><a name="line-60"></a><span class="hs-keyword">import</span><span>           </span><a href="Data.Dense.Index.html"><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Dense</span><span class="hs-operator">.</span><span class="hs-identifier">Index</span></a><span>
+</span><a name="line-61"></a><span class="hs-keyword">import</span><span>           </span><a href="Data.Dense.Stencil.html"><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Dense</span><span class="hs-operator">.</span><span class="hs-identifier">Stencil</span></a><span>
+</span><a name="line-62"></a><span>
+</span><a name="line-63"></a><span class="hs-comment">-- | QuasiQuoter for producing a dense arrays using a custom parser.</span><span>
+</span><a name="line-64"></a><span class="hs-comment">--   Values are space separated, while also allowing infix expressions</span><span>
+</span><a name="line-65"></a><span class="hs-comment">--   (like @5/7@). If you want to apply a function, it should be done in</span><span>
+</span><a name="line-66"></a><span class="hs-comment">--   brackets. Supports 1D, 2D and 3D arrays.</span><span>
+</span><a name="line-67"></a><span class="hs-comment">--</span><span>
+</span><a name="line-68"></a><span class="hs-comment">--   The number of rows/columns must be consistent thought out the</span><span>
+</span><a name="line-69"></a><span class="hs-comment">--   array.</span><span>
+</span><a name="line-70"></a><span class="hs-comment">--</span><span>
+</span><a name="line-71"></a><span class="hs-comment">-- === __Examples__</span><span>
+</span><a name="line-72"></a><span class="hs-comment">--</span><span>
+</span><a name="line-73"></a><span class="hs-comment">--   - 1D arrays are of the following form form. Note these can be</span><span>
+</span><a name="line-74"></a><span class="hs-comment">--     used as 'V1', 'V2' or 'V3' arrays.</span><span>
+</span><a name="line-75"></a><span class="hs-comment">--</span><span>
+</span><a name="line-76"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-77"></a><span class="hs-comment">-- ['dense'| 5 -3 1 -3 5 |] :: ('R1' f, 'Vector.Vector' v a, 'Num' a) =&gt; 'Data.Dense.Array' v f a</span><span>
+</span><a name="line-78"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-79"></a><span class="hs-comment">--</span><span>
+</span><a name="line-80"></a><span class="hs-comment">--</span><span>
+</span><a name="line-81"></a><span class="hs-comment">--   - 2D arrays are of the following form. Note these can be used as</span><span>
+</span><a name="line-82"></a><span class="hs-comment">--     'V2' or 'V3' arrays.</span><span>
+</span><a name="line-83"></a><span class="hs-comment">--</span><span>
+</span><a name="line-84"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-85"></a><span class="hs-comment">-- chars :: 'Data.Dense.UArray' 'V2' 'Char'</span><span>
+</span><a name="line-86"></a><span class="hs-comment">-- chars :: ['dense'|</span><span>
+</span><a name="line-87"></a><span class="hs-comment">--   \'a\' \'b\' \'c\'</span><span>
+</span><a name="line-88"></a><span class="hs-comment">--   \'d\' \'e\' \'f\'</span><span>
+</span><a name="line-89"></a><span class="hs-comment">--   \'g\' \'h\' \'i\'</span><span>
+</span><a name="line-90"></a><span class="hs-comment">-- |]</span><span>
+</span><a name="line-91"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-92"></a><span class="hs-comment">--</span><span>
+</span><a name="line-93"></a><span class="hs-comment">--   - 3D arrays are of the following form. Note the order in which</span><span>
+</span><a name="line-94"></a><span class="hs-comment">--     'dense' formats the array. The array @a@ is such that @a ! 'V3'</span><span>
+</span><a name="line-95"></a><span class="hs-comment">--     x y z = &quot;xyz&quot;@</span><span>
+</span><a name="line-96"></a><span class="hs-comment">--</span><span>
+</span><a name="line-97"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-98"></a><span class="hs-comment">-- a :: 'Data.Dense.BArray' 'V3' 'String'</span><span>
+</span><a name="line-99"></a><span class="hs-comment">-- a = ['dense'|</span><span>
+</span><a name="line-100"></a><span class="hs-comment">--   &quot;000&quot; &quot;100&quot; &quot;200&quot;</span><span>
+</span><a name="line-101"></a><span class="hs-comment">--   &quot;010&quot; &quot;110&quot; &quot;210&quot;</span><span>
+</span><a name="line-102"></a><span class="hs-comment">--   &quot;020&quot; &quot;120&quot; &quot;220&quot;</span><span>
+</span><a name="line-103"></a><span class="hs-comment">--</span><span>
+</span><a name="line-104"></a><span class="hs-comment">--   &quot;001&quot; &quot;101&quot; &quot;201&quot;</span><span>
+</span><a name="line-105"></a><span class="hs-comment">--   &quot;011&quot; &quot;111&quot; &quot;211&quot;</span><span>
+</span><a name="line-106"></a><span class="hs-comment">--   &quot;021&quot; &quot;121&quot; &quot;221&quot;</span><span>
+</span><a name="line-107"></a><span class="hs-comment">--</span><span>
+</span><a name="line-108"></a><span class="hs-comment">--   &quot;002&quot; &quot;102&quot; &quot;202&quot;</span><span>
+</span><a name="line-109"></a><span class="hs-comment">--   &quot;012&quot; &quot;112&quot; &quot;212&quot;</span><span>
+</span><a name="line-110"></a><span class="hs-comment">--   &quot;022&quot; &quot;122&quot; &quot;222&quot;</span><span>
+</span><a name="line-111"></a><span class="hs-comment">-- |]</span><span>
+</span><a name="line-112"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-113"></a><span class="hs-comment">--</span><span>
+</span><a name="line-114"></a><span class="hs-identifier">dense</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">QuasiQuoter</span><span>
+</span><a name="line-115"></a><a name="dense"><a href="Data.Dense.TH.html#dense"><span class="hs-identifier">dense</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">QuasiQuoter</span><span>
+</span><a name="line-116"></a><span>  </span><span class="hs-special">{</span><span> </span><span class="hs-identifier">quoteExp</span><span>  </span><span class="hs-glyph">=</span><span> </span><a href="Data.Dense.TH.html#parseDense"><span class="hs-identifier hs-var">parseDense</span></a><span>
+</span><a name="line-117"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">quotePat</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">error</span><span> </span><span class="hs-string">&quot;dense can't be used in pattern&quot;</span><span>
+</span><a name="line-118"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">quoteType</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">error</span><span> </span><span class="hs-string">&quot;dense can't be used in type&quot;</span><span>
+</span><a name="line-119"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">quoteDec</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">error</span><span> </span><span class="hs-string">&quot;dense can't be used in dec&quot;</span><span>
+</span><a name="line-120"></a><span>  </span><span class="hs-special">}</span><span>
+</span><a name="line-121"></a><span>
+</span><a name="line-122"></a><span class="hs-comment">-- | List of expressions forming a stencil. To be either turned into</span><span>
+</span><a name="line-123"></a><span class="hs-comment">--   either a real list or an unfolded stencil.</span><span>
+</span><a name="line-124"></a><span class="hs-identifier">parseDense</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">String</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Q</span><span> </span><span class="hs-identifier hs-type">Exp</span><span>
+</span><a name="line-125"></a><a name="parseDense"><a href="Data.Dense.TH.html#parseDense"><span class="hs-identifier">parseDense</span></a></a><span> </span><a name="local-1627922618"><a href="#local-1627922618"><span class="hs-identifier">str</span></a></a><span> </span><span class="hs-glyph">=</span><span>
+</span><a name="line-126"></a><span>  </span><span class="hs-keyword">case</span><span> </span><span class="hs-identifier hs-var">mapM</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">mapM</span><span> </span><a href="Data.Dense.TH.html#parseLine"><span class="hs-identifier hs-var">parseLine</span></a><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">map</span><span> </span><span class="hs-identifier hs-var">lines</span><span> </span><a href="#local-1627922619"><span class="hs-identifier hs-var">ps</span></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><a name="line-127"></a><span>    </span><span class="hs-identifier hs-var">Left</span><span> </span><a name="local-1627922620"><a href="#local-1627922620"><span class="hs-identifier">err</span></a></a><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">fail</span><span> </span><a href="#local-1627922620"><span class="hs-identifier hs-var">err</span></a><span>
+</span><a name="line-128"></a><span>    </span><span class="hs-identifier hs-var">Right</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-glyph">|</span><span> </span><a href="Data.Dense.Generic.html#empty"><span class="hs-identifier hs-var">empty</span></a><span> </span><span class="hs-glyph">|</span><span class="hs-special">]</span><span>
+</span><a name="line-129"></a><span>    </span><span class="hs-identifier hs-var">Right</span><span> </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="hs-keyword">as</span><span class="hs-special">]</span><span class="hs-special">]</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">uncurry</span><span> </span><a href="Data.Dense.TH.html#mkArray"><span class="hs-identifier hs-var">mkArray</span></a><span> </span><span class="hs-operator hs-var">$</span><span> </span><a href="Data.Dense.TH.html#parse1D"><span class="hs-identifier hs-var">parse1D</span></a><span> </span><span class="hs-keyword">as</span><span>
+</span><a name="line-130"></a><span>    </span><span class="hs-identifier hs-var">Right</span><span> </span><span class="hs-special">[</span><a name="local-1627922622"><a href="#local-1627922622"><span class="hs-identifier">ass</span></a></a><span class="hs-special">]</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">uncurry</span><span> </span><a href="Data.Dense.TH.html#mkArray"><span class="hs-identifier hs-var">mkArray</span></a><span> </span><span class="hs-operator hs-var">$</span><span> </span><a href="Data.Dense.TH.html#parse2D"><span class="hs-identifier hs-var">parse2D</span></a><span> </span><a href="#local-1627922622"><span class="hs-identifier hs-var">ass</span></a><span>
+</span><a name="line-131"></a><span>    </span><span class="hs-identifier hs-var">Right</span><span> </span><a name="local-1627922623"><a href="#local-1627922623"><span class="hs-identifier">asss</span></a></a><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">uncurry</span><span> </span><a href="Data.Dense.TH.html#mkArray"><span class="hs-identifier hs-var">mkArray</span></a><span> </span><span class="hs-operator hs-var">$</span><span> </span><a href="Data.Dense.TH.html#parse3D"><span class="hs-identifier hs-var">parse3D</span></a><span> </span><a href="#local-1627922623"><span class="hs-identifier hs-var">asss</span></a><span>
+</span><a name="line-132"></a><span>  </span><span class="hs-keyword">where</span><span> </span><a name="local-1627922619"><a href="#local-1627922619"><span class="hs-identifier">ps</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Dense.TH.html#paragraphs"><span class="hs-identifier hs-var">paragraphs</span></a><span> </span><a href="#local-1627922618"><span class="hs-identifier hs-var">str</span></a><span>
+</span><a name="line-133"></a><span>
+</span><a name="line-134"></a><span class="hs-comment">-- | Split a string up into paragraphs separated by a new line. Extra</span><span>
+</span><a name="line-135"></a><span class="hs-comment">--   newlines inbetween paragraphs are stripped.</span><span>
+</span><a name="line-136"></a><span class="hs-identifier">paragraphs</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">String</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">String</span><span class="hs-special">]</span><span>
+</span><a name="line-137"></a><a name="paragraphs"><a href="Data.Dense.TH.html#paragraphs"><span class="hs-identifier">paragraphs</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="#local-1627922624"><span class="hs-identifier hs-var">go</span></a><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><a href="#local-1627922625"><span class="hs-identifier hs-var">strip</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-138"></a><span>  </span><a name="local-1627922624"><a href="#local-1627922624"><span class="hs-identifier">go</span></a></a><span> </span><a name="local-1627922626"><a href="#local-1627922626"><span class="hs-identifier">ps</span></a></a><span> </span><span class="hs-special">(</span><span class="hs-char">'\n'</span><span class="hs-glyph">:</span><span class="hs-char">'\n'</span><span class="hs-glyph">:</span><a name="local-1627922627"><a href="#local-1627922627"><span class="hs-identifier">xs</span></a></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-var">reverse</span><span> </span><a href="#local-1627922626"><span class="hs-identifier hs-var">ps</span></a><span class="hs-special">]</span><span> </span><span class="hs-operator hs-var">++</span><span> </span><a href="#local-1627922624"><span class="hs-identifier hs-var">go</span></a><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><a href="#local-1627922625"><span class="hs-identifier hs-var">strip</span></a><span> </span><a href="#local-1627922627"><span class="hs-identifier hs-var">xs</span></a><span class="hs-special">)</span><span>
+</span><a name="line-139"></a><span>  </span><span class="hs-identifier">go</span><span> </span><a name="local-1627922628"><a href="#local-1627922628"><span class="hs-identifier">ps</span></a></a><span> </span><span class="hs-special">(</span><a name="local-1627922629"><a href="#local-1627922629"><span class="hs-identifier">x</span></a></a><span class="hs-glyph">:</span><a name="local-1627922630"><a href="#local-1627922630"><span class="hs-identifier">xs</span></a></a><span class="hs-special">)</span><span>         </span><span class="hs-glyph">=</span><span> </span><a href="#local-1627922624"><span class="hs-identifier hs-var">go</span></a><span> </span><span class="hs-special">(</span><a href="#local-1627922629"><span class="hs-identifier hs-var">x</span></a><span class="hs-glyph">:</span><a href="#local-1627922628"><span class="hs-identifier hs-var">ps</span></a><span class="hs-special">)</span><span> </span><a href="#local-1627922630"><span class="hs-identifier hs-var">xs</span></a><span>
+</span><a name="line-140"></a><span>  </span><span class="hs-identifier">go</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><a name="line-141"></a><span>  </span><span class="hs-identifier">go</span><span> </span><a name="local-1627922631"><a href="#local-1627922631"><span class="hs-identifier">ps</span></a></a><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-var">reverse</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><a href="#local-1627922625"><span class="hs-identifier hs-var">strip</span></a><span> </span><a href="#local-1627922631"><span class="hs-identifier hs-var">ps</span></a><span class="hs-special">]</span><span>
+</span><a name="line-142"></a><span>
+</span><a name="line-143"></a><span>  </span><a name="local-1627922625"><a href="#local-1627922625"><span class="hs-identifier">strip</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">dropWhile</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><a name="local-1627922632"><a href="#local-1627922632"><span class="hs-identifier">x</span></a></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-1627922632"><span class="hs-identifier hs-var">x</span></a><span> </span><span class="hs-operator hs-var">==</span><span> </span><span class="hs-char">'\n'</span><span> </span><span class="hs-operator hs-var">||</span><span> </span><a href="#local-1627922632"><span class="hs-identifier hs-var">x</span></a><span> </span><span class="hs-operator hs-var">==</span><span> </span><span class="hs-char">' '</span><span class="hs-special">)</span><span>
+</span><a name="line-144"></a><span>
+</span><a name="line-145"></a><span class="hs-comment">-- Creating arrays -----------------------------------------------------</span><span>
+</span><a name="line-146"></a><span>
+</span><a name="line-147"></a><span class="hs-identifier">mkArray</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Data.Dense.TH.html#ShapeLift"><span class="hs-identifier hs-type">ShapeLift</span></a><span> </span><a href="#local-1627922617"><span class="hs-identifier hs-type">f</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Data.Dense.Index.html#Layout"><span class="hs-identifier hs-type">Layout</span></a><span> </span><a href="#local-1627922617"><span class="hs-identifier hs-type">f</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Exp</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Q</span><span> </span><span class="hs-identifier hs-type">Exp</span><span>
+</span><a name="line-148"></a><a name="mkArray"><a href="Data.Dense.TH.html#mkArray"><span class="hs-identifier">mkArray</span></a></a><span> </span><a name="local-1627922633"><a href="#local-1627922633"><span class="hs-identifier">l</span></a></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-149"></a><span>  </span><a name="local-1627922635"><a href="#local-1627922635"><span class="hs-identifier">lE</span></a></a><span> </span><span class="hs-glyph">&lt;-</span><span> </span><a href="Data.Dense.TH.html#liftShape%27"><span class="hs-identifier hs-var">liftShape'</span></a><span> </span><a href="#local-1627922633"><span class="hs-identifier hs-var">l</span></a><span>
+</span><a name="line-150"></a><span>  </span><span class="hs-keyword">let</span><span> </span><a name="local-1627922636"><a href="#local-1627922636"><span class="hs-identifier">fromListE</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">AppE</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">VarE</span><span> </span><span class="hs-char">'fromListInto_) lE
+  pure $ AppE fromListE (ListE as)
+
+------------------------------------------------------------------------
+-- V n a
+------------------------------------------------------------------------
+
+-- | Type safe 'QuasiQuoter' for fixed length vectors 'V.V'. Values are
+--   space separated. Can be used as expressions or patterns.
+--
+-- @
+-- [v| x y z w q r |] :: 'V.V' 6 a
+-- @
+--
+--   Note this requires @DataKinds@. Also requires @ViewPatterns@ if 'v'
+--   is used as a pattern.
+--
+-- === __Examples__
+--
+-- @
+-- &gt;&gt;&gt; let a = [v| 1 2 3 4 5 |]
+-- &gt;&gt;&gt; :t a
+-- a :: Num a =&gt; V 5 a
+-- &gt;&gt;&gt; a
+-- V {toVector = [1,2,3,4,5]}
+-- &gt;&gt;&gt; let f [v| a b c d e |] = (a,b,c,d,e)
+-- &gt;&gt;&gt; :t f
+-- f :: V 5 t -&gt; (t, t, t, t, t)
+-- &gt;&gt;&gt; f a
+-- (1,2,3,4,5)
+-- @
+--
+-- Variables and infix expressions are also allowed. Negative values can
+-- be expressed by a leading @-@ with a space before but no space
+-- after.
+--
+-- @
+-- &gt;&gt;&gt; let b x = [v| 1\/x 2 \/ x (succ x)**2 x-2 x - 3 -x |]
+-- &gt;&gt;&gt; b Debug.SimpleReflect.a
+-- V {toVector = [1 \/ a,2 \/ a,succ a**2,a - 2,a - 3,negate a]}
+-- @
+v :: QuasiQuoter
+v = QuasiQuoter
+  { quoteExp  = parseV
+  , quotePat  = patternV
+  , quoteType = error &quot;v can't be used as type&quot;
+  , quoteDec  = error &quot;v can't be used as dec&quot;
+  }
+
+parseV :: String -&gt; Q Exp
+parseV s = case parseLine s of
+  Right as -&gt;
+    let e = pure $ ListE as
+        n = pure . LitT $ NumTyLit (toInteger $ length as)
+    in  [| (V.V :: Vector.Vector a -&gt; V.V $n a) (Vector.fromList $e) |]
+  Left err -&gt; fail $ &quot;v: &quot; ++ err
+
+------------------------------------------------------------------------
+-- Stencils
+------------------------------------------------------------------------
+
+parseStencilLine :: String -&gt; Either String [Maybe Exp]
+parseStencilLine s =
+  case List.sortBy (compare `on` (length . snd)) rs of
+    (xs,&quot;&quot;) : _ -&gt; Right xs
+    (_ , x) : _ -&gt; Left $ &quot;parse error on input &quot; ++ head (words x)
+    _           -&gt; Left &quot;no parse&quot;
+  where
+    rs = readP_to_S (many $ mExp &lt;* skipSpaces) s
+    mExp = fmap Just noAppExpression &lt;|&gt; skip
+    skip = do
+      Lex.Ident &quot;_&quot; &lt;- Lex.lex
+      pure Nothing
+
+-- | List of expressions forming a stencil. To be either turned into
+--   either a real list or an unfolded stencil.
+parseStencil :: String -&gt; Q Exp
+parseStencil str =
+  case mapM (mapM parseStencilLine) (map lines ps) of
+    Left err      -&gt; fail err
+    Right []      -&gt; [| mkStencil [] |]
+    Right [[as]]  -&gt; uncurry mkStencilE $ parse1D as
+    Right [ass]   -&gt; uncurry mkStencilE $ parse2D ass
+    Right asss    -&gt; uncurry mkStencilE $ parse3D asss
+  where ps = paragraphs str
+
+mkStencilE :: ShapeLift f =&gt; Layout f -&gt; [Maybe Exp] -&gt; Q Exp
+mkStencilE l as = do
+  when (F.any even l) $ reportWarning
+    &quot;stencil has an even size in some dimension, the centre element may be incorrect&quot;
+
+  let ixes = map (^-^ fmap (`div` 2) l) (toListOf shapeIndexes l)
+      -- indexes zipped with expressions, discarding 'Nothing's
+      xs = mapMaybe (sequenceOf _2) (zip ixes as)
+
+  mkStencilTHBy pure xs
+
+-- | QuasiQuoter for producing a static stencil definition. This is a
+--   versatile parser for 1D, 2D and 3D stencils. The parsing is similar
+--   to 'dense' but 'stencil' also supports @_@, which means ignore this
+--   element. Also, stencils should have an odd length in all dimensions
+--   so there is always a center element (which is used as 'zero').
+--
+-- === __Examples__
+--
+--     - 1D stencils are of the form
+--
+-- @
+-- ['stencil'| 5 -3 1 -3 5 |] :: 'Num' a =&gt; 'Stencil' 'V1' a
+-- @
+--
+--     - 2D stencils are of the form
+--
+-- @
+-- myStencil2 :: 'Num' a =&gt; 'Stencil' 'V2' a
+-- myStencil2 = ['stencil'|
+--   0 1 0
+--   1 0 1
+--   0 1 0
+-- |]
+-- @
+--
+--     - 3D stencils have gaps between planes.
+--
+-- @
+-- myStencil3 :: 'Fractional' a =&gt; 'Stencil' 'V3' a
+-- myStencil3 :: ['stencil'|
+--   1\/20 3\/10 1\/20
+--   3\/10  1   3\/10
+--   1\/20 3\/10 1\/20
+--
+--   3\/10  1   3\/10
+--    1    _    1
+--   3\/10  1   3\/10
+--
+--   1\/20 3\/10 1\/20
+--   3\/10  1   3\/10
+--   1\/20 3\/10 1\/20
+-- |]
+-- @
+--
+--  Variables can also be used
+--
+-- @
+-- myStencil2' :: a -&gt; a -&gt; a -&gt; 'Stencil' 'V2' a
+-- myStencil2' a b c = ['stencil'|
+--   c b c
+--   b a b
+--   c b c
+-- |]
+-- @
+--
+--
+stencil :: QuasiQuoter
+stencil = QuasiQuoter
+  { quoteExp  = parseStencil
+  , quotePat  = error &quot;stencil can't be used in pattern&quot;
+  , quoteType = error &quot;stencil can't be used in type&quot;
+  , quoteDec  = error &quot;stencil can't be used in dec&quot;
+  }
+
+-- | Construct a 'Stencil' by unrolling the list at compile time. For
+--   example
+--
+-- @
+-- 'ifoldr' f b $('mkStencilTH' [('V1' (-1), 5), ('V1' 0, 3), ('V1' 1, 5)])
+-- @
+--
+--   will be get turned into
+--
+-- @
+-- f ('V1' (-1)) 5 (f ('V1' 0) 3 (f ('V1' 1) 5 b))
+-- @
+--
+--   at compile time. Since there are no loops and all target indexes
+--   are known at compile time, this can lead to more optimisations and
+--   faster execution times. This can lead to around a 2x speed up
+--   compared to folding over unboxed vectors.
+--
+-- @
+-- myStencil = $('mkStencilTH' (as :: [(f 'Int', a)])) :: 'Stencil' f a
+-- @
+mkStencilTH :: (ShapeLift f, Lift a) =&gt; [(f Int, a)] -&gt; Q Exp
+mkStencilTH = mkStencilTHBy lift
+
+-- | 'mkStencilTH' with a custom 'lift' function for @a@.
+mkStencilTHBy :: ShapeLift f =&gt; (a -&gt; Q Exp) -&gt; [(f Int, a)] -&gt; Q Exp
+mkStencilTHBy aLift as = do
+  -- See Note [mkName-capturing]
+  f &lt;- newName &quot;mkStencilTHBy_f&quot;
+  b &lt;- newName &quot;mkStencilTHBy_b&quot;
+  let appF (i,a) e = do
+        iE &lt;- liftShape' i
+        aE &lt;- aLift a
+        pure $ AppE (AppE (AppE (VarE f) iE) aE) e
+
+  e &lt;- foldrM appF (VarE b) as
+  pure $ AppE (ConE 'Stencil) (LamE [VarP f,VarP b] e)
+
+{-
+~~~~ Note [mkName-capturing]
+
+Since 'newName' will capture any other names below it with the same
+name. So if we simply used @newName &quot;b&quot;@, [stencil| a b c |] where
+a=1; b=2; c=3 would convert @b@ to @b_a5y0@ (or w/e the top level b
+is) and fail. To prevent this I've used a name that's unlikely
+conflict.
+
+Another solution would be to use lookupValueName on all variables.
+But this would either require traversing over all 'Name's in every
+'Exp' (shown below) or parse in the Q monad.
+
+-- | Lookup and replace all names made with 'mkName' using
+--   'lookupValueName'; failing if not in scope.
+replaceMkName :: Exp -&gt; Q Exp
+replaceMkName = template f where
+  f (Name (OccName s) NameS) =
+    lookupValueName s &gt;&gt;= \case
+      Just nm -&gt; pure nm
+      -- Sometimes a variable may not be in scope yet because it's
+      -- generated in a TH splice that hasn't been run yet.
+      Nothing -&gt; fail $ &quot;Not in scope: &#8216;&quot; ++ s ++ &quot;&#8217;&quot;
+  f nm = pure nm
+
+-}
+
+------------------------------------------------------------------------
+-- Parsing expressions
+------------------------------------------------------------------------
+
+parseLine :: String -&gt; Either String [Exp]
+parseLine s =
+  case List.sortBy (compare `on` (length . snd)) rs of
+    (xs,&quot;&quot;) : _ -&gt; Right xs
+    (_ , x) : _ -&gt; Left $ &quot;parse error on input &quot; ++ head (words x)
+    _           -&gt; Left &quot;no parse&quot;
+  where
+    rs = readP_to_S (many noAppExpression &lt;* skipSpaces) s
+
+-- | Fail the parser if the next non-space is a @-@ directly followed by
+--   a non-space.
+closeNegateFail :: ReadP ()
+closeNegateFail = do
+  s &lt;- look
+  case s of
+    ' ' : s' -&gt; case dropWhile isSpace s' of
+                  '-' : c : _ -&gt; if isSpace c then pure () else pfail
+                  _           -&gt; pure ()
+    _        -&gt; pure ()
+
+-- | If there is a space before but not after a @-@, it is treated as a
+--   separate expression.
+--
+-- @
+-- &quot;1 2 -3 4&quot;        -&gt; [1, 2, -3, 4]
+-- &quot;1 2 - 3 4&quot;       -&gt; [1, -1, 4]
+-- &quot;1 2-3 4&quot;         -&gt; [1, -1, 4]
+-- &quot;11 -3/2  -3/2 4&quot; -&gt; [1, -1, 4]
+-- &quot;1 -3/2 4&quot;        -&gt; [1.0,-1.5,4.0]
+-- @
+noAppExpression :: ReadP Exp
+noAppExpression = do
+  aE &lt;- anExpr True
+
+  option aE $ do
+    closeNegateFail
+    i  &lt;- infixExp
+    bE &lt;- noAppExpression
+    pure $ UInfixE aE i bE
+
+-- | Parse an express without any top level application. Infix functions
+--   are still permitted.
+--
+--   This is only a small subset of the full haskell syntax. The
+--   following syntax is supported:
+--
+--     - Variables/constructors: @a@, @'Just'@ etc.
+--     - Numbers: @3@, @-6@, @7.8@, @1e-6@, @0x583fa@
+--     - Parenthesis/tuples: @()@ @(f a)@, @(a,b)@
+--     - Lists
+--     - Strings
+--     - Function application
+--     - Infix operators: symbols (@+@, @/@ etc.) and blackticked (like @`mod`@)
+--
+--   More advanced haskell syntax are not yet supported:
+--
+--     - let bindings
+--     - lambdas
+--     - partial infix application (+) (1+) (+2)
+--     - type signatures
+--     - comments
+--
+--   This could be replaced by haskell-src-meta but since I want a
+--   custom parser for 'noAppExpression' it doesn't seem worth the extra
+--   dependencies.
+expression :: ReadP Exp
+expression = do
+  f    &lt;- anExpr True
+  args &lt;- many (anExpr False)
+  let aE = F.foldl AppE f args
+
+  option aE $ do
+    -- if the next lex isn't a symbol, we move on to the next statement
+    i  &lt;- infixExp
+    bE &lt;- expression
+    pure $ UInfixE aE i bE
+
+-- | Parse an infix expression. Either a symbol or a name wrapped in @`@.
+infixExp :: ReadP Exp
+infixExp = do
+  a &lt;- Lex.lex
+  case a of
+    Lex.Symbol s -&gt; pure $ symbol s
+    Lex.Punc &quot;`&quot; -&gt; do
+      Lex.Ident x  &lt;- Lex.lex
+      Lex.Punc &quot;`&quot; &lt;- Lex.lex
+      ident x
+    _            -&gt; pfail
+
+-- Lexing --------------------------------------------------------------
+
+-- | Parse a single expression.
+anExpr
+  :: Bool      -- ^ Allow a leading @-@ to mean 'negate'
+  -&gt; ReadP Exp
+anExpr new = do
+  a &lt;- Lex.lex
+  case a of
+    Lex.Char c   -&gt; pure $ LitE (CharL c)
+    Lex.String s -&gt; pure $ LitE (StringL s)
+    Lex.Punc s   -&gt; punc s
+    Lex.Ident s  -&gt; ident s
+    Lex.Symbol s -&gt; if new then prefix s else pfail
+    Lex.Number n -&gt; pure $ LitE (number n)
+    Lex.EOF      -&gt; pfail
+
+-- | Convert a name to an expression.
+ident :: String -&gt; ReadP Exp
+ident &quot;_&quot;                 = pfail
+ident s@(x:_) | isUpper x = pure $ ConE (mkName s)
+ident s                   = pure $ VarE (mkName s)
+
+-- | Convert a symbol to an expression.
+symbol :: String -&gt; Exp
+symbol s@(':':_) = ConE (mkName s)
+symbol s         = VarE (mkName s)
+
+-- | Parse from some punctuation.
+punc :: String -&gt; ReadP Exp
+punc = \case
+  -- parenthesis / tuples
+  &quot;(&quot; -&gt; do as           &lt;- expression `sepBy` comma
+            Lex.Punc &quot;)&quot; &lt;- Lex.lex
+            pure $ TupE as
+  -- lists
+  &quot;[&quot; -&gt; do as           &lt;- expression `sepBy` comma
+            Lex.Punc &quot;]&quot; &lt;- Lex.lex
+            pure $ ListE as
+  _   -&gt; pfail
+
+prefix :: String -&gt; ReadP Exp
+prefix &quot;-&quot; = do
+  e &lt;- anExpr False
+  pure $ AppE (VarE 'negate) e
+prefix _   = pfail
+
+comma :: ReadP ()
+comma = do
+  Lex.Punc &quot;,&quot; &lt;- Lex.lex
+  pure ()
+
+-- | Turn a 'Number' into a literal 'Integer' if possible, otherwise
+--   make a literal `Rational`.
+number :: Lex.Number -&gt; Lit
+number n =
+  maybe (RationalL $ Lex.numberToRational n)
+        IntegerL
+        (Lex.numberToInteger n)
+
+------------------------------------------------------------------------
+-- Parsing patterns
+------------------------------------------------------------------------
+
+patternV :: String -&gt; Q Pat
+patternV s = do
+  case parsePattern s of
+    Left err -&gt; fail err
+    Right pats -&gt; do
+      fE &lt;- vTuple (length pats)
+      pure $ ViewP fE (TupP pats)
+
+parsePattern :: String -&gt; Either String [Pat]
+parsePattern s =
+  case List.sortBy (compare `on` (length . snd)) rs of
+    (xs,&quot;&quot;) : _ -&gt; Right xs
+    (_ , x) : _ -&gt; Left $ &quot;parse error on input &quot; ++ head (words x)
+    _           -&gt; Left &quot;no parse&quot;
+  where rs = readP_to_S (many pattern &lt;* skipSpaces) s
+
+pattern :: ReadP Pat
+pattern = do
+  a &lt;- Lex.lex
+  case a of
+    Lex.Char c   -&gt; pure $ LitP (CharL c)
+    Lex.String s -&gt; pure $ LitP (StringL s)
+    Lex.Punc s   -&gt; puncP s
+    Lex.Ident n  -&gt; pure $ identP n
+    Lex.Symbol s -&gt; prefixP s
+    Lex.Number n -&gt; pure $ LitP (number n)
+    Lex.EOF      -&gt; pfail
+
+-- | Convert a name to an expression.
+identP :: String -&gt; Pat
+identP &quot;_&quot;                 = WildP
+identP s@(x:_) | isUpper x = ConP (mkName s) []
+identP s                   = VarP (mkName s)
+
+-- | Parse from some punctuation.
+puncP :: String -&gt; ReadP Pat
+puncP = \case
+  &quot;~&quot; -&gt; TildeP &lt;$&gt; pattern
+
+  &quot;(&quot; -&gt; do as           &lt;- pattern `sepBy` comma
+            Lex.Punc &quot;)&quot; &lt;- Lex.lex
+            pure $ TupP as
+
+  &quot;[&quot; -&gt; do as           &lt;- pattern `sepBy` comma
+            Lex.Punc &quot;]&quot; &lt;- Lex.lex
+            pure $ ListP as
+  _   -&gt; pfail
+
+prefixP :: String -&gt; ReadP Pat
+prefixP &quot;!&quot; = do
+  c:_ &lt;- look
+  when (isSpace c) pfail
+  BangP &lt;$&gt; pattern
+prefixP &quot;~&quot; = TildeP &lt;$&gt; pattern
+prefixP _   = pfail
+
+-- | Create an expression for converting a (V n a) to an n-tuple.
+vTuple :: Int -&gt; Q Exp
+vTuple n
+  | n &gt; 62 = error &quot;max supported length is 62 for v pattern&quot;
+  | otherwise = do
+      vN &lt;- newName &quot;v&quot;
+      let idx i = AppE (AppE (VarE 'Vector.unsafeIndex) (VarE vN)) (intE i)
+      let xs = TupE $ map idx [0..n-1]
+      a   &lt;- newName &quot;a&quot;
+      let tup = iterate (\x -&gt; AppT x (VarT a)) (TupleT n) !! n
+          typ = ForallT [PlainTV a] []
+                  (AppT (AppT ArrowT (AppT (AppT (ConT ''V.V) (intT n)) (VarT a))) tup)
+
+      [| (\(V.V $(pure $ VarP vN)) -&gt; $(pure xs)) :: $(pure typ) |]
+  where
+    intE = LitE . IntegerL . toInteger
+    intT = LitT . NumTyLit . toInteger
+
+-- Parsing specific dimensions -----------------------------------------
+
+-- | Parse a 1D list. If the system is not valid, return a string
+--   with error message.
+parse1D :: [a] -&gt; (V1 Int, [a])
+parse1D as = (V1 x, as) where
+  x = length as
+
+-- | Parse a 2D list of lists. If the system is not valid, returns an
+--   error
+parse2D :: [[a]] -&gt; (V2 Int, [a])
+parse2D as
+  | Just e &lt;- badX = error (&quot;parse2D: &quot; ++ errMsg e)
+  | otherwise      = (V2 x y, F.concat $ List.transpose as)
+  where
+    x  = head xs
+    y  = length as
+    xs = map length as
+
+    badX         = ifind (const (/= x)) xs
+    errMsg (i,j) =
+      &quot;row &quot; ++ show i ++ &quot; has &quot; ++ show j ++ &quot; columns but the first&quot;
+      ++ &quot; row has &quot; ++ show x ++ &quot; columns&quot;
+
+-- | Parse a 3D list of list of lists. If the system is not valid,
+--  return a string with error message.
+--
+--   The element are reordered in the appropriate way for the array:
+--
+-- @
+-- &gt;&gt;&gt; parse3D [[&quot;abc&quot;,&quot;def&quot;,&quot;ghi&quot;],[&quot;jkl&quot;,&quot;mno&quot;,&quot;pqr&quot;],[&quot;stu&quot;,&quot;vwx&quot;,&quot;yz!&quot;]]
+-- ((V3 3 3 3), &quot;ajsdmvgpybktenwhqzclufoxir!&quot;)
+-- @
+--
+parse3D :: [[[a]]] -&gt; (V3 Int, [a])
+parse3D as
+  | nullOf (each.each.each) as = (zero, [])
+  | Just e &lt;- badX = error $ errorCol e
+  | Just e &lt;- badY = error $ errorRow e
+  | otherwise      = (V3 x y z, as')
+  where
+    z  = length as
+    y  = length (head as)
+    x  = length (head (head as))
+
+    -- reorder and concatenate so it's the correct order for the array
+    as' = F.concatMap F.concat (List.transpose $ map List.transpose $ List.transpose as)
+
+    -- check for inconsistencies
+    badY = ifind (const (/= y)) (map length as)
+    badX = ifindOf' (traversed &lt;.&gt; traversed &lt;. to length) (const (/= x)) as
+
+    -- error messages for inconsistent rows/columns
+    errorCol ((k,j),i) =
+      &quot;plane &quot; ++ show k ++ &quot;, row &quot; ++ show j ++ &quot; has &quot; ++ show i ++
+      &quot; columns&quot; ++ &quot;, but the first row has &quot; ++ show x ++ &quot; columns&quot;
+    errorRow (k,j) =
+      &quot;plane &quot; ++ show k ++ &quot; has &quot; ++ show j ++ &quot; rows but the first&quot;
+      ++ &quot; plane has &quot; ++ show x ++ &quot; rows&quot;
+
+-- | Version of ifindOf which is consistent with ifind (in that it also returns the index).
+ifindOf' :: IndexedGetting i (Endo (Maybe (i, a))) s a -&gt; (i -&gt; a -&gt; Bool) -&gt; s -&gt; Maybe (i, a)
+ifindOf' l p = ifoldrOf l (\i a y -&gt; if p i a then Just (i, a) else y) Nothing
+{-# INLINE ifindOf' #-}
+
+-- Shape lift class ----------------------------------------------------
+
+-- | Class of shapes that can be 'lift'ed.
+--
+--   This is to prevent orphans for the 'Lift' class.
+class Shape f =&gt; ShapeLift f where
+  -- | 'lift' for 'Shape's.
+  liftShape :: Lift a =&gt; f a -&gt; Q Exp
+
+  -- | Polymorphic 'lift' for a 'Shape's.
+  liftShape' :: Lift a =&gt; f a -&gt; Q Exp
+
+instance ShapeLift V1 where
+  liftShape (V1 x) = [| V1 x |]
+  liftShape' (V1 x) = [| v1 x |]
+
+instance ShapeLift V2 where
+  liftShape (V2 x y) = [| V2 x y |]
+  liftShape' (V2 x y) = [| v2 x y |]
+
+instance ShapeLift V3 where
+  liftShape (V3 x y z) = [| V3 x y z |]
+  liftShape' (V3 x y z) = [| v3 x y z |]
+
+instance ShapeLift V4 where
+  liftShape (V4 x y z w) = [| V4 x y z w |]
+  liftShape' (V4 x y z w) = [| v4 x y z w |]
+
+v1 :: (R1 f, Shape f, Num a) =&gt; a -&gt; f a
+v1 x = set _x x one
+{-# INLINE [0] v1 #-}
+
+v2 :: (R2 f, Shape f, Num a) =&gt; a -&gt; a -&gt; f a
+v2 x y = set _xy (V2 x y) one
+{-# INLINE [0] v2 #-}
+
+v3 :: (R3 f, Shape f, Num a) =&gt; a -&gt; a -&gt; a -&gt; f a
+v3 x y z = set _xyz (V3 x y z) one
+{-# INLINE [0] v3 #-}
+
+v4 :: (R4 f, Shape f, Num a) =&gt; a -&gt; a -&gt; a -&gt; a -&gt; f a
+v4 x y z w = set _xyzw (V4 x y z w) one
+{-# INLINE [0] v4 #-}
+
+one :: (Shape f, Num a) =&gt; f a
+one = 1 &lt;$ (zero :: Additive f =&gt; f Int)
+
+-- are these nessesary?
+{-# RULES
+ &quot;v1/V1&quot; v1 = V1;
+ &quot;v1/V2&quot; forall a. v1 a = V2 a 1;
+ &quot;v1/V3&quot; forall a. v1 a = V3 a 1 1;
+ &quot;v2/V2&quot; v2 = V2;
+ &quot;v2/V3&quot; forall a b. v2 a b = V3 a b 1;
+ &quot;v3/V3&quot; v3 = V3;
+ &quot;v4/V4&quot; v4 = V4
+  #-}
+
+</span></pre></body></html>
