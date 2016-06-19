@@ -940,6 +940,8 @@ shiftFocus dx (Focused x d@(Delayed l _)) = Focused x' d
 
 -- Boundary conditions -------------------------------------------------
 
+-- | The boundary condition used for indexing relative elements in a
+--   'Focused'.
 data Boundary
   = Clamp  -- ^ clamp coordinates to the extent of the array
   | Mirror -- ^ mirror coordinates beyond the array extent

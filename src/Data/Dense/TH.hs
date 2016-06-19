@@ -327,7 +327,7 @@ stencil = QuasiQuoter
 --   compared to folding over unboxed vectors.
 --
 -- @
--- $('mkStencilTH' (as :: [(f 'Int', a)])) :: 'Stencil' f a
+-- myStencil = $('mkStencilTH' (as :: [(f 'Int', a)])) :: 'Stencil' f a
 -- @
 mkStencilTH :: (ShapeLift f, Lift a) => [(f Int, a)] -> Q Exp
 mkStencilTH = mkStencilTHBy lift
@@ -673,8 +673,7 @@ ifindOf' l p = ifoldrOf l (\i a y -> if p i a then Just (i, a) else y) Nothing
 
 -- | Class of shapes that can be 'lift'ed.
 --
---   This is to prevent orphans for the 'Lift' class. (I may make a PR
---   for 'Lift' instances to be in `linear`.)
+--   This is to prevent orphans for the 'Lift' class.
 class Shape f => ShapeLift f where
   -- | 'lift' for 'Shape's.
   liftShape :: Lift a => f a -> Q Exp

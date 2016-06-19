@@ -122,7 +122,7 @@ class (Eq1 f, Additive f, Traversable f) => Shape f where
   shapeInRange l i = F.and $ liftI2 (\ii li -> ii >= 0 && ii < li) i l
   {-# INLINE shapeInRange #-}
 
-  -- | @inRange ex i@ checks @i < ex@ for every coordinate of @f@.
+  -- | The number of elements in a shape.
   shapeSize :: Layout f -> Int
   shapeSize = F.product
   {-# INLINE shapeSize #-}
