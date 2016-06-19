@@ -88,7 +88,7 @@ import qualified Data.Vector.Generic             as G
 import           Data.Vector.Generic.Lens        (vectorTraverse)
 import qualified Data.Vector.Generic.Mutable     as GM
 import qualified Data.Vector.Generic.New         as New
-import           GHC.Generics                    (Generic, Generic1)
+-- import           GHC.Generics                    (Generic, Generic1)
 import           Linear                          hiding (vector)
 import           Text.ParserCombinators.ReadPrec (readS_to_Prec)
 import qualified Text.Read                       as Read
@@ -135,14 +135,14 @@ vector f (Array l v) =
 
 -- | O(1) Unsafe convert a mutable array to an immutable one without
 -- copying. The mutable array may not be used after this operation.
-unsafeFreeze :: (PrimMonad m, Shape f, Vector v a)
+unsafeFreeze :: (PrimMonad m, Vector v a)
              => MArray (G.Mutable v) f (PrimState m) a -> m (Array v f a)
 unsafeFreeze (MArray l mv) = Array l `liftM` G.unsafeFreeze mv
 {-# INLINE unsafeFreeze #-}
 
 -- | O(1) Unsafely convert an immutable array to a mutable one without
 --   copying. The immutable array may not be used after this operation.
-unsafeThaw :: (PrimMonad m, Shape f, Vector v a)
+unsafeThaw :: (PrimMonad m, Vector v a)
            => Array v f a -> m (MArray (G.Mutable v) f (PrimState m) a)
 unsafeThaw (Array l v) = MArray l `liftM` G.unsafeThaw v
 {-# INLINE unsafeThaw #-}
@@ -216,6 +216,15 @@ instance Boxed v => Traversable (Array v f) where
   traverse = each
   {-# INLINE traverse #-}
 
+#if (MIN_VERSION_transformers(0,5,0)) || !(MIN_VERSION_transformers(0,4,0))
+instance (Boxed v, Eq1 f) => Eq1 (Array v f) where
+  liftEq f (Array l1 v1) (Array l2 v2) = eq1 l1 l2 && G.and (G.zipWith f v1 v2)
+  {-# INLINE liftEq #-}
+
+instance (Boxed v, Read1 f) => Read1 (Array v f) where
+  liftReadsPrec _ f = readsData $ readsBinaryWith readsPrec1 (const f) "Array" (\c l -> Array c (G.fromList l))
+  {-# INLINE liftReadsPrec #-}
+#else
 instance (Boxed v, Eq1 f) => Eq1 (Array v f) where
   eq1 = (==)
   {-# INLINE eq1 #-}
@@ -223,6 +232,7 @@ instance (Boxed v, Eq1 f) => Eq1 (Array v f) where
 instance (Boxed v, Read1 f) => Read1 (Array v f) where
   readsPrec1 = readsPrec
   {-# INLINE readsPrec1 #-}
+#endif
 
 instance (Boxed v, Shape f) => FunctorWithIndex (f Int) (Array v f)
 instance (Boxed v, Shape f) => FoldableWithIndex (f Int) (Array v f)
@@ -238,7 +248,7 @@ instance (Boxed v, Shape f, Serial1 f) => Serial1 (Array v f) where
     F.traverse_ putF v
   deserializeWith = genGet (deserializeWith deserialize)
 
-deriving instance (Generic1 v, Generic1 f) => Generic1 (Array v f)
+-- deriving instance (Generic1 v, Generic1 f) => Generic1 (Array v f)
 
 -- instance (v ~ B.Vector, Shape l) => Apply (Array v l) where
 -- instance (v ~ B.Vector, Shape l) => Bind (Array v l) where
@@ -305,7 +315,7 @@ instance (Vector v a, Foldable f, Hashable a) => Hashable (Array v f a) where
     where s' = F.foldl' hashWithSalt s l
   {-# INLINE hashWithSalt #-}
 
-deriving instance (Generic (v a), Generic1 f) => Generic (Array v f a)
+-- deriving instance (Generic (v a), Generic1 f) => Generic (Array v f a)
 deriving instance (Typeable f, Typeable v, Typeable a, Data (f Int), Data (v a)) => Data (Array v f a)
 
 
@@ -361,8 +371,8 @@ instance (Shape f, Show1 f, Show a) => Show (Delayed f a) where
   showsPrec p arr@(Delayed l _) = showParen (p > 10) $
     showString "Delayed " . showsPrec1 11 l . showChar ' ' . showsPrec 11 (F.toList arr)
 
-instance (Shape f, Show1 f) => Show1 (Delayed f) where
-  showsPrec1 = showsPrec
+-- instance (Shape f, Show1 f) => Show1 (Delayed f) where
+--   showsPrec1 = showsPrec
 
 instance Shape f => Traversable (Delayed f) where
   traverse f arr = delay <$> traversed f (manifest arr)
@@ -404,7 +414,7 @@ instance Shape f => Additive (Delayed f) where
 
 instance Shape f => Metric (Delayed f)
 
-instance Shape f => FunctorWithIndex (f Int) (Delayed f) where
+instance FunctorWithIndex (f Int) (Delayed f) where
   imap f (Delayed l ixF) = Delayed l $ \x -> f x (ixF x)
   {-# INLINE imap #-}
 
@@ -505,7 +515,7 @@ linearIndexesBetween i0 k g l = go SPEC i0 (Just $ shapeFromIndex l i0)
 
 -- | Generate a 'Delayed' array using the given 'Layout' and
 --   construction function.
-genDelayed :: Shape f => Layout f -> (f Int -> a) -> Delayed f a
+genDelayed :: Layout f -> (f Int -> a) -> Delayed f a
 genDelayed = Delayed
 {-# INLINE genDelayed #-}
 
@@ -553,8 +563,8 @@ instance (Shape f, Show1 f, Show a) => Show (Focused f a) where
   showsPrec p (Focused l d) = showParen (p > 10) $
     showString "Focused " . showsPrec1 11 l . showChar ' ' . showsPrec 11 d
 
-instance (Shape f, Show1 f) => Show1 (Focused f) where
-  showsPrec1 = showsPrec
+-- instance (Shape f, Show1 f) => Show1 (Focused f) where
+--   showsPrec1 = showsPrec
 
 type instance Index (Focused f a) = f Int
 type instance IxValue (Focused f a) = a

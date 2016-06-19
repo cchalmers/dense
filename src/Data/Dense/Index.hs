@@ -220,10 +220,9 @@ indexIso l = iso (shapeToIndex l) (shapeFromIndex l)
 class Shape f => HasLayout f a | a -> f where
   -- | Lens onto the  'Layout' of something.
   layout :: Lens' a (Layout f)
-  default layout :: (a ~ f Int) => Lens' a (Layout f)
+  default layout :: (a ~ f Int) => (Layout f -> g (Layout f)) -> a -> g a
   layout = id
   {-# INLINE layout #-}
-  -- layout :: Shape f' => Lens' a a' (Layout f) (Layout f')
 
 instance i ~ Int => HasLayout V0 (V0 i)
 instance i ~ Int => HasLayout V1 (V1 i)

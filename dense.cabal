@@ -1,19 +1,18 @@
 name:                dense
 version:             0.1.0.0
-synopsis:            Mutable and immutable dense arrays with multi-dimensional indexing
+synopsis:            Mutable and immutable dense multidimensional arrays
 description:
-  Provides multi-dimentional arrays by adding a shape to a vector from
-  the vector package using indicies from the linear package. Supports
-  mutable a immutable arrays with a similar interface to vector but with
-  a strong lens flavour.
+  Multidimentional array library build on top of the vector package,
+  using indices from the linear package. Native support for mutable
+  arrays, stencils and parallel computation.
 license:             BSD3
 license-file:        LICENSE
 author:              cchalmers
 maintainer:          c.chalmers@me.com
-copyright:           (c) Christopher Chalmers 2015
+copyright:           (c) Christopher Chalmers 2016
 category:            Data
 build-type:          Simple
--- extra-source-files:  
+extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
@@ -34,7 +33,7 @@ library
     MultiParamTypeClasses MultiWayIf RankNTypes StandaloneDeriving
     TypeFamilies
   build-depends:
-    base >=4.6 && <4.9,
+    base >=4.6 && <5,
     binary,
     bytes,
     cereal,
@@ -43,7 +42,7 @@ library
     ghc-prim,
     hashable,
     lens,
-    linear >= 1.20,
+    linear >= 1.20 && <1.21,
     primitive,
     semigroupoids,
     template-haskell,
@@ -60,7 +59,7 @@ test-suite doctests
   main-is:          doctest.hs
   hs-source-dirs:   tests
   build-depends:
-    base >=4.6 && <4.9,
+    base >=4.6 && <5,
     binary,
     bytes,
     cereal,
@@ -69,7 +68,7 @@ test-suite doctests
     ghc-prim,
     hashable,
     lens,
-    linear >= 1.20,
+    linear >= 1.20 && <1.21,
     primitive,
     semigroupoids,
     template-haskell,

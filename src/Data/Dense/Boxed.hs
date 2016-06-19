@@ -340,8 +340,7 @@ unsafeLinearIndexM = G.unsafeLinearIndexM
 -- Initialisation ------------------------------------------------------
 
 -- | Execute the monadic action and freeze the resulting array.
-create :: Shape f
-       => (forall s. ST s (BMArray f s a)) -> BArray f a
+create :: (forall s. ST s (BMArray f s a)) -> BArray f a
 create m = m `seq` runST (m >>= G.unsafeFreeze)
 {-# INLINE create #-}
 
@@ -598,28 +597,24 @@ unsafeOrdinals = G.unsafeOrdinals
 -- Mutable -------------------------------------------------------------
 
 -- | O(n) Yield a mutable copy of the immutable vector.
-freeze :: (PrimMonad m, Shape f)
-       => BMArray f (PrimState m) a -> m (BArray f a)
+freeze :: PrimMonad m => BMArray f (PrimState m) a -> m (BArray f a)
 freeze = G.freeze
 {-# INLINE freeze #-}
 
 -- | O(n) Yield an immutable copy of the mutable array.
-thaw :: (PrimMonad m, Shape f)
-     => BArray f a -> m (BMArray f (PrimState m) a)
+thaw :: PrimMonad m => BArray f a -> m (BMArray f (PrimState m) a)
 thaw = G.thaw
 {-# INLINE thaw #-}
 
 -- | O(1) Unsafe convert a mutable array to an immutable one without
 -- copying. The mutable array may not be used after this operation.
-unsafeFreeze :: (PrimMonad m, Shape f)
-             => BMArray f (PrimState m) a -> m (BArray f a)
+unsafeFreeze :: PrimMonad m => BMArray f (PrimState m) a -> m (BArray f a)
 unsafeFreeze = G.unsafeFreeze
 {-# INLINE unsafeFreeze #-}
 
 -- | O(1) Unsafely convert an immutable array to a mutable one without
 --   copying. The immutable array may not be used after this operation.
-unsafeThaw :: (PrimMonad m, Shape f)
-           => BArray f a -> m (BMArray f (PrimState m) a)
+unsafeThaw :: PrimMonad m => BArray f a -> m (BMArray f (PrimState m) a)
 unsafeThaw = G.unsafeThaw
 {-# INLINE unsafeThaw #-}
 

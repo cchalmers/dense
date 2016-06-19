@@ -270,7 +270,7 @@ valuesBetween a b = unsafeOrdinals (toListOf (shapeIndexesFrom a) b)
 --   Note that 'V1' arrays are an instance of 'Vector' so you can use
 --   any of the functions in "Data.Vector.Generic" on them without
 --   needing to convert.
-flat :: (Vector v a, Vector w b) => Iso (Array v V1 a) (Array w V1 b) (v a) (w b)
+flat :: Vector w b => Iso (Array v V1 a) (Array w V1 b) (v a) (w b)
 flat = iso (\(Array _ v) -> v) (\v -> Array (V1 $ G.length v) v)
 {-# INLINE flat #-}
 
@@ -406,8 +406,7 @@ unsafeLinearIndexM (Array _ v) = G.unsafeIndexM v
 -- Initialisation ------------------------------------------------------
 
 -- | Execute the monadic action and freeze the resulting array.
-create :: (Vector v a, Shape f)
-       => (forall s. ST s (MArray (G.Mutable v) f s a)) -> Array v f a
+create :: Vector v a => (forall s. ST s (MArray (G.Mutable v) f s a)) -> Array v f a
 create m = m `seq` runST (m >>= unsafeFreeze)
 {-# INLINE create #-}
 
@@ -836,22 +835,22 @@ setOrdinals is f (Array l v) = Array l $ G.unsafeUpd v (fmap g is)
 {-# RULES
 "unsafeOrdinals/setOrdinals" forall (is :: [f Int]).
   unsafeOrdinals is = sets (setOrdinals is)
-    :: (Vector v a, Shape f) => ASetter' (Array v f a) a;
+    :: Vector v a => ASetter' (Array v f a) a;
 "unsafeOrdinalts/isetOrdintals" forall (is :: [f Int]).
   unsafeOrdinals is = sets (setOrdinals is)
-    :: (Vector v a, Shape f) => AnIndexedSetter' (f Int) (Array v f a) a
+    :: Vector v a => AnIndexedSetter' (f Int) (Array v f a) a
  #-}
 
 -- Mutable -------------------------------------------------------------
 
 -- | O(n) Yield a mutable copy of the immutable vector.
-freeze :: (PrimMonad m, Shape f, Vector v a)
+freeze :: (PrimMonad m, Vector v a)
        => MArray (G.Mutable v) f (PrimState m) a -> m (Array v f a)
 freeze (MArray l mv) = Array l `liftM` G.freeze mv
 {-# INLINE freeze #-}
 
 -- | O(n) Yield an immutable copy of the mutable array.
-thaw :: (PrimMonad m, Shape f, Vector v a)
+thaw :: (PrimMonad m, Vector v a)
      => Array v f a -> m (MArray (G.Mutable v) f (PrimState m) a)
 thaw (Array l v) = MArray l `liftM` G.thaw v
 {-# INLINE thaw #-}

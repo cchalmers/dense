@@ -214,7 +214,7 @@ valuesBetween = G.valuesBetween
 --   Note that 'V1' arrays are an instance of 'Vector' so you can use
 --   any of the functions in 'Data.Vector.Generic' on them without
 --   needing to convert.
-flat :: (Storable a, Storable b) => Iso (SArray V1 a) (SArray V1 b) (Vector a) (Vector b)
+flat :: Storable b => Iso (SArray V1 a) (SArray V1 b) (Vector a) (Vector b)
 flat = G.flat
 {-# INLINE flat #-}
 
@@ -346,8 +346,7 @@ unsafeLinearIndexM = G.unsafeLinearIndexM
 -- Initialisation ------------------------------------------------------
 
 -- | Execute the monadic action and freeze the resulting array.
-create :: (Storable a, Shape f)
-       => (forall s. ST s (SMArray f s a)) -> SArray f a
+create :: Storable a => (forall s. ST s (SMArray f s a)) -> SArray f a
 create m = m `seq` runST (m >>= G.unsafeFreeze)
 {-# INLINE create #-}
 
@@ -582,27 +581,27 @@ unsafeOrdinals = G.unsafeOrdinals
 -- Mutable -------------------------------------------------------------
 
 -- | O(n) Yield a mutable copy of the immutable vector.
-freeze :: (PrimMonad m, Shape f, Storable a)
+freeze :: (PrimMonad m, Storable a)
        => SMArray f (PrimState m) a -> m (SArray f a)
 freeze = G.freeze
 {-# INLINE freeze #-}
 
 -- | O(n) Yield an immutable copy of the mutable array.
-thaw :: (PrimMonad m, Shape f, Storable a)
+thaw :: (PrimMonad m, Storable a)
      => SArray f a -> m (SMArray f (PrimState m) a)
 thaw = G.thaw
 {-# INLINE thaw #-}
 
 -- | O(1) Unsafe convert a mutable array to an immutable one without
 -- copying. The mutable array may not be used after this operation.
-unsafeFreeze :: (PrimMonad m, Shape f, Storable a)
+unsafeFreeze :: (PrimMonad m, Storable a)
              => SMArray f (PrimState m) a -> m (SArray f a)
 unsafeFreeze = G.unsafeFreeze
 {-# INLINE unsafeFreeze #-}
 
 -- | O(1) Unsafely convert an immutable array to a mutable one without
 --   copying. The immutable array may not be used after this operation.
-unsafeThaw :: (PrimMonad m, Shape f, Storable a)
+unsafeThaw :: (PrimMonad m, Storable a)
            => SArray f a -> m (SMArray f (PrimState m) a)
 unsafeThaw = G.unsafeThaw
 {-# INLINE unsafeThaw #-}
@@ -660,7 +659,7 @@ unsafeWithPtr (Array _ v) = S.unsafeWith v
 
 -- | Yield the underlying ForeignPtr. Modifying the data through the
 --   'ForeignPtr' is unsafe.
-unsafeToForeignPtr :: (Shape f, Storable a) => SArray f a -> ForeignPtr a
+unsafeToForeignPtr :: Storable a => SArray f a -> ForeignPtr a
 unsafeToForeignPtr (Array _ v) = fp
   where (fp, _, _) = S.unsafeToForeignPtr v
 {-# INLINE unsafeToForeignPtr #-}
