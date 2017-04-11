@@ -1,6 +1,6 @@
 -- This example uses the JuicyPixels package the generate the png.
-import qualified Data.Shaped.Unboxed as U
-import Data.Shaped
+import qualified Data.Dense.Unboxed as U
+import Data.Dense
 import Data.Complex
 import Linear
 import Control.Lens
