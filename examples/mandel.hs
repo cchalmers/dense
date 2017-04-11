@@ -1,9 +1,9 @@
 -- This example uses the JuicyPixels package the generate the png.
-import qualified Data.Shaped.Unboxed as U
-import Data.Shaped
-import Data.Complex
-import Linear
 import Control.Lens
+import Data.Bool
+import Data.Complex
+import Data.Dense
+import Data.Word
 
 import Codec.Picture
 
@@ -19,45 +19,32 @@ import Codec.Picture
 
 main :: IO ()
 main = do
-  let a   = complexPlane (V2 3000 2000) ((-3) :+ (-2)) (3 :+ 3)
-      -- The function
-      --
-      --   over (delayed . mapped) f
-      --
-      -- appies the function f an array in parallel. An equivilent way of
-      -- writing this is
-      --
-      --   manifest . fmap f . delay
-      a'  = over (delayed . mapped) (p 30) a
-      img = mkImage a'
+  let plane = complexPlane (V2 2000 2000) ((-2.5) :+ (-2)) (1.5 :+ 2)
+      m     = mandel 16 <$> plane
+      img   = mkImage (manifest m)
 
-  savePngImage "mandel.png" (ImageRGB8 img)
-
--- Mandelbrot iteration for a complex point.
-p :: RealFloat a => Int -> Complex a -> Complex a
-p n z = iterate f z !! n
-  where f a = a * a + z
-{-# INLINE p #-}
+  savePngImage "mandel.png" (ImageY8 img)
 
 complexPlane
   :: V2 Int         -- ^ total size
   -> Complex Double -- ^ lower bound
   -> Complex Double -- ^ upper bound
-  -> UArray V2 (Complex Double)
+  -> Delayed V2 (Complex Double)
 complexPlane l@(V2 x y) a@(rmin :+ imin) (rmax :+ imax) =
-  U.generate l $
-    \(V2 i j) -> a + (rstep * fromIntegral i :+ istep * fromIntegral j)
+  genDelayed l $
+    \(V2 j i) -> a + (rstep * fromIntegral i :+ istep * fromIntegral j)
   where
-    rstep = (rmax - rmin) / fromIntegral x - 1
-    istep = (imax - imin) / fromIntegral y - 1
+    rstep = (rmax - rmin) / (fromIntegral x - 1)
+    istep = (imax - imin) / (fromIntegral y - 1)
 
-mkImage :: UArray V2 (Complex Double) -> Image PixelRGB8
-mkImage arr = generateImage f x y where
-  V2 x y = extent arr
-  f i j | k > 1      = PixelRGB8 255 255 255
-        | otherwise  = PixelRGB8   0   0   0
-    where k = norm (U.unsafeIndex arr (V2 i j))
+mandel :: Int -> Complex Double -> Word8
+mandel n = bool 0 255 . any ((>2) . magnitude) . take n . criticalOrbit
 
--- should be in linear
-instance Metric Complex
+criticalOrbit :: Complex Double -> [Complex Double]
+criticalOrbit z0 = iterate (quadratic z0) 0
+  where quadratic c z = z*z + c
+
+mkImage :: SArray V2 Word8 -> Image Pixel8
+mkImage a = Image x y (a^.vector)
+  where V2 x y = extent a
 
