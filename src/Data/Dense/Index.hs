@@ -173,7 +173,7 @@ instance Shape V2 where
   {-# INLINE shapeStepBetween #-}
 
 instance Shape V3 where
-  shapeToIndex (V3 x y _z) (V2 i j k) = i + x*(j + y*k)
+  shapeToIndex (V3 x y _z) (V3 i j k) = i + x*(j + y*k)
   {-# INLINE shapeToIndex #-}
 
   shapeStep (V3 x y z) (V3 i j k)
