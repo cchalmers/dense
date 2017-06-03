@@ -27,6 +27,8 @@ library
     Data.Dense.Generic
     Data.Dense.Index
     Data.Dense.Stencil
+    Data.Dense.Shape
+    Data.Dense.Nat
     Data.Dense.Mutable
     Data.Dense.TH
     Data.Dense.Storable
@@ -45,6 +47,8 @@ library
     deepseq,
     ghc-prim,
     hashable,
+    profunctors,
+    constraints,
     lens,
     linear >= 1.20 && <1.21,
     primitive,
@@ -71,6 +75,8 @@ test-suite doctests
     deepseq,
     ghc-prim,
     hashable,
+    profunctors,
+    constraints,
     lens,
     linear >= 1.20 && <1.21,
     primitive,
