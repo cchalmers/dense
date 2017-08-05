@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -32,14 +33,14 @@ module Data.Dense.TH
   , stencil
 
     -- ** Stencils from lists
-  , ShapeLift (..)
+  , LayoutLift (..)
   , mkStencilTH
   , mkStencilTHBy
 
   ) where
 
 import           Control.Applicative          hiding (many, empty)
-import           Control.Lens
+import           Control.Lens hiding (Index)
 import           Control.Monad
 import           Data.Char
 import           Data.Foldable                as F
@@ -144,7 +145,7 @@ paragraphs = go [] . strip where
 
 -- Creating arrays -----------------------------------------------------
 
-mkArray :: ShapeLift f => Layout f -> [Exp] -> Q Exp
+mkArray :: LayoutLift f => f Int -> [Exp] -> Q Exp
 mkArray l as = do
   lE <- liftShape' l
   let fromListE = AppE (VarE 'fromListInto_) lE
@@ -233,12 +234,12 @@ parseStencil str =
     Right asss    -> uncurry mkStencilE $ parse3D asss
   where ps = paragraphs str
 
-mkStencilE :: ShapeLift f => Layout f -> [Maybe Exp] -> Q Exp
+mkStencilE :: (Foldable f, Index f ~ f, LayoutLift f) => f Int -> [Maybe Exp] -> Q Exp
 mkStencilE l as = do
   when (F.any even l) $ reportWarning
     "stencil has an even size in some dimension, the centre element may be incorrect"
 
-  let ixes = map (^-^ fmap (`div` 2) l) (toListOf shapeIndexes l)
+  let ixes = map (^-^ fmap (`div` 2) l) (toListOf layoutIndexes l)
       -- indexes zipped with expressions, discarding 'Nothing's
       xs = mapMaybe (sequenceOf _2) (zip ixes as)
 
@@ -329,11 +330,11 @@ stencil = QuasiQuoter
 -- @
 -- myStencil = $('mkStencilTH' (as :: [(f 'Int', a)])) :: 'Stencil' f a
 -- @
-mkStencilTH :: (ShapeLift f, Lift a) => [(f Int, a)] -> Q Exp
+mkStencilTH :: (LayoutLift f, Lift a) => [(f Int, a)] -> Q Exp
 mkStencilTH = mkStencilTHBy lift
 
 -- | 'mkStencilTH' with a custom 'lift' function for @a@.
-mkStencilTHBy :: ShapeLift f => (a -> Q Exp) -> [(f Int, a)] -> Q Exp
+mkStencilTHBy :: LayoutLift f => (a -> Q Exp) -> [(f Int, a)] -> Q Exp
 mkStencilTHBy aLift as = do
   -- See Note [mkName-capturing]
   f <- newName "mkStencilTHBy_f"
@@ -674,46 +675,46 @@ ifindOf' l p = ifoldrOf l (\i a y -> if p i a then Just (i, a) else y) Nothing
 -- | Class of shapes that can be 'lift'ed.
 --
 --   This is to prevent orphans for the 'Lift' class.
-class Shape f => ShapeLift f where
+class Layout f => LayoutLift f where
   -- | 'lift' for 'Shape's.
   liftShape :: Lift a => f a -> Q Exp
 
   -- | Polymorphic 'lift' for a 'Shape's.
   liftShape' :: Lift a => f a -> Q Exp
 
-instance ShapeLift V1 where
+instance LayoutLift V1 where
   liftShape (V1 x) = [| V1 x |]
   liftShape' (V1 x) = [| v1 x |]
 
-instance ShapeLift V2 where
+instance LayoutLift V2 where
   liftShape (V2 x y) = [| V2 x y |]
   liftShape' (V2 x y) = [| v2 x y |]
 
-instance ShapeLift V3 where
+instance LayoutLift V3 where
   liftShape (V3 x y z) = [| V3 x y z |]
   liftShape' (V3 x y z) = [| v3 x y z |]
 
-instance ShapeLift V4 where
+instance LayoutLift V4 where
   liftShape (V4 x y z w) = [| V4 x y z w |]
   liftShape' (V4 x y z w) = [| v4 x y z w |]
 
-v1 :: (R1 f, Shape f, Num a) => a -> f a
+v1 :: (R1 f, Layout f, Additive f, Functor f, Num a) => a -> f a
 v1 x = set _x x one
 {-# INLINE [0] v1 #-}
 
-v2 :: (R2 f, Shape f, Num a) => a -> a -> f a
+v2 :: (R2 f, Layout f, Additive f, Functor f, Num a) => a -> a -> f a
 v2 x y = set _xy (V2 x y) one
 {-# INLINE [0] v2 #-}
 
-v3 :: (R3 f, Shape f, Num a) => a -> a -> a -> f a
+v3 :: (R3 f, Layout f, Additive f, Functor f, Num a) => a -> a -> a -> f a
 v3 x y z = set _xyz (V3 x y z) one
 {-# INLINE [0] v3 #-}
 
-v4 :: (R4 f, Shape f, Num a) => a -> a -> a -> a -> f a
+v4 :: (R4 f, Layout f, Additive f, Functor f, Num a) => a -> a -> a -> a -> f a
 v4 x y z w = set _xyzw (V4 x y z w) one
 {-# INLINE [0] v4 #-}
 
-one :: (Shape f, Num a) => f a
+one :: (Additive f, Layout f, Functor f, Functor f, Num a) => f a
 one = 1 <$ (zero :: Additive f => f Int)
 
 -- are these nessesary?

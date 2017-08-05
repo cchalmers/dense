@@ -19,8 +19,8 @@ import Codec.Picture
 
 main :: IO ()
 main = do
-  let plane = complexPlane (V2 2000 2000) ((-2.5) :+ (-2)) (1.5 :+ 2)
-      m     = mandel 16 <$> plane
+  let plane = complexPlane (V2 8000 8000) ((-2.5) :+ (-2)) (1.5 :+ 2)
+      m     = mandel 32 <$> plane
       img   = mkImage (manifest m)
 
   savePngImage "mandel.png" (ImageY8 img)

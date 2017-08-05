@@ -32,6 +32,10 @@ module Data.Dense.Shape
 
   , Shaped (..)
   , shaped
+
+  -- * Internals
+  , NatDict (..)
+  , countDict
   ) where
 
 import qualified Control.Applicative  as A
@@ -357,4 +361,87 @@ instance Shaped V4 where
   fromShape = \(x :* y :* z :* w :* Nil) -> V4 x y z w
   {-# INLINE toShape #-}
   {-# INLINE fromShape #-}
+
+-- -- | Generalised dense slices from dimension @n@ to the smaller or equal
+-- --   dimension @n'@. You can take a slice from a 'Strided' layout using
+-- --   'gdSlice'.
+-- --
+-- --  __Examples__
+-- --
+-- --  y=5 slice of a two dimensional layout
+-- --  @
+-- --   v--- take all x values
+-- --   |                  v-- terminate
+-- --  GDAll $ GDPick 5 $ GDNil
+-- --           ^---- take only y=5 values
+-- --  @-
+-- --
+-- --  similarly a x=7 slice of a two dimensional layout
+-- --  @
+-- --   v--- take only x=7 indexes
+-- --   |                  v-- terminate
+-- --  GDPick 7 $ GDAll $ GDNil
+-- --              ^---- take all y indexes
+-- --  @
+-- --
+-- --  Or we can choose ranges
+-- --  @
+-- --           v-- starting index
+-- --           |  v-- step between indexes
+-- --           |  |  v-- number of indexes to take
+-- --  GDRange (5, 1, 10) $ GDRange (3,2,3) $ GDNil
+-- --   |                    ^-- range for y indexes
+-- --   ^-- range for x indexes
+-- --  @
+-- --
+-- --  The new layout here has minimum = V2 5 3
+-- --
+-- data GDSlice (n :: Nat) (n' :: Nat) :: * where
+--   GDNil   :: GDSlice 'Z 'Z
+
+--   GDPick  :: !Int -- index to take in this dimension
+--           -> !(GDSlice n' n')
+--           -> GDSlice ('S n') n'
+
+--   GDRange :: (Int -- start
+--              ,Int -- step
+--              ,Int) -- num elements
+--           -> !(GDSlice n n')
+--           -> GDSlice ('S n) ('S n')
+
+--   GDAll   :: !(GDSlice n n')
+--           -> GDSlice ('S n) ('S n')
+
+-- instance Show (GDSlice n n') where
+--   showsPrec p s = case s of
+--     GDNil       -> showString "GDNil"
+--     GDPick i s' -> showParen (p > 10) $
+--       showString "GDPick " . showsPrec 11 i . showChar ' ' . showsPrec 11 s'
+--     GDRange i s' -> showParen (p > 10) $
+--       showString "GDRange " . showsPrec 11 i . showChar ' ' . showsPrec 11 s'
+--     GDAll s' -> showParen (p > 10) $
+--       showString "GDAll " . showsPrec 11
+
+-- -- | Take a generalised slice from a strided layout. Returned the sliced
+-- --   layout along with the offset relative to the old array where the
+-- --   new layout begins.
+-- gdSliceLayout :: GDSlice n n' -> Strided (Shape n) Int -> (Strided (Shape n') Int, Int)
+-- gdSliceLayout GDNil (Strided Nil Nil Nil) = (Strided Nil Nil Nil, 0)
+-- gdSliceLayout sl (Strided (m:*ms) (e:*es) (s:*ss)) =
+--   case sl of
+
+--     GDPick x sl' ->
+--       let (sl'', off) = gdSlice sl' ls
+--       in  (sl'', off + s*(x - m))
+
+--     GDRange (m',dx,n) sl' ->
+--       let (Strided ms' es' ss', off) = gdSlice sl' ls
+--       in  (Strided (m' :* ms') (n :* es') (s*dx :* ss'), off + s * (m' - m))
+
+--     GDAll sl' ->
+--       let (Strided ms' es' ss', off) = gdSlice sl' ls
+--       in  (Strided (m :* ms') (e :* es') (s :* ss'), off)
+
+--   where
+--     ls = Strided ms es ss
 

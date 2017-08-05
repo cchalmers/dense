@@ -30,7 +30,7 @@ module Data.Dense.Stencil
 
   ) where
 
-import           Control.Lens
+import           Control.Lens hiding (Index)
 import           Data.Dense.Base
 import           Data.Dense.Generic   (Boundary (..), peekRelativeB)
 import           Data.Dense.Index
@@ -48,23 +48,23 @@ import           Text.Show
 --
 --   To use a stencil you can use 'stencilSum' or use the 'Foldable' and
 --   'FoldableWithIndex' instances.
-newtype Stencil f a = Stencil (forall b. (f Int -> a -> b -> b) -> b -> b)
+newtype Stencil i a = Stencil (forall b. (i Int -> a -> b -> b) -> b -> b)
 
-instance (Show1 f, Show a) => Show (Stencil f a) where
+instance (Show1 i, Show a) => Show (Stencil i a) where
   showsPrec _ s = showListWith g (itoList s) where
     g (i,x) = showChar '(' . showsPrec1 0 i . showChar ',' . showsPrec 0 x . showChar ')'
 
-instance F.Foldable (Stencil f) where
+instance F.Foldable (Stencil i) where
   foldr f z (Stencil s) = s (\_ a b -> f a b) z
   {-# INLINE foldr #-}
 
-instance FoldableWithIndex (f Int) (Stencil f) where
+instance FoldableWithIndex (i Int) (Stencil i) where
   ifoldr f b (Stencil s) = s f b
   {-# INLINE ifoldr #-}
   ifoldMap = ifoldMapOf (ifoldring ifoldr)
   {-# INLINE ifoldMap #-}
 
-instance Functor (Stencil f) where
+instance Functor (Stencil i) where
   fmap f (Stencil s) = Stencil $ \g z -> s (\x a b -> g x (f a) b) z
   {-# INLINE [0] fmap #-}
 
@@ -92,7 +92,7 @@ myfoldr f b = go where
  #-}
 
 -- | Make a stencil folding over an unboxed vector from the list.
-mkStencilUnboxed :: (U.Unbox (f Int), U.Unbox a) => [(f Int, a)] -> Stencil f a
+mkStencilUnboxed :: (U.Unbox (i Int), U.Unbox a) => [(i Int, a)] -> Stencil i a
 mkStencilUnboxed l = Stencil $ \g z -> U.foldr (\(i,a) b -> g i a b) z v
   where !v = U.fromList l
 {-# INLINE mkStencilUnboxed #-}
@@ -101,7 +101,7 @@ mkStencilUnboxed l = Stencil $ \g z -> U.foldr (\(i,a) b -> g i a b) z v
 --   and a 'Stencil'.
 --
 --   This is often used in conjunction with 'Data.Dense.extendFocus'.
-stencilSum :: (Shape f, Num a) => Boundary -> Stencil f a -> Focused f a -> a
+stencilSum :: (Layout f, Num a) => Boundary -> Stencil (Index f) a -> Focused f a -> a
 stencilSum bnd s = \w ->
   let f i b a = b + a * peekRelativeB bnd i w
       {-# INLINE [0] f #-}

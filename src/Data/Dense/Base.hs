@@ -11,6 +11,8 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TypeFamilies          #-}
+
+{-# LANGUAGE UndecidableInstances          #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Dense.Base
@@ -68,7 +70,8 @@ import           Control.Applicative             (liftA2)
 import           Control.Comonad
 import           Control.Comonad.Store
 import           Control.DeepSeq
-import           Control.Lens
+import           Control.Lens                    hiding (Index)
+import qualified Control.Lens                    as Lens
 import           Control.Lens.Internal           (noEffect)
 import           Control.Monad                   (guard, liftM)
 import           Control.Monad.Primitive
@@ -107,23 +110,24 @@ import           Prelude                         hiding (null, replicate,
 import           GHC.Types                       (SPEC (..))
 
 -- | An 'Array' is a vector with a shape.
-data Array v f a = Array !(Layout f) !(v a)
+data Array v f a = Array !(f Int) !(v a)
   deriving Typeable
 
 -- Lenses --------------------------------------------------------------
 
 -- | Indexed traversal over the elements of an array. The index is the
 --   current position in the array.
-values :: (Shape f, Vector v a, Vector w b)
-       => IndexedTraversal (f Int) (Array v f a) (Array w f b) a b
-values = \f arr -> reindexed (shapeFromIndex $ extent arr) (vector . vectorTraverse) f arr
+values :: (Layout f, Vector v a, Vector w b)
+       => IndexedTraversal (Index f Int) (Array v f a) (Array w f b) a b
+values = \f arr@(Array l _) ->
+  reindexed (indexFromOffset l) (vector . vectorTraverse) f arr
 {-# INLINE values #-}
 
 -- | Indexed lens over the underlying vector of an array. The index is
 --   the 'extent' of the array. You must _not_ change the length of the
 --   vector, otherwise an error will be thrown (even for 'V1' layouts,
 --   use 'flat' for 'V1').
-vector :: (Vector v a, Vector w b) => IndexedLens (Layout f) (Array v f a) (Array w f b) (v a) (w b)
+vector :: (Vector v a, Vector w b) => IndexedLens (f Int) (Array v f a) (Array w f b) (v a) (w b)
 vector f (Array l v) =
   indexed f l v <&> \w ->
   sizeMissmatch (G.length v) (G.length w)
@@ -152,11 +156,11 @@ unsafeThaw (Array l v) = MArray l `liftM` G.unsafeThaw v
 ------------------------------------------------------------------------
 
 -- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
-instance Shape f => HasLayout f (Array v f a) where
+instance Layout f => HasLayout f (Array v f a) where
   layout f (Array l v) = f l <&> \l' ->
-    sizeMissmatch (shapeSize l) (shapeSize l')
-      ("layout (Array): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
-      $ Array l' v
+    -- sizeMissmatch (layoutSize l) (layoutSize l')
+    --   ("layout (Array): trying to replace shape " ++ showShape l ++ " with " ++ showShape l') $
+      Array l' v
   {-# INLINE layout #-}
 
 -- layout :: (Shape l, Shape t) => Lens (Array v l a) (Array v t a) (Layout l) (Layout t)
@@ -169,14 +173,14 @@ instance (Vector v a, Show1 f, Show a) => Show (Array v f a) where
   showsPrec p (Array l v2) = showParen (p > 10) $
     showString "Array " . showsPrec1 11 l . showChar ' ' . G.showsPrec 11 v2
 
-type instance Index (Array v f a) = f Int
+type instance Lens.Index (Array v f a) = Index f Int
 type instance IxValue (Array v f a) = a
 
-instance (Shape f, Vector v a) => Ixed (Array v f a) where
+instance (Layout f, Vector v a) => Ixed (Array v f a) where
   ix x f (Array l v)
-    | shapeInRange l x = f (G.unsafeIndex v i) <&>
+    | indexInRange l x = f (G.unsafeIndex v i) <&>
         \a -> Array l (G.modify (\mv -> GM.unsafeWrite mv i a) v)
-      where i = shapeToIndex l x
+      where i = indexToOffset l x
   ix _ _ arr = pure arr
   {-# INLINE ix #-}
 
@@ -184,8 +188,8 @@ instance (Vector v a, Vector v b) => Each (Array v f a) (Array v f b) a b where
   each = vector . vectorTraverse
   {-# INLINE each #-}
 
-instance (Shape f, Vector v a) => AsEmpty (Array v f a) where
-  _Empty = nearly (Array zero G.empty) (F.all (==0) . extent)
+instance (Layout f, Vector v a) => AsEmpty (Array v f a) where
+  _Empty = nearly (Array emptyLayout G.empty) (F.all (==0) . extent)
   {-# INLINE _Empty #-}
 
 instance (Vector v a, Read1 f, Read a) => Read (Array v f a) where
@@ -234,15 +238,15 @@ instance (Boxed v, Read1 f) => Read1 (Array v f) where
   {-# INLINE readsPrec1 #-}
 #endif
 
-instance (Boxed v, Shape f) => FunctorWithIndex (f Int) (Array v f)
-instance (Boxed v, Shape f) => FoldableWithIndex (f Int) (Array v f)
-instance (Boxed v, Shape f) => TraversableWithIndex (f Int) (Array v f) where
+instance (Index f ~ i, Boxed v, Layout f) => FunctorWithIndex (i Int) (Array v f)
+instance (Index f ~ i, Boxed v, Layout f) => FoldableWithIndex (i Int) (Array v f)
+instance (Index f ~ i, Boxed v, Layout f) => TraversableWithIndex (i Int) (Array v f) where
   itraverse = itraverseOf values
   {-# INLINE itraverse #-}
   itraversed = values
   {-# INLINE itraversed #-}
 
-instance (Boxed v, Shape f, Serial1 f) => Serial1 (Array v f) where
+instance (Boxed v, Layout f, Serial1 f) => Serial1 (Array v f) where
   serializeWith putF (Array l v) = do
     serializeWith serialize l
     F.traverse_ putF v
@@ -276,7 +280,7 @@ instance (Vector v a, f ~ V1) => Vector (Array v f) a where
 
 -- Serialise instances -------------------------------------------------
 
-instance (Vector v a, Shape f, Serial1 f, Serial a) => Serial (Array v f a) where
+instance (Vector v a, Layout f, Serial1 f, Serial a) => Serial (Array v f a) where
   serialize (Array l v) = do
     serializeWith serialize l
     traverseOf_ vectorTraverse serialize v
@@ -284,7 +288,7 @@ instance (Vector v a, Shape f, Serial1 f, Serial a) => Serial (Array v f a) wher
   deserialize = genGet (deserializeWith deserialize) deserialize
   {-# INLINE deserialize #-}
 
-instance (Vector v a, Shape f, Binary (f Int), Binary a) => Binary (Array v f a) where
+instance (Vector v a, Layout f, Binary (f Int), Binary a) => Binary (Array v f a) where
   put (Array l v) = do
     Binary.put l
     traverseOf_ vectorTraverse Binary.put v
@@ -292,7 +296,7 @@ instance (Vector v a, Shape f, Binary (f Int), Binary a) => Binary (Array v f a)
   get = genGet Binary.get Binary.get
   {-# INLINE get #-}
 
-instance (Vector v a, Shape f, Serialize (f Int), Serialize a) => Serialize (Array v f a) where
+instance (Vector v a, Layout f, Serialize (f Int), Serialize a) => Serialize (Array v f a) where
   put (Array l v) = do
     Cereal.put l
     traverseOf_ vectorTraverse Cereal.put v
@@ -300,10 +304,10 @@ instance (Vector v a, Shape f, Serialize (f Int), Serialize a) => Serialize (Arr
   get = genGet Cereal.get Cereal.get
   {-# INLINE get #-}
 
-genGet :: Monad m => (Vector v a, Shape f) => m (f Int) -> m a -> m (Array v f a)
+genGet :: Monad m => (Vector v a, Layout f) => m (f Int) -> m a -> m (Array v f a)
 genGet getL getA = do
   l <- getL
-  let n       = shapeSize l
+  let n       = layoutSize l
       nv0     = New.create (GM.new n)
       f acc i = (\a -> New.modify (\mv -> GM.write mv i a) acc) `liftM` getA
   nv <- F.foldlM f nv0 [0 .. n - 1]
@@ -339,25 +343,26 @@ deriving instance (Typeable f, Typeable v, Typeable a, Data (f Int), Data (v a))
 
 -- | A delayed representation of an array. This useful for mapping over
 --   an array in parallel.
-data Delayed f a = Delayed !(Layout f) (f Int -> a)
+data Delayed f a = Delayed !(f Int) (Index f Int -> a)
   deriving (Typeable, Functor)
 
 -- | Turn a material array into a delayed one with the same shape.
-delay :: (Vector v a, Shape f) => Array v f a -> Delayed f a
-delay (Array l v) = Delayed l (G.unsafeIndex v . shapeToIndex l)
+delay :: (Vector v a, Layout f) => Array v f a -> Delayed f a
+delay (Array l v) = Delayed l (G.unsafeIndex v . indexToOffset l)
 {-# INLINE delay #-}
 
 -- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
-instance Shape f => HasLayout f (Delayed f a) where
+instance Layout f => HasLayout f (Delayed f a) where
   layout f (Delayed l ixF) = f l <&> \l' ->
-    sizeMissmatch (shapeSize l) (shapeSize l')
-      ("layout (Delayed): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
+    sizeMissmatch (layoutSize l) (layoutSize l')
+      -- ("layout (Delayed): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
+      "layout (Delayed): trying to replace shape LAYOUT1 with LAYOUT2"
       $ Delayed l' ixF
   {-# INLINE layout #-}
 
 -- | 'foldMap' in parallel.
-instance Shape f => Foldable (Delayed f) where
-  foldr f b (Delayed l ixF) = foldrOf shapeIndexes (\x -> f (ixF x)) b l
+instance Layout f => Foldable (Delayed f) where
+  foldr f b (Delayed l ixF) = foldrOf layoutIndexes (\x -> f (ixF x)) b l
   {-# INLINE foldr #-}
 
   foldMap = foldDelayed . const
@@ -367,17 +372,17 @@ instance Shape f => Foldable (Delayed f) where
   {-# INLINE length #-}
 #endif
 
-instance (Shape f, Show1 f, Show a) => Show (Delayed f a) where
+instance (Layout f, Show1 f, Show a) => Show (Delayed f a) where
   showsPrec p arr@(Delayed l _) = showParen (p > 10) $
     showString "Delayed " . showsPrec1 11 l . showChar ' ' . showsPrec 11 (F.toList arr)
 
--- instance (Shape f, Show1 f) => Show1 (Delayed f) where
+-- instance (Layout f, Show1 f) => Show1 (Delayed f) where
 --   showsPrec1 = showsPrec
 
-instance Shape f => Traversable (Delayed f) where
+instance Layout f => Traversable (Delayed f) where
   traverse f arr = delay <$> traversed f (manifest arr)
 
-instance Shape f => Apply (Delayed f) where
+instance Layout f => Apply (Delayed f) where
   {-# INLINE (<.>) #-}
   {-# INLINE (<. ) #-}
   {-# INLINE ( .>) #-}
@@ -385,42 +390,43 @@ instance Shape f => Apply (Delayed f) where
   (<. ) = liftI2 const
   ( .>) = liftI2 (const id)
 
-instance Shape f => Additive (Delayed f) where
+instance Layout f => Additive (Delayed f) where
   zero = _Empty # ()
   {-# INLINE zero #-}
 
+  liftU2 = undefined
   -- This can only be satisfied on if one array is larger than the other
   -- in all dimensions, otherwise there will be gaps in the array
-  liftU2 f (Delayed l ixF) (Delayed k ixG)
-    | l `eq1` k       = Delayed l (liftA2 f ixF ixG)
+  -- liftU2 f (Delayed l ixF) (Delayed k ixG)
+  --   | l `eq1` k       = Delayed l (liftA2 f ixF ixG)
 
-    -- l > k
-    | F.all (>= EQ) cmp = Delayed l $ \x ->
-        if | shapeInRange l x -> liftA2 f ixF ixG x
-           | otherwise        -> ixF x
+  --   -- l > k
+  --   | F.all (>= EQ) cmp = Delayed l $ \x ->
+  --       if | indexInRange l x -> liftA2 f ixF ixG x
+  --          | otherwise        -> ixF x
 
-    -- k > l
-    | F.all (<= EQ) cmp = Delayed k $ \x ->
-        if | shapeInRange k x -> liftA2 f ixF ixG x
-           | otherwise        -> ixG x
+  --   -- k > l
+  --   | F.all (<= EQ) cmp = Delayed k $ \x ->
+  --       if | indexInRange k x -> liftA2 f ixF ixG x
+  --          | otherwise        -> ixG x
 
-    -- not possible to union array sizes because there would be gaps,
-    -- just intersect them instead
-    | otherwise       = Delayed (shapeIntersect l k) $ liftA2 f ixF ixG
-    where cmp = liftI2 compare l k
+  --   -- not possible to union array sizes because there would be gaps,
+  --   -- just intersect them instead
+  --   | otherwise       = Delayed (layoutIntersect l k) $ liftA2 f ixF ixG
+  --   where cmp = liftI2 compare l k
 
-  liftI2 f (Delayed l ixF) (Delayed k ixG) = Delayed (shapeIntersect l k) $ liftA2 f ixF ixG
+  liftI2 f (Delayed l ixF) (Delayed k ixG) = Delayed (layoutIntersect l k) $ liftA2 f ixF ixG
   {-# INLINE liftI2 #-}
 
-instance Shape f => Metric (Delayed f)
+instance Layout f => Metric (Delayed f)
 
-instance FunctorWithIndex (f Int) (Delayed f) where
+instance i ~ Index f => FunctorWithIndex (i Int) (Delayed f) where
   imap f (Delayed l ixF) = Delayed l $ \x -> f x (ixF x)
   {-# INLINE imap #-}
 
 -- | 'ifoldMap' in parallel.
-instance Shape f => FoldableWithIndex (f Int) (Delayed f) where
-  ifoldr f b (Delayed l ixF) = foldrOf shapeIndexes (\x -> f x (ixF x)) b l
+instance (i ~ Index f, Layout f)  => FoldableWithIndex (i Int) (Delayed f) where
+  ifoldr f b (Delayed l ixF) = foldrOf layoutIndexes (\x -> f x (ixF x)) b l
   {-# INLINE ifoldr #-}
 
   ifolded = ifoldring ifoldr
@@ -429,24 +435,24 @@ instance Shape f => FoldableWithIndex (f Int) (Delayed f) where
   ifoldMap = foldDelayed
   {-# INLINE ifoldMap #-}
 
-instance Shape f => TraversableWithIndex (f Int) (Delayed f) where
+instance (i ~ Index f, Layout f) => TraversableWithIndex (i Int) (Delayed f) where
   itraverse f arr = delay <$> itraverse f (manifest arr)
   {-# INLINE itraverse #-}
 
-instance Shape f => Each (Delayed f a) (Delayed f b) a b where
+instance Layout f => Each (Delayed f a) (Delayed f b) a b where
   each = traversed
   {-# INLINE each #-}
 
-instance Shape f => AsEmpty (Delayed f a) where
-  _Empty = nearly (Delayed zero (error "empty delayed array"))
-                  (\(Delayed l _) -> F.all (==0) l)
+instance Layout f => AsEmpty (Delayed f a) where
+  _Empty = nearly (Delayed emptyLayout (error "empty delayed array"))
+                  (\(Delayed l _) -> F.all (==0) (layoutExtent l))
   {-# INLINE _Empty #-}
 
-type instance Index (Delayed f a) = f Int
+type instance Lens.Index (Delayed f a) = Index f Int
 type instance IxValue (Delayed f a) = a
-instance Shape f => Ixed (Delayed f a) where
+instance Layout f => Ixed (Delayed f a) where
   ix x f arr@(Delayed l ixF)
-    | shapeInRange l x = f (ixF x) <&> \a ->
+    | indexInRange l x = f (ixF x) <&> \a ->
       let g y | eq1 x y   = a
               | otherwise = ixF x
       in  Delayed l g
@@ -455,12 +461,12 @@ instance Shape f => Ixed (Delayed f a) where
 
 -- | Index a delayed array, returning a 'IndexOutOfBounds' exception if
 --   the index is out of range.
-indexDelayed :: Shape f => Delayed f a -> f Int -> a
+indexDelayed :: Layout f => Delayed f a -> Index f Int -> a
 indexDelayed (Delayed l ixF) x =
   boundsCheck l x $ ixF x
 {-# INLINE indexDelayed #-}
 
-foldDelayed :: (Shape f, Monoid m) => (f Int -> a -> m) -> (Delayed f a) -> m
+foldDelayed :: (Layout f, Monoid m) => (Index f Int -> a -> m) -> (Delayed f a) -> m
 foldDelayed f (Delayed l ixF) = unsafePerformIO $ do
   childs <- for [0 .. threads - 1] $ \c -> do
     child <- newEmptyMVar
@@ -472,23 +478,23 @@ foldDelayed f (Delayed l ixF) = unsafePerformIO $ do
           go i (Just s) acc
             | i >= m       = acc
             | otherwise    = let !acc' = acc `mappend` f s (ixF s)
-                             in  go (i+1) (shapeStep l s) acc'
+                             in  go (i+1) (stepIndex l s) acc'
           go _ Nothing acc = acc
-      putMVar child $! go x (Just $ shapeFromIndex l x) mempty
+      putMVar child $! go x (Just $ indexFromOffset l x) mempty
     return child
   F.fold <$> for childs takeMVar
   where
-  !n       = shapeSize l
+  !n       = layoutLength l
   !(q, r)  = n `quotRem` threads
   !threads = unsafePerformIO getNumCapabilities
 {-# INLINE foldDelayed #-}
 
 -- | Parallel manifestation of a delayed array into a material one.
-manifest :: (Vector v a, Shape f) => Delayed f a -> Array v f a
+manifest :: (Vector v a, Layout f) => Delayed f a -> Array v f a
 manifest (Delayed l ixF) = Array l v
   where
     !v = unsafePerformIO $! do
-      mv <- GM.new n
+      mv <- GM.new (layoutSize l)
       childs <- for [0 .. threads - 1] $ \c -> do
         child <- newEmptyMVar
         _ <- forkOn c $ do
@@ -501,21 +507,21 @@ manifest (Delayed l ixF) = Array l v
         return child
       F.for_ childs takeMVar
       G.unsafeFreeze mv
-    !n       = shapeSize l
+    !n       = layoutLength l
     !(q, r)  = n `quotRem` threads
     !threads = unsafePerformIO getNumCapabilities
 {-# INLINE manifest #-}
 
-linearIndexesBetween :: Shape f => Int -> Int -> IndexedFold Int (Layout f) (f Int)
-linearIndexesBetween i0 k g l = go SPEC i0 (Just $ shapeFromIndex l i0)
+linearIndexesBetween :: Layout f => Int -> Int -> IndexedFold Int (f Int) (Index f Int)
+linearIndexesBetween i0 k g l = go SPEC i0 (Just $ indexFromOffset l i0)
   where
-  go !_ i (Just x) = indexed g i x *> go SPEC (i+1) (guard (i+1 < k) *> shapeStep l x)
+  go !_ i (Just x) = indexed g i x *> go SPEC (i+1) (guard (i+1 < k) *> stepIndex l x)
   go !_ _ _        = noEffect
 {-# INLINE linearIndexesBetween #-}
 
 -- | Generate a 'Delayed' array using the given 'Layout' and
 --   construction function.
-genDelayed :: Layout f -> (f Int -> a) -> Delayed f a
+genDelayed :: f Int -> (Index f Int -> a) -> Delayed f a
 genDelayed = Delayed
 {-# INLINE genDelayed #-}
 
@@ -525,29 +531,30 @@ genDelayed = Delayed
 
 -- | A delayed representation of an array with a focus on a single
 --   element. This element is the target of 'extract'.
-data Focused f a = Focused !(f Int) !(Delayed f a)
+data Focused f a = Focused !(Index f Int) !(Delayed f a)
   deriving (Typeable, Functor)
 
 -- | The 'size' of the 'layout' __must__ remain the same or an error is thrown.
-instance Shape f => HasLayout f (Focused f a) where
+instance Layout f => HasLayout f (Focused f a) where
   layout f (Focused x (Delayed l ixF)) = f l <&> \l' ->
-    sizeMissmatch (shapeSize l) (shapeSize l')
-      ("layout (Focused): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
+    sizeMissmatch (layoutSize l) (layoutSize l')
+      -- ("layout (Focused): trying to replace shape " ++ showShape l ++ " with " ++ showShape l')
+      "layout (Focused): trying to replace shape LAYOUT1 with LAYOUT2"
       $ Focused x (Delayed l' ixF)
   {-# INLINE layout #-}
 
-instance Shape f => Comonad (Focused f) where
+instance Layout f => Comonad (Focused f) where
   {-# INLINE extract #-}
   {-# INLINE extend  #-}
   extract (Focused x d) = indexDelayed d x
   extend f (Focused x d@(Delayed l _)) =
     Focused x (genDelayed l $ \i -> f (Focused i d))
 
-instance Shape f => Extend (Focused f) where
+instance Layout f => Extend (Focused f) where
   {-# INLINE extended #-}
   extended = extend
 
-instance Shape f => ComonadStore (f Int) (Focused f) where
+instance (i ~ Index f, Layout f) => ComonadStore (i Int) (Focused f) where
   {-# INLINE pos   #-}
   {-# INLINE peek  #-}
   {-# INLINE peeks #-}
@@ -559,17 +566,17 @@ instance Shape f => ComonadStore (f Int) (Focused f) where
   seek  x (Focused _ d) = Focused x d
   seeks f (Focused x d) = Focused (f x) d
 
-instance (Shape f, Show1 f, Show a) => Show (Focused f a) where
+instance (Layout f, Show1 f, Show1 (Index f), Show a) => Show (Focused f a) where
   showsPrec p (Focused l d) = showParen (p > 10) $
     showString "Focused " . showsPrec1 11 l . showChar ' ' . showsPrec 11 d
 
--- instance (Shape f, Show1 f) => Show1 (Focused f) where
+-- instance (Layout f, Show1 f) => Show1 (Focused f) where
 --   showsPrec1 = showsPrec
 
-type instance Index (Focused f a) = f Int
+type instance Lens.Index (Focused f a) = Index f Int
 type instance IxValue (Focused f a) = a
 
-instance Shape f => Foldable (Focused f) where
+instance Layout f => Foldable (Focused f) where
   foldr f b (Focused _ d) = F.foldr f b d
   {-# INLINE foldr #-}
 
@@ -581,17 +588,17 @@ instance Shape f => Foldable (Focused f) where
   {-# INLINE length #-}
 #endif
 
-instance Shape f => Traversable (Focused f) where
+instance Layout f => Traversable (Focused f) where
   traverse f (Focused u d) = Focused u <$> traverse f d
   {-# INLINE traverse #-}
 
 -- | Index relative to focus.
-instance Shape f => FunctorWithIndex (f Int) (Focused f) where
+instance (i ~ Index f, Layout f) => FunctorWithIndex (i Int) (Focused f) where
   imap f (Focused u d) = Focused u (imap (f . (^-^ u)) d)
   {-# INLINE imap #-}
 
 -- | Index relative to focus.
-instance Shape f => FoldableWithIndex (f Int) (Focused f) where
+instance (i ~ Index f, Layout f) => FoldableWithIndex (i Int) (Focused f) where
   ifoldr f b (Focused u d) = ifoldr (f . (^-^ u)) b d
   {-# INLINE ifoldr #-}
 
@@ -602,12 +609,12 @@ instance Shape f => FoldableWithIndex (f Int) (Focused f) where
   {-# INLINE ifoldMap #-}
 
 -- | Index relative to focus.
-instance Shape f => TraversableWithIndex (f Int) (Focused f) where
+instance (i ~ Index f, Layout f) => TraversableWithIndex (i Int) (Focused f) where
   itraverse f (Focused u d) = Focused u <$> itraverse (f . (^-^ u)) d
   {-# INLINE itraverse #-}
 
 -- | Index relative to focus.
-instance Shape f => Ixed (Focused f a) where
+instance Layout f => Ixed (Focused f a) where
   ix i f (Focused u d) = Focused u <$> ix (i ^-^ u) f d
   {-# INLINE ix #-}
 

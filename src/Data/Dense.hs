@@ -48,8 +48,8 @@ module Data.Dense
 
     -- ** Folds over indexes
   , indexes
-  , indexesBetween
-  , indexesFrom
+  -- , indexesBetween
+  -- , indexesFrom
 
     -- ** Lenses
   , vector
@@ -57,7 +57,7 @@ module Data.Dense
     -- ** Traversals
   , values
   , values'
-  , valuesBetween
+  -- , valuesBetween
 
   -- * Construction
 

@@ -1,5 +1,5 @@
 name:                dense
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Mutable and immutable dense multidimensional arrays
 description:
   Multidimentional array library build on top of the vector package,
@@ -23,7 +23,7 @@ library
   exposed-modules:
     Data.Dense
     Data.Dense.Base
-    Data.Dense.Boxed
+    -- Data.Dense.Boxed
     Data.Dense.Generic
     Data.Dense.Index
     Data.Dense.Stencil
@@ -31,8 +31,8 @@ library
     Data.Dense.Nat
     Data.Dense.Mutable
     Data.Dense.TH
-    Data.Dense.Storable
-    Data.Dense.Unboxed
+    -- Data.Dense.Storable
+    -- Data.Dense.Unboxed
   other-extensions:
     BangPatterns CPP ConstraintKinds DeriveDataTypeable DeriveFunctor
     DeriveGeneric FlexibleContexts FlexibleInstances

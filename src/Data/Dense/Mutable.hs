@@ -90,7 +90,7 @@ import           Data.Dense.Index
 import           Prelude                       hiding (read, replicate)
 
 -- | A mutable array with a shape.
-data MArray v l s a = MArray !(Layout l) !(v s a)
+data MArray v f s a = MArray !(f Int) !(v s a)
   deriving Typeable
 
 -- | Boxed mutable array.
@@ -107,21 +107,22 @@ type PMArray = MArray P.MVector
 
 -- | Lens onto the shape of the vector. The total size of the layout
 --   _must_ remain the same or an error is thrown.
-mlayout :: (Shape f, Shape f') => Lens (MArray v f s a) (MArray v f' s a) (Layout f) (Layout f')
+mlayout :: (Layout f, Layout f') => Lens (MArray v f s a) (MArray v f' s a) (f Int) (f' Int)
 mlayout f (MArray l v) = f l <&> \l' ->
-  sizeMissmatch (F.product l) (F.product l')
-    ("mlayout: trying to replace shape " ++ showShape l ++ ", with " ++ showShape l')
+  sizeMissmatch (layoutSize l) (layoutSize l')
+    -- ("mlayout: trying to replace shape " ++ showLayout l ++ ", with " ++ showLayout l')
+    "mlayout: trying to replace shape LAYOUT1, with LAYOUT2"
     $ MArray l' v
 {-# INLINE mlayout #-}
 
-instance Shape f => HasLayout f (MArray v f s a) where
+instance Layout f => HasLayout f (MArray v f s a) where
   layout = mlayout
   {-# INLINE layout #-}
 
 -- | Indexed lens over the underlying vector of an array. The index is
 --   the 'extent' of the array. You must __not__ change the length of
 --   the vector, otherwise an error will be thrown.
-mvector :: (MVector v a, MVector w b) => IndexedLens (Layout f) (MArray v f s a) (MArray w f t b) (v s a) (w t b)
+mvector :: (MVector v a, MVector w b) => IndexedLens (f Int) (MArray v f s a) (MArray w f t b) (v s a) (w t b)
 mvector f (MArray l v) =
   indexed f l v <&> \w ->
   sizeMissmatch (GM.length v) (GM.length w)
@@ -130,19 +131,19 @@ mvector f (MArray l v) =
 {-# INLINE mvector #-}
 
 -- | New mutable array with shape @l@.
-new :: (PrimMonad m, Shape f, MVector v a) => Layout f -> m (MArray v f (PrimState m) a)
-new l = MArray l `liftM` GM.new (F.product l)
+new :: (PrimMonad m, Layout f, MVector v a) => f Int -> m (MArray v f (PrimState m) a)
+new l = MArray l `liftM` GM.new (layoutSize l)
 {-# INLINE new #-}
 
 -- | New mutable array with shape @l@ filled with element @a@.
-replicate :: (PrimMonad m, Shape f, MVector v a) => Layout f -> a -> m (MArray v f (PrimState m) a)
-replicate l a = MArray l `liftM` GM.replicate (F.product l) a
+replicate :: (PrimMonad m, Layout f, MVector v a) => f Int -> a -> m (MArray v f (PrimState m) a)
+replicate l a = MArray l `liftM` GM.replicate (layoutSize l) a
 {-# INLINE replicate #-}
 
 -- | New mutable array with shape @l@ filled with result of monadic
 --   action @a@.
-replicateM :: (PrimMonad m, Shape f, MVector v a) => Layout f -> m a -> m (MArray v f (PrimState m) a)
-replicateM l a = MArray l `liftM` GM.replicateM (F.product l) a
+replicateM :: (PrimMonad m, Layout f, MVector v a) => f Int -> m a -> m (MArray v f (PrimState m) a)
+replicateM l a = MArray l `liftM` GM.replicateM (layoutSize l) a
 {-# INLINE replicateM #-}
 
 -- | Clone a mutable array, making a new, separate mutable array.
@@ -159,30 +160,30 @@ clear (MArray _ v) = GM.clear v
 {-# INLINE clear #-}
 
 -- | Read a mutable array at element @l@.
-read :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> m a
-read (MArray l v) s = boundsCheck l s $ GM.unsafeRead v (shapeToIndex l s)
+read :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> m a
+read (MArray l v) s = boundsCheck l s $ GM.unsafeRead v (indexToOffset l s)
 {-# INLINE read #-}
 
 -- | Write a mutable array at element @l@.
-write :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> a -> m ()
-write (MArray l v) s a = boundsCheck l s $ GM.unsafeWrite v (shapeToIndex l s) a
+write :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> a -> m ()
+write (MArray l v) s a = boundsCheck l s $ GM.unsafeWrite v (indexToOffset l s) a
 {-# INLINE write #-}
 
 -- | Modify a mutable array at element @l@ by applying a function.
-modify :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> (a -> a) -> m ()
+modify :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> (a -> a) -> m ()
 modify (MArray l v) s f = boundsCheck l s $ GM.unsafeRead v i >>= GM.unsafeWrite v i . f
-  where i = shapeToIndex l s
+  where i = indexToOffset l s
 {-# INLINE modify #-}
 
 -- | Swap two elements in a mutable array.
-swap :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> f Int -> m ()
-swap (MArray l v) i j = boundsCheck l i boundsCheck l j $ GM.unsafeSwap v (shapeToIndex l i) (shapeToIndex l j)
+swap :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> Index f Int -> m ()
+swap (MArray l v) i j = boundsCheck l i boundsCheck l j $ GM.unsafeSwap v (indexToOffset l i) (indexToOffset l j)
 {-# INLINE swap #-}
 
 -- | Replace the element at the give position and return the old
 --   element.
-exchange :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> a -> m a
-exchange (MArray l v) i a = boundsCheck l i $ GM.unsafeExchange v (shapeToIndex l i) a
+exchange :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> a -> m a
+exchange (MArray l v) i a = boundsCheck l i $ GM.unsafeExchange v (indexToOffset l i) a
 {-# INLINE exchange #-}
 
 -- | Read a mutable array at element @i@ by indexing the internal
@@ -217,30 +218,30 @@ linearExchange (MArray _ v) i a = GM.exchange v i a
 -- Unsafe varients
 
 -- | 'read' without bounds checking.
-unsafeRead :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> m a
-unsafeRead (MArray l v) s = GM.unsafeRead v (shapeToIndex l s)
+unsafeRead :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> m a
+unsafeRead (MArray l v) s = GM.unsafeRead v (indexToOffset l s)
 {-# INLINE unsafeRead #-}
 
 -- | 'write' without bounds checking.
-unsafeWrite :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> a -> m ()
-unsafeWrite (MArray l v) s = GM.unsafeWrite v (shapeToIndex l s)
+unsafeWrite :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> a -> m ()
+unsafeWrite (MArray l v) s = GM.unsafeWrite v (indexToOffset l s)
 {-# INLINE unsafeWrite #-}
 
 -- | 'swap' without bounds checking.
-unsafeSwap :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> f Int -> m ()
-unsafeSwap (MArray l v) s j = GM.unsafeSwap v (shapeToIndex l s) (shapeToIndex j s)
+unsafeSwap :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> Index f Int -> m ()
+unsafeSwap (MArray l v) s j = GM.unsafeSwap v (indexToOffset l s) (indexToOffset l j)
 {-# INLINE unsafeSwap #-}
 
 -- | 'modify' without bounds checking.
-unsafeModify :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> (a -> a) -> m ()
+unsafeModify :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> (a -> a) -> m ()
 unsafeModify (MArray l v) s f = GM.unsafeRead v i >>= GM.unsafeWrite v i . f
-  where i = shapeToIndex l s
+  where i = indexToOffset l s
 {-# INLINE unsafeModify #-}
 
 -- | Replace the element at the give position and return the old
 --   element.
-unsafeExchange :: (PrimMonad m, Shape f, MVector v a) => MArray v f (PrimState m) a -> f Int -> a -> m a
-unsafeExchange (MArray l v) i a = GM.unsafeExchange v (shapeToIndex l i) a
+unsafeExchange :: (PrimMonad m, Layout f, MVector v a) => MArray v f (PrimState m) a -> Index f Int -> a -> m a
+unsafeExchange (MArray l v) i a = GM.unsafeExchange v (indexToOffset l i) a
 {-# INLINE unsafeExchange #-}
 
 -- | 'linearRead' without bounds checking.
