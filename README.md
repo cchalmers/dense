@@ -1,6 +1,6 @@
 ## dense
 
-[![Build Status](https://travis-ci.org/cchalmers/diagrams-dev.svg?branch=master)](https://travis-ci.org/cchalmers/diagrams-dev)
+[![Build Status](https://travis-ci.org/cchalmers/dense.svg?branch=master)](https://travis-ci.org/cchalmers/dense)
 [![Haddock](https://rawgit.com/cchalmers/dense/gh-pages/haddock.svg)](https://cchalmers.github.io/dense/)
 [![Hackage](https://img.shields.io/hackage/v/dense.svg?style=flat)](https://hackage.haskell.org/package/dense)
 
