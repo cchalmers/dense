@@ -72,6 +72,7 @@ module Data.Dense.Generic
 
   -- ** Monadic initialisation
   , create
+  , createT
   , replicateM
   , generateM
   , linearGenerateM
@@ -409,6 +410,14 @@ unsafeLinearIndexM (Array _ v) = G.unsafeIndexM v
 create :: Vector v a => (forall s. ST s (MArray (G.Mutable v) f s a)) -> Array v f a
 create m = m `seq` runST (m >>= unsafeFreeze)
 {-# INLINE create #-}
+
+-- | Execute the monadic action and freeze the resulting array.
+createT
+  :: (Vector v a, Traversable t)
+  => (forall s . ST s (t (MArray (G.Mutable v) f s a)))
+  -> t (Array v f a)
+createT m = m `seq` runST (m >>= mapM unsafeFreeze)
+{-# INLINE createT #-}
 
 -- | O(n) Array of the given shape with the same value in each position.
 replicate :: (Shape f, Vector v a) => f Int -> a -> Array v f a
