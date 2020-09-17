@@ -151,7 +151,7 @@ instance Shape V2 where
   shapeToIndex (V2 x _y) (V2 i j) = i + x*j
   {-# INLINE shapeToIndex #-}
 
-  shapeFromIndex (V2 x y_) n = V2 i j
+  shapeFromIndex (V2 x _y) n = V2 i j
     where (j, i) = n `quotRem` x
   {-# INLINE shapeFromIndex #-}
 
