@@ -214,6 +214,7 @@ import qualified Data.Foldable                     as F
 import           Data.Functor.Classes
 import qualified Data.List                         as L
 import           Data.Maybe                        (fromMaybe)
+import qualified Data.Traversable                  as T
 import           Data.Typeable
 import qualified Data.Vector                       as B
 import           Data.Vector.Fusion.Bundle         (MBundle)
@@ -416,7 +417,7 @@ createT
   :: (Vector v a, Traversable t)
   => (forall s . ST s (t (MArray (G.Mutable v) f s a)))
   -> t (Array v f a)
-createT m = m `seq` runST (m >>= mapM unsafeFreeze)
+createT m = m `seq` runST (m >>= T.mapM unsafeFreeze)
 {-# INLINE createT #-}
 
 -- | O(n) Array of the given shape with the same value in each position.
