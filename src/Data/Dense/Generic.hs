@@ -621,7 +621,7 @@ zipWith :: (Shape f, Vector v a, Vector v b, Vector v c)
         -> Array v f b
         -> Array v f c
 zipWith f a1@(Array l1 v1) a2@(Array l2 v2)
-  | eq1 l1 l1 = Array l1 $ G.zipWith f v1 v2
+  | eq1 l1 l2 = Array l1 $ G.zipWith f v1 v2
   | otherwise = Array l' $ G.unstream $
       MBundle.fromStream (Stream.zipWith f (streamSub l' a1) (streamSub l' a2)) (Exact (shapeSize l'))
   where l' = shapeIntersect l1 l2
