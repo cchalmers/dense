@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
@@ -59,6 +60,13 @@ import qualified Text.Read.Lex                as Lex
 import           Data.Dense.Generic          (empty, fromListInto_)
 import           Data.Dense.Index
 import           Data.Dense.Stencil
+
+tupe :: [Exp] -> Exp
+#if __GLASGOW_HASKELL__ <= 808
+tupe = TupE
+#else
+tupe = TupE . map Just
+#endif
 
 -- | QuasiQuoter for producing a dense arrays using a custom parser.
 --   Values are space separated, while also allowing infix expressions
@@ -500,7 +508,7 @@ punc = \case
   -- parenthesis / tuples
   "(" -> do as           <- expression `sepBy` comma
             Lex.Punc ")" <- Lex.lex
-            pure $ TupE as
+            pure $ tupe as
   -- lists
   "[" -> do as           <- expression `sepBy` comma
             Lex.Punc "]" <- Lex.lex
@@ -593,8 +601,8 @@ vTuple n
   | otherwise = do
       vN <- newName "v"
       let idx i = AppE (AppE (VarE 'Vector.unsafeIndex) (VarE vN)) (intE i)
-      let xs = TupE $ map idx [0..n-1]
-      a   <- newName "a"
+      let xs = tupe $ map idx [0..n-1]
+      a <- newName "a"
       let tup = iterate (\x -> AppT x (VarT a)) (TupleT n) !! n
           typ = ForallT [PlainTV a] []
                   (AppT (AppT ArrowT (AppT (AppT (ConT ''V.V) (intT n)) (VarT a))) tup)

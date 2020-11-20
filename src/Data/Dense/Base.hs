@@ -11,6 +11,7 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE UndecidableInstances  #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Dense.Base
