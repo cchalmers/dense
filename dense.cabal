@@ -1,5 +1,5 @@
 name:                dense
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Mutable and immutable dense multidimensional arrays
 description:
   Multidimentional array library build on top of the vector package,
