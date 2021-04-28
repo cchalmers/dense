@@ -81,12 +81,12 @@ type Layout f = f Int
 class (Eq1 f, Additive f, Traversable f) => Shape f where
   -- | Convert a shape to its linear index using the 'Layout'.
   shapeToIndex :: Layout f -> f Int -> Int
-  shapeToIndex l x = F.foldr (\(e, a) k -> a + e*k) 0 (liftI2 (,) l x)
+  shapeToIndex l x = F.foldl (\k (e, a) -> k * e + a) 0 (liftI2 (,) l x)
   {-# INLINE shapeToIndex #-}
 
   -- | Convert a linear index to a shape the 'Layout'.
   shapeFromIndex :: Layout f -> Int -> f Int
-  shapeFromIndex l i = snd $ mapAccumL quotRem i l
+  shapeFromIndex l i = snd $ mapAccumR quotRem i l
   {-# INLINE shapeFromIndex #-}
 
   -- | Calculate the intersection of two shapes.
@@ -148,62 +148,59 @@ instance Shape V1 where
   shapeInRange m i = i >= 0 && i < m
 
 instance Shape V2 where
-  shapeToIndex (V2 x _y) (V2 i j) = i + x*j
+  shapeToIndex (V2 _x y) (V2 i j) = y*i + j
   {-# INLINE shapeToIndex #-}
 
-  shapeFromIndex (V2 x _y) n = V2 i j
-    where (j, i) = n `quotRem` x
+  shapeFromIndex (V2 _x y) n = V2 i j
+    where (i, j) = n `quotRem` y
   {-# INLINE shapeFromIndex #-}
 
   shapeStep (V2 x y) (V2 i j)
-    | i + 1 < x  = Just (V2 (i + 1)  j     )
-    | j + 1 < y  = Just (V2      0  (j + 1))
+    | j + 1 < y  = Just (V2      i  (j + 1))
+    | i + 1 < x  = Just (V2 (i + 1)      0 )
     | otherwise  = Nothing
   {-# INLINE shapeStep #-}
 
-  unsafeShapeStep (V2 x _y) (V2 i j)
-    | i + 1 < x  = V2 (i + 1)  j
-    | otherwise  = V2      0  (j + 1)
+  unsafeShapeStep (V2 _ y) (V2 i j)
+    | j + 1 < y  = V2      i  (j + 1)
+    | otherwise  = V2 (i + 1)      0
   {-# INLINE unsafeShapeStep #-}
 
-  shapeStepBetween (V2 ia _ja) (V2 ib jb) (V2 i j)
-    | i + 1 < ib = Just (V2 (i + 1)   j     )
-    | j + 1 < jb = Just (V2      ia  (j + 1))
+  shapeStepBetween (V2 _ia ja) (V2 ib jb) (V2 i j)
+    | j + 1 < jb = Just (V2      i  (j + 1))
+    | i + 1 < ib = Just (V2 (i + 1)     ja )
     | otherwise  = Nothing
   {-# INLINE shapeStepBetween #-}
 
 instance Shape V3 where
-  shapeToIndex (V3 x y _z) (V3 i j k) = i + x*(j + y*k)
-  {-# INLINE shapeToIndex #-}
-
   shapeStep (V3 x y z) (V3 i j k)
-    | k + 1 < z  = Just (V3 (i + 1)      j       k )
-    | j + 1 < y  = Just (V3      0  (j + 1)      k )
-    | i + 1 < x  = Just (V3      0       0  (k + 1))
+    | k + 1 < z  = Just (V3      i       j  (k + 1))
+    | j + 1 < y  = Just (V3      i  (j + 1)      0 )
+    | i + 1 < x  = Just (V3 (i + 1)      0       0 )
     | otherwise  = Nothing
   {-# INLINE shapeStep #-}
 
-  shapeStepBetween (V3 ia ja _ka) (V3 ib jb kb) (V3 i j k)
-    | k < kb  = Just (V3 (i + 1)      j       k )
-    | j < jb  = Just (V3     ia  (j + 1)      k )
-    | i < ib  = Just (V3     ia      ja  (k + 1))
+  shapeStepBetween (V3 _ia ja ka) (V3 ib jb kb) (V3 i j k)
+    | k < kb  = Just (V3      i       j  (k + 1))
+    | j < jb  = Just (V3      i  (j + 1)     ka )
+    | i < ib  = Just (V3 (i + 1)     ja      ka )
     | otherwise  = Nothing
   {-# INLINE shapeStepBetween #-}
 
 instance Shape V4 where
   shapeStep (V4 x y z w) (V4 i j k l)
-    | l + 1 < w  = Just (V4 (i + 1)      j       k       l )
-    | k + 1 < z  = Just (V4      0  (j + 1)      k       l )
-    | j + 1 < y  = Just (V4      0       0  (k + 1)      l )
-    | i + 1 < x  = Just (V4      0       0       0  (l + 1))
+    | l + 1 < w  = Just (V4      i       j       k  (l + 1))
+    | k + 1 < z  = Just (V4      i       j  (k + 1)      0 )
+    | j + 1 < y  = Just (V4      i  (j + 1)      0       0 )
+    | i + 1 < x  = Just (V4 (i + 1)      0       0       0 )
     | otherwise  = Nothing
   {-# INLINE shapeStep #-}
 
-  shapeStepBetween (V4 ia ja ka _la) (V4 ib jb kb lb) (V4 i j k l)
-    | l < lb  = Just (V4 (i + 1)      j       k       l )
-    | k < kb  = Just (V4     ia  (j + 1)      k       l )
-    | j < jb  = Just (V4     ia      ja  (k + 1)      l )
-    | i < ib  = Just (V4     ia      ia      ka  (l + 1))
+  shapeStepBetween (V4 _ia ja ka la) (V4 ib jb kb lb) (V4 i j k l)
+    | l < lb  = Just (V4      i       j       k  (l + 1))
+    | k < kb  = Just (V4      i       j  (k + 1)     la )
+    | j < jb  = Just (V4      i  (j + 1)     ka      la )
+    | i < ib  = Just (V4 (i + 1)     ja      ka      la )
     | otherwise  = Nothing
   {-# INLINE shapeStepBetween #-}
 
