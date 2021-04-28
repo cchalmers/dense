@@ -291,7 +291,7 @@ indexesBetween a b = layout . shapeIndexesBetween a b
 -- | 'indexesBetween' for a 'Shape'.
 shapeIndexesBetween :: Shape f => f Int -> f Int -> IndexedFold Int (Layout f) (f Int)
 shapeIndexesBetween a b f l =
-  go (if eq1 l a || not (shapeInRange l b) then Nothing else Just a) where
+  go (if shapeInRange l a && (shapeInRange l (fmap (subtract 1) b)) then Just a else Nothing) where
     go (Just x) = indexed f (shapeToIndex l x) x *> go (shapeStepBetween a b x)
     go Nothing  = noEffect
 {-# INLINE shapeIndexesBetween #-}
