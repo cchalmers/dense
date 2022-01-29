@@ -2,7 +2,7 @@ name:                dense
 version:             0.1.0.1
 synopsis:            Mutable and immutable dense multidimensional arrays
 description:
-  Multidimentional array library build on top of the vector package,
+  Multidimensional array library build on top of the vector package,
   using indices from the linear package. Native support for mutable
   arrays, stencils and parallel computation.
 license:             BSD3
