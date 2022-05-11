@@ -1,5 +1,8 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Dense.Storable
@@ -160,6 +163,10 @@ module Data.Dense.Storable
   , G.locale
   , G.shiftFocus
 
+  -- ** Serialisation
+
+  , saveNpy
+
   -- ** Pointers
 
   , unsafeWithPtr
@@ -171,19 +178,23 @@ import           Control.Lens            hiding (imap)
 import           Control.Monad.Primitive
 import           Control.Monad.ST
 import qualified Data.Foldable           as F
+import qualified Data.List               as List
 import           Data.Vector.Storable    (Storable, Vector)
 import qualified Data.Vector.Storable    as S
+import           Data.Word               (Word16)
+import           Foreign                 (ForeignPtr, Ptr, alloca)
+import           Foreign.Storable
 import           Linear                  hiding (vector)
-import           Foreign (Ptr, ForeignPtr)
+import           System.IO
 
 import           Prelude                 hiding (map, null, replicate, zip,
                                           zip3, zipWith, zipWith3)
 
-import           Data.Dense.Base        (Array (..))
-import           Data.Dense.Generic     (SArray)
-import qualified Data.Dense.Generic     as G
+import           Data.Dense.Base         (Array (..))
+import           Data.Dense.Generic      (SArray)
+import qualified Data.Dense.Generic      as G
 import           Data.Dense.Index
-import           Data.Dense.Mutable     (SMArray)
+import           Data.Dense.Mutable      (SMArray)
 
 -- Lenses --------------------------------------------------------------
 
@@ -672,3 +683,24 @@ unsafeFromForeignPtr
 unsafeFromForeignPtr l fp = Array l (S.unsafeFromForeignPtr0 fp (shapeSize l))
 {-# INLINE unsafeFromForeignPtr #-}
 
+class Storable a => NumpyType a where
+  numpyType :: String
+
+instance NumpyType Float where numpyType = "<f4"
+instance NumpyType Double where numpyType = "<f8"
+
+saveNpy :: forall f a. (Shape f, NumpyType a) => FilePath -> SArray f a -> IO ()
+saveNpy path a = withBinaryFile path WriteMode $ \h -> do
+  -- see https://numpy.org/doc/stable/reference/generated/numpy.lib.format.html
+  let shapeStr = "(" <> (List.intercalate "," $ a ^.. layout . folded . to show) <> ")"
+      header = "{'descr': '" <> numpyType @a <> "', 'fortran_order': False, 'shape': " <> shapeStr <> " }"
+      unpaddedLen = 6 + 2 + 2 + length header + 1
+      paddedLen = ((unpaddedLen + 63) `div` 64) * 64
+      padding = paddedLen - unpaddedLen
+      headerLen = length header + padding + 1
+  hPutStr h "\x93NUMPY\x01\x00"
+  alloca $ \ptr -> poke ptr (fromIntegral headerLen :: Word16) >> hPutBuf h ptr 2
+  hPutStr h header
+  hPutStr h (List.replicate padding ' ')
+  hPutChar h '\n'
+  unsafeWithPtr a $ \ptr -> hPutBuf h ptr (size a * sizeOf (undefined :: a))
