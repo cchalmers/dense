@@ -2,7 +2,7 @@
 
 let pkgs = import sources.nixpkgs {};
     lib = pkgs.lib;
-    hpkgs = pkgs.haskell.packages.ghc8102;
+    hpkgs = pkgs.haskell.packages.ghc8104;
 
     cleanSource = name: type: let
       baseName = baseNameOf (toString name);
