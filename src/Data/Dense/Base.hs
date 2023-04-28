@@ -240,8 +240,6 @@ instance (Boxed v, Shape f) => FoldableWithIndex (f Int) (Array v f)
 instance (Boxed v, Shape f) => TraversableWithIndex (f Int) (Array v f) where
   itraverse = itraverseOf values
   {-# INLINE itraverse #-}
-  itraversed = values
-  {-# INLINE itraversed #-}
 
 instance (Boxed v, Shape f, Serial1 f) => Serial1 (Array v f) where
   serializeWith putF (Array l v) = do
@@ -424,9 +422,6 @@ instance Shape f => FoldableWithIndex (f Int) (Delayed f) where
   ifoldr f b (Delayed l ixF) = foldrOf shapeIndexes (\x -> f x (ixF x)) b l
   {-# INLINE ifoldr #-}
 
-  ifolded = ifoldring ifoldr
-  {-# INLINE ifolded #-}
-
   ifoldMap = foldDelayed
   {-# INLINE ifoldMap #-}
 
@@ -595,9 +590,6 @@ instance Shape f => FunctorWithIndex (f Int) (Focused f) where
 instance Shape f => FoldableWithIndex (f Int) (Focused f) where
   ifoldr f b (Focused u d) = ifoldr (f . (^-^ u)) b d
   {-# INLINE ifoldr #-}
-
-  ifolded = ifoldring ifoldr
-  {-# INLINE ifolded #-}
 
   ifoldMap f (Focused u d) = ifoldMap (f . (^-^) u) d
   {-# INLINE ifoldMap #-}
