@@ -179,7 +179,7 @@ import           Control.Monad.Primitive
 import           Control.Monad.ST
 import qualified Data.Foldable           as F
 import qualified Data.List               as List
-import           Data.Vector.Storable    (Storable, Vector)
+import           Data.Vector.Storable    (Vector)
 import qualified Data.Vector.Storable    as S
 import           Data.Word               (Word16)
 import           Foreign                 (ForeignPtr, Ptr, alloca)
