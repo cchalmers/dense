@@ -1,13 +1,17 @@
-{-# LANGUAGE DefaultSignatures      #-}
-{-# LANGUAGE DeriveDataTypeable     #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE LambdaCase             #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE Rank2Types             #-}
-{-# LANGUAGE TypeFamilies           #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE DefaultSignatures          #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FunctionalDependencies     #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE PatternSynonyms            #-}
+{-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE ViewPatterns               #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Dense.Mutable
@@ -39,6 +43,9 @@ module Data.Dense.Index
   , indexes
   , indexesBetween
   , indexesFrom
+
+    -- * Dynamic shapes
+  , DynIx(DynIx)
 
     -- * Exceptions
 
@@ -229,6 +236,7 @@ instance i ~ Int => HasLayout V1 (V1 i)
 instance i ~ Int => HasLayout V2 (V2 i)
 instance i ~ Int => HasLayout V3 (V3 i)
 instance i ~ Int => HasLayout V4 (V4 i)
+instance i ~ Int => HasLayout DynIx (DynIx i)
 
 -- | Get the extent of an array.
 --
@@ -317,7 +325,7 @@ shapeIndexesBetween a b f l =
 --
 -- >>> trying (_IndexOutOfBounds . _Show) (boundsCheck (V1 2) (V1 20) (putStrLn "in range")) :: IO (Either (V1 Int, V1 Int) ())
 -- Left (V1 20,V1 2)
-boundsCheck :: Shape l => Layout l-> l Int -> a -> a
+boundsCheck :: Shape l => Layout l -> l Int -> a -> a
 boundsCheck l i
   | shapeInRange l i = id
   | otherwise        = throwing _IndexOutOfBounds $ "(" ++ showShape i ++ ", " ++ showShape l ++ ")"
@@ -368,3 +376,23 @@ sizeMissmatch i j err
 showShape :: Shape f => f Int -> String
 showShape l = "V" ++ show (lengthOf folded l) ++ " " ++ unwords (show <$> F.toList l)
 
+-- | A dynamic shape that can be used to index into a 'Layout'.
+newtype DynIx a = DynIx { unDynIx :: [a] }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Applicative)
+
+instance Additive DynIx where
+  zero = DynIx []
+  {-# INLINE zero #-}
+  liftU2 f (DynIx xs0) (DynIx ys0) = DynIx $ go xs0 ys0 where
+    go (x:xs) (y:ys) = f x y : go xs ys
+    go _      _      = throw $ SizeMissmatch ("liftU2 mismatch: V" ++ show (length xs0) ++ " V" ++ show (length ys0))
+  {-# INLINE liftU2 #-}
+  liftI2 f (DynIx xs0) (DynIx ys0) = DynIx $ go xs0 ys0 where
+    go (x:xs) (y:ys) = f x y : go xs ys
+    go _      _      = throw $ SizeMissmatch ("liftI2 mismatch: V" ++ show (length xs0) ++ " V" ++ show (length ys0))
+  {-# INLINE liftI2 #-}
+
+instance Eq1 DynIx where
+  liftEq f (DynIx xs) (DynIx ys) = liftEq f xs ys
+
+instance Shape DynIx
