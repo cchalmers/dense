@@ -68,6 +68,23 @@ tupe = TupE
 tupe = TupE . map Just
 #endif
 
+#if MIN_VERSION_template_haskell(2,18,0)
+conP_ :: Name -> Pat
+conP_ = \a -> ConP a [] []
+#else
+conP_ :: Name -> Pat
+conP_ = \a -> ConP a []
+#endif
+
+#if MIN_VERSION_template_haskell(2,17,0)
+plainTV_ :: Name -> TyVarBndr Specificity
+plainTV_ = \a -> PlainTV a InferredSpec
+#else
+plainTV_ :: Name -> TyVarBndr
+plainTV_ = PlainTV
+#endif
+
+
 -- | QuasiQuoter for producing a dense arrays using a custom parser.
 --   Values are space separated, while also allowing infix expressions
 --   (like @5/7@). If you want to apply a function, it should be done in
@@ -569,7 +586,7 @@ pattern = do
 -- | Convert a name to an expression.
 identP :: String -> Pat
 identP "_"                 = WildP
-identP s@(x:_) | isUpper x = ConP (mkName s) []
+identP s@(x:_) | isUpper x = conP_ (mkName s)
 identP s                   = VarP (mkName s)
 
 -- | Parse from some punctuation.
@@ -604,7 +621,7 @@ vTuple n
       let xs = tupe $ map idx [0..n-1]
       a <- newName "a"
       let tup = iterate (\x -> AppT x (VarT a)) (TupleT n) !! n
-          typ = ForallT [PlainTV a] []
+          typ = ForallT [plainTV_ a] []
                   (AppT (AppT ArrowT (AppT (AppT (ConT ''V.V) (intT n)) (VarT a))) tup)
 
       [| (\(V.V $(pure $ VarP vN)) -> $(pure xs)) :: $(pure typ) |]
