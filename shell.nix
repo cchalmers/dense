@@ -3,7 +3,7 @@
 let pcg-random = import ./. { inherit sources; };
     pkgs = import sources.nixpkgs {};
     lib = pkgs.lib;
-    hpkgs = pkgs.haskell.packages.ghc8104;
+    hpkgs = pkgs.haskell.packages.ghc98;
 
 in hpkgs.shellFor {
   packages = ps: [ pcg-random ];

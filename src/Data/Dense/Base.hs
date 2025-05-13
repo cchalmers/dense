@@ -11,6 +11,7 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 -----------------------------------------------------------------------------
 -- |
@@ -65,7 +66,7 @@ import           Data.Foldable                   (Foldable)
 import           Data.Monoid                     (Monoid, mappend, mempty)
 #endif
 
-import           Control.Applicative             (liftA2)
+import           Control.Applicative             ()
 import           Control.Comonad
 import           Control.Comonad.Store
 import           Control.DeepSeq
@@ -315,7 +316,7 @@ instance (Vector v a, Foldable f, Eq1 f, Hashable a) => Hashable (Array v f a) w
   {-# INLINE hashWithSalt #-}
 
 -- deriving instance (Generic (v a), Generic1 f) => Generic (Array v f a)
-deriving instance (Typeable f, Typeable v, Typeable a, Data (f Int), Data (v a)) => Data (Array v f a)
+-- deriving instance (Typeable f, Typeable v, Typeable a, Data (f Int), Data (v a)) => Data (Array v f a)
 
 
 -- instance (Vector v a, Typeable v, Typeable l, Shape l, Data a) => Data (Array v l a) where
@@ -603,4 +604,3 @@ instance Shape f => TraversableWithIndex (f Int) (Focused f) where
 instance Shape f => Ixed (Focused f a) where
   ix i f (Focused u d) = Focused u <$> ix (i ^-^ u) f d
   {-# INLINE ix #-}
-
