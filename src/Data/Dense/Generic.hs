@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiWayIf            #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Dense.Generic
@@ -221,7 +222,7 @@ import           Data.Vector.Fusion.Bundle         (MBundle)
 import qualified Data.Vector.Fusion.Bundle         as Bundle
 import qualified Data.Vector.Fusion.Bundle.Monadic as MBundle
 import           Data.Vector.Fusion.Bundle.Size
-import           Data.Vector.Fusion.Stream.Monadic (Step (..), Stream (..))
+import           Data.Vector.Fusion.Stream.Monadic (Step (..), Stream (..), liftBox)
 import qualified Data.Vector.Fusion.Stream.Monadic as Stream
 import           Data.Vector.Generic               (Vector)
 import qualified Data.Vector.Generic               as G
@@ -551,7 +552,7 @@ streamGenerateM l f = l `seq` Stream step (if eq1 l zero then Nothing else Just 
 -- | Stream a sub-layout of an 'Array'. The layout should be shapeInRange of
 --   the array's layout, this is not checked.
 unsafeStreamSub :: (Monad m, Shape f, G.Vector v a) => Layout f -> Array v f a -> Stream m a
-unsafeStreamSub l2 (Array l1 v) = streamGenerateM l2 $ \x -> G.basicUnsafeIndexM v (shapeToIndex l1 x)
+unsafeStreamSub l2 (Array l1 v) = streamGenerateM l2 $ \x -> (liftBox $ G.basicUnsafeIndexM v (shapeToIndex l1 x))
 {-# INLINE unsafeStreamSub #-}
 
 -- | Stream a sub-layout of an 'Array'.
@@ -1024,4 +1025,3 @@ mirrorIndex !l !x = liftI2 f l x where
     | i < n     = i
     | otherwise = i - n
 {-# INLINE mirrorIndex #-}
-

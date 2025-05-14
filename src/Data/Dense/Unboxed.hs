@@ -495,6 +495,7 @@ izipWith3 = G.izipWith3
 ------------------------------------------------------------------------
 
 -- $setup
+-- >>> import Data.Dense.Generic (UArray, SArray, BArray)
 -- >>> import qualified Data.Vector.Unboxed as V
 -- >>> let m = fromListInto_ (V2 2 3) [1..] :: UArray V2 Int
 
@@ -663,4 +664,3 @@ affirm = delay . manifest
 seqAffirm :: (Shape f, Unbox a) => G.Delayed f a -> G.Delayed f a
 seqAffirm = delay . seqManifest
 {-# INLINE seqAffirm #-}
-

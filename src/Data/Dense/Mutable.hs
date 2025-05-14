@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Dense.Mutable
@@ -301,4 +302,3 @@ instance (MVector v a, f ~ V1) => MVector (MArray v f) a where
   basicUnsafeRead (MArray _ v) = GM.basicUnsafeRead v
   basicUnsafeWrite (MArray _ v) = GM.basicUnsafeWrite v
   basicInitialize (MArray _ v) = GM.basicInitialize v
-
